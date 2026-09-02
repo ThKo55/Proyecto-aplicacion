@@ -243,11 +243,47 @@ namespace AorusMarket.Formularios
                 return;
             }
 
-            // TODO: reemplazar por validación real contra la base de datos
-            Utilidades.SesionActual.IdUsuario = 1;
-            Utilidades.SesionActual.NombreCompleto = "Usuario de Prueba";
-            Utilidades.SesionActual.IdPerfil = 1;
-            Utilidades.SesionActual.NombrePerfil = "Administrador";
+            string correo = txtEmail.Text.ToLower().Trim();
+            string clave = txtPassword.Text;
+
+            // Simulamos que la contraseña para todos es "1234"
+            if (clave != "1234")
+            {
+                lblMensaje.Text = "Contraseña incorrecta (usa: 1234)";
+                return;
+            }
+
+            // ========================================================
+            // SIMULADOR DE PERFILES (Hasta conectar la Base de Datos)
+            // ========================================================
+            if (correo == "admin@aorus.com")
+            {
+                Utilidades.SesionActual.IdUsuario = 1;
+                Utilidades.SesionActual.NombreCompleto = "Juan (Admin)";
+                Utilidades.SesionActual.IdPerfil = 1;
+                Utilidades.SesionActual.NombrePerfil = "Administrador";
+            }
+            else if (correo == "ventas@aorus.com")
+            {
+                Utilidades.SesionActual.IdUsuario = 2;
+                Utilidades.SesionActual.NombreCompleto = "María (Vendedora)";
+                Utilidades.SesionActual.IdPerfil = 2;
+                Utilidades.SesionActual.NombrePerfil = "Cajero";
+            }
+            else if (correo == "stock@aorus.com")
+            {
+                Utilidades.SesionActual.IdUsuario = 3;
+                Utilidades.SesionActual.NombreCompleto = "Pedro (Bodega)";
+                Utilidades.SesionActual.IdPerfil = 3;
+                Utilidades.SesionActual.NombrePerfil = "Gestor de Stock";
+            }
+            else
+            {
+                lblMensaje.Text = "Correo no existe. Usa admin@, ventas@ o stock@";
+                return;
+            }
+
+            // Sucursal compartida para la prueba
             Utilidades.SesionActual.IdSucursal = 1;
             Utilidades.SesionActual.NombreSucursal = "Casa Central";
 

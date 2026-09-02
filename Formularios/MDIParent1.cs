@@ -10,7 +10,8 @@ namespace AorusMarket.Formularios
         private MenuStrip menuPrincipal;
         private StatusStrip barraEstado;
         private ToolStripStatusLabel lblUsuarioActivo;
-
+        private ToolStripMenuItem menuStockPadre;
+        private ToolStripMenuItem menuVentas;
         private ToolStripMenuItem menuUsuarios;
         private ToolStripMenuItem menuSucursales;
         private ToolStripMenuItem menuCategorias;
@@ -75,12 +76,14 @@ namespace AorusMarket.Formularios
             menuAdministracion.DropDownItems.AddRange(new ToolStripItem[]
                 { menuUsuarios, menuSucursales, menuCategorias, menuProductos });
 
-            var menuStockPadre = new ToolStripMenuItem("Stock");
+            // AQUÍ SE QUITÓ EL "var"
+            menuStockPadre = new ToolStripMenuItem("Stock");
             menuStock = new ToolStripMenuItem("Gestión de Stock");
             menuStock.Click += (s, e) => AbrirHijo(new FrmStock());
             menuStockPadre.DropDownItems.Add(menuStock);
 
-            var menuVentas = new ToolStripMenuItem("Ventas");
+            // AQUÍ SE QUITÓ EL "var"
+            menuVentas = new ToolStripMenuItem("Ventas");
             menuPuntoVenta = new ToolStripMenuItem("Punto de Venta");
             menuClientes = new ToolStripMenuItem("Clientes");
             menuPuntoVenta.Click += (s, e) => AbrirHijo(new FrmPuntoVenta());
@@ -95,9 +98,7 @@ namespace AorusMarket.Formularios
             menuPrincipal.Items.AddRange(new ToolStripItem[]
                 { menuArchivo, menuAdministracion, menuStockPadre, menuVentas, menuReportes });
 
-            // ==========================================
-            // NUEVO: Forzar color de texto y fondo en los submenús
-            // ==========================================
+            // Forzar color de texto y fondo en los submenús
             foreach (ToolStripItem item in menuPrincipal.Items)
             {
                 item.ForeColor = EstiloApp.Blanco;
@@ -129,22 +130,30 @@ namespace AorusMarket.Formularios
 
         private void AplicarPermisosPorPerfil()
         {
-            // 1 = Administrador, 2 = Cajero, 3 = Gestor de Stock (según tabla perfil)
+            // 1 = Administrador (Ve todo, no ocultamos nada)
+            // 2 = Cajero/Vendedor (Solo ve Ventas)
+            // 3 = Gestor de Stock (Solo ve Stock y Productos)
+
             if (SesionActual.IdPerfil != 1)
             {
+                // Si NO es admin, le quitamos la administración de usuarios y el Dashboard
                 menuUsuarios.Visible = false;
                 menuSucursales.Visible = false;
                 menuDashboard.Visible = false;
             }
-            if (SesionActual.IdPerfil == 2) // Cajero: no ve stock
+
+            if (SesionActual.IdPerfil == 2)
             {
-                menuStock.Visible = false;
+                // El Cajero/Vendedor NO debe ver el stock ni crear productos
+                menuStockPadre.Visible = false;
                 menuCategorias.Visible = false;
                 menuProductos.Visible = false;
             }
-            if (SesionActual.IdPerfil == 3) // Gestor de Stock: no ve punto de venta
+
+            if (SesionActual.IdPerfil == 3)
             {
-                menuPuntoVenta.Visible = false;
+                // El Gestor de Stock NO debe ver el menú de Ventas ni Clientes
+                menuVentas.Visible = false;
             }
         }
 
