@@ -27,6 +27,18 @@ namespace AorusMarket.Formularios
             ConstruirMenu();
             ConstruirBarraEstado();
             AplicarPermisosPorPerfil();
+
+            // =======================================================
+            // CÓDIGO NUEVO: Forzar el color oscuro en el fondo del MDI
+            // =======================================================
+            foreach (Control control in this.Controls)
+            {
+                if (control is MdiClient mdiClient)
+                {
+                    mdiClient.BackColor = EstiloApp.FondoPanel;
+                    break;
+                }
+            }
         }
 
         private void ConfigurarFormulario()
@@ -83,6 +95,22 @@ namespace AorusMarket.Formularios
             menuPrincipal.Items.AddRange(new ToolStripItem[]
                 { menuArchivo, menuAdministracion, menuStockPadre, menuVentas, menuReportes });
 
+            // ==========================================
+            // NUEVO: Forzar color de texto y fondo en los submenús
+            // ==========================================
+            foreach (ToolStripItem item in menuPrincipal.Items)
+            {
+                item.ForeColor = EstiloApp.Blanco;
+                if (item is ToolStripMenuItem menuItem)
+                {
+                    foreach (ToolStripItem subItem in menuItem.DropDownItems)
+                    {
+                        subItem.ForeColor = EstiloApp.Blanco;
+                        subItem.BackColor = EstiloApp.FondoPanel;
+                    }
+                }
+            }
+
             this.MainMenuStrip = menuPrincipal;
             this.Controls.Add(menuPrincipal);
         }
@@ -123,6 +151,13 @@ namespace AorusMarket.Formularios
         private void AbrirHijo(Form formHijo)
         {
             formHijo.MdiParent = this;
+
+            // =======================================================
+            // CÓDIGO NUEVO: Re-aplicar el color al hijo después de 
+            // asignarle el MdiParent (porque Windows lo borra)
+            // =======================================================
+            formHijo.BackColor = EstiloApp.Fondo;
+
             formHijo.WindowState = FormWindowState.Maximized;
             formHijo.Show();
         }
@@ -140,19 +175,20 @@ namespace AorusMarket.Formularios
             }
         }
     }
-
-    // Clase auxiliar para pintar el menú en negro/rojo
+    // Clase auxiliar para pintar el menú minimalista
     internal class ColoresMenu : ProfessionalColorTable
     {
         public override Color MenuItemSelected => EstiloApp.RojoOscuro;
-        public override Color MenuItemBorder => EstiloApp.RojoNeon;
+        public override Color MenuItemBorder => Color.Transparent; // Quitamos el borde duro para que sea más limpio
         public override Color MenuItemSelectedGradientBegin => EstiloApp.RojoOscuro;
         public override Color MenuItemSelectedGradientEnd => EstiloApp.RojoOscuro;
+        public override Color MenuItemPressedGradientBegin => EstiloApp.FondoPanel;
+        public override Color MenuItemPressedGradientEnd => EstiloApp.FondoPanel;
         public override Color ToolStripDropDownBackground => EstiloApp.FondoPanel;
         public override Color ImageMarginGradientBegin => EstiloApp.FondoPanel;
         public override Color ImageMarginGradientMiddle => EstiloApp.FondoPanel;
         public override Color ImageMarginGradientEnd => EstiloApp.FondoPanel;
-        public override Color MenuBorder => EstiloApp.RojoNeon;
+        public override Color MenuBorder => EstiloApp.Fondo;
         public override Color MenuStripGradientBegin => EstiloApp.Fondo;
         public override Color MenuStripGradientEnd => EstiloApp.Fondo;
     }
