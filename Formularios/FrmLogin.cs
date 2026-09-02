@@ -1,4 +1,5 @@
-﻿using System;
+﻿using AorusMarket.Utilidades;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -6,13 +7,14 @@ namespace AorusMarket.Formularios
 {
     public partial class FrmLogin : Form
     {
-        // Paleta neón negro/rojo
-        private readonly Color colorFondo = Color.FromArgb(12, 12, 12);
-        private readonly Color colorRojoNeon = Color.FromArgb(255, 23, 68);
-        private readonly Color colorRojoOscuro = Color.FromArgb(90, 10, 20);
-        private readonly Color colorGris = Color.FromArgb(140, 140, 140);
-        private readonly Color colorCampo = Color.FromArgb(20, 20, 20);
+        // Ahora usamos directamente la paleta minimalista de EstiloApp
+        private readonly Color colorFondo = EstiloApp.Fondo;
+        private readonly Color colorRojoNeon = EstiloApp.RojoNeon;
+        private readonly Color colorRojoOscuro = EstiloApp.RojoOscuro;
+        private readonly Color colorGris = EstiloApp.Gris;
+        private readonly Color colorCampo = EstiloApp.FondoPanel;
 
+        // ... el resto de tu código queda igual
         private TextBox txtEmail;
         private TextBox txtPassword;
         private Label lblMensaje;
