@@ -259,21 +259,21 @@ namespace AorusMarket.Formularios
             // ========================================================
             // SIMULADOR DE PERFILES (Hasta conectar la Base de Datos)
             // ========================================================
-            if (correo == "admin@aorus.com")
+            if (correo == "admin")
             {
                 Utilidades.SesionActual.IdUsuario = 1;
                 Utilidades.SesionActual.NombreCompleto = "Juan (Admin)";
                 Utilidades.SesionActual.IdPerfil = 1;
                 Utilidades.SesionActual.NombrePerfil = "Administrador";
             }
-            else if (correo == "ventas@aorus.com")
+            else if (correo == "ventas")
             {
                 Utilidades.SesionActual.IdUsuario = 2;
                 Utilidades.SesionActual.NombreCompleto = "María (Vendedora)";
                 Utilidades.SesionActual.IdPerfil = 2;
                 Utilidades.SesionActual.NombrePerfil = "Cajero";
             }
-            else if (correo == "stock@aorus.com")
+            else if (correo == "stock")
             {
                 Utilidades.SesionActual.IdUsuario = 3;
                 Utilidades.SesionActual.NombreCompleto = "Pedro (Bodega)";
