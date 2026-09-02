@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Drawing;
+using System.Reflection;
 using System.Windows.Forms;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
@@ -11,10 +12,7 @@ namespace AorusMarket.Formularios
         private System.Windows.Forms.Panel panelMenuLateral;
         private System.Windows.Forms.Panel panelContenedor;
         private System.Windows.Forms.Panel panelLogo;
-
-        // EL NUEVO INDICADOR VISUAL (La rayita que se mueve)
         private System.Windows.Forms.Panel pnlIndicador;
-
         private System.Windows.Forms.Label lblUsuarioActivo;
         private System.Windows.Forms.Label lblLogoTexto;
 
@@ -23,13 +21,18 @@ namespace AorusMarket.Formularios
         private Form formularioActivo = null;
         private CyberButton botonActivo = null;
 
+        private System.Windows.Forms.Timer timerIndicador;
+
         public MDIParent1()
         {
             InitializeComponent();
             ConfigurarFormulario();
             ConstruirInterfazModerno();
-            AplicarPermisosPorPerfil();
 
+            ActivarDoubleBuffering(panelContenedor);
+            ActivarDoubleBuffering(panelMenuLateral);
+
+            AplicarPermisosPorPerfil();
             this.FormClosed += (s, e) => Application.Exit();
         }
 
@@ -42,7 +45,6 @@ namespace AorusMarket.Formularios
 
         private void ConstruirInterfazModerno()
         {
-            // 1. EL MENÚ LATERAL (SIDEBAR)
             panelMenuLateral = new System.Windows.Forms.Panel
             {
                 Dock = DockStyle.Left,
@@ -50,9 +52,9 @@ namespace AorusMarket.Formularios
                 BackColor = EstiloApp.FondoPanel
             };
 
-            // 1.1 Panel arriba para el Botón Hamburguesa, Logo y Usuario
             panelLogo = new System.Windows.Forms.Panel { Dock = DockStyle.Top, Height = 90, BackColor = Color.FromArgb(30, 34, 38) };
 
+            // BOTÓN HAMBURGUESA CORREGIDO (Sin ColorBackground_Hover)
             CyberButton btnToggle = new CyberButton
             {
                 TextButton = "☰",
@@ -92,17 +94,15 @@ namespace AorusMarket.Formularios
             panelLogo.Controls.Add(lblUsuarioActivo);
             panelMenuLateral.Controls.Add(panelLogo);
 
-            // 1.2 EL INDICADOR ACTIVO (Rayita roja vertical)
             pnlIndicador = new System.Windows.Forms.Panel
             {
                 Size = new Size(4, 42),
                 BackColor = EstiloApp.RojoNeon,
                 Left = 0,
-                Visible = false // Se oculta hasta que selecciones un botón
+                Visible = false
             };
             panelMenuLateral.Controls.Add(pnlIndicador);
 
-            // 2. EL PANEL CONTENEDOR 
             panelContenedor = new System.Windows.Forms.Panel
             {
                 Dock = DockStyle.Fill,
@@ -114,7 +114,6 @@ namespace AorusMarket.Formularios
             panelMenuLateral.SendToBack();
             panelContenedor.BringToFront();
 
-            // 3. CREACIÓN DE BOTONES DEL MENÚ LATERAL
             int yPos = 110;
             int btnHeight = 45;
 
@@ -162,8 +161,12 @@ namespace AorusMarket.Formularios
             panelMenuLateral.Controls.Add(btnSucursales);
             panelMenuLateral.Controls.Add(btnDashboard);
             panelMenuLateral.Controls.Add(btnCerrarSesion);
+
+            timerIndicador = new System.Windows.Forms.Timer { Interval = 15 };
+            timerIndicador.Tick += TimerIndicador_Tick;
         }
 
+        // BOTONES DE MENÚ CORREGIDOS (Sin ColorBackground_Hover)
         private CyberButton CrearBotonMenu(string texto, int yPos)
         {
             CyberButton btn = new CyberButton
@@ -178,7 +181,6 @@ namespace AorusMarket.Formularios
                 ColorBackground = Color.Transparent,
                 ColorBackground_Pen = Color.Transparent,
                 ForeColor = EstiloApp.Gris,
-                // CAMBIAMOS LA FUENTE A "Segoe UI Emoji" PARA QUE LOS ICONOS NO SE ROMPAN
                 Font = new Font("Segoe UI Emoji", 10.5F, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
@@ -203,6 +205,64 @@ namespace AorusMarket.Formularios
             return btn;
         }
 
+        private void TimerIndicador_Tick(object sender, EventArgs e)
+        {
+            if (botonActivo == null) return;
+
+            int distancia = botonActivo.Top - pnlIndicador.Top;
+
+            if (Math.Abs(distancia) <= 1)
+            {
+                pnlIndicador.Top = botonActivo.Top;
+                timerIndicador.Stop();
+            }
+            else
+            {
+                pnlIndicador.Top += distancia / 3;
+            }
+        }
+
+        private void BtnToggle_Click(object sender, EventArgs e)
+        {
+            if (panelMenuLateral.Width == 250)
+            {
+                panelMenuLateral.Width = 60;
+                lblLogoTexto.Visible = false;
+                lblUsuarioActivo.Visible = false;
+                ModificarTextoBotones(true);
+            }
+            else
+            {
+                panelMenuLateral.Width = 250;
+                lblLogoTexto.Visible = true;
+                lblUsuarioActivo.Visible = true;
+                ModificarTextoBotones(false);
+            }
+        }
+
+        private void ModificarTextoBotones(bool soloIconos)
+        {
+            CyberButton[] todosLosBotones = { btnPuntoVenta, btnClientes, btnStock, btnProductos, btnCategorias, btnUsuarios, btnSucursales, btnDashboard, btnCerrarSesion };
+
+            foreach (var b in todosLosBotones)
+            {
+                if (b != null)
+                {
+                    if (soloIconos)
+                    {
+                        b.Size = new Size(50, 42);
+                        if (b.Tag.ToString().Contains(" "))
+                            b.TextButton = b.Tag.ToString().Split(' ')[0];
+                    }
+                    else
+                    {
+                        b.Size = new Size(240, 42);
+                        b.TextButton = b.Tag.ToString();
+                    }
+                }
+            }
+        }
+
         private void ResaltarBotonActivo(CyberButton btnClickeado)
         {
             CyberButton[] todosLosBotones = { btnPuntoVenta, btnClientes, btnStock, btnProductos, btnCategorias, btnUsuarios, btnSucursales, btnDashboard };
@@ -213,57 +273,21 @@ namespace AorusMarket.Formularios
                 {
                     b.ColorBackground = Color.Transparent;
                     b.ForeColor = EstiloApp.Gris;
+                    b.Refresh();
                 }
             }
 
             btnClickeado.ColorBackground = EstiloApp.RojoOscuro;
             btnClickeado.ForeColor = EstiloApp.Blanco;
+            btnClickeado.Refresh();
 
             botonActivo = btnClickeado;
 
-            // HACEMOS QUE LA RAYITA ROJA PERSIGA AL BOTÓN PRESIONADO
-            pnlIndicador.Top = btnClickeado.Top;
             pnlIndicador.Visible = true;
             pnlIndicador.BringToFront();
+            timerIndicador.Start();
 
             this.ActiveControl = null;
-        }
-
-        private void BtnToggle_Click(object sender, EventArgs e)
-        {
-            CyberButton[] todosLosBotones = { btnPuntoVenta, btnClientes, btnStock, btnProductos, btnCategorias, btnUsuarios, btnSucursales, btnDashboard, btnCerrarSesion };
-
-            if (panelMenuLateral.Width == 250)
-            {
-                panelMenuLateral.Width = 60;
-                lblLogoTexto.Visible = false;
-                lblUsuarioActivo.Visible = false;
-
-                foreach (var b in todosLosBotones)
-                {
-                    if (b != null)
-                    {
-                        b.Size = new Size(50, 42);
-                        if (b.Tag.ToString().Contains(" "))
-                            b.TextButton = b.Tag.ToString().Split(' ')[0];
-                    }
-                }
-            }
-            else
-            {
-                panelMenuLateral.Width = 250;
-                lblLogoTexto.Visible = true;
-                lblUsuarioActivo.Visible = true;
-
-                foreach (var b in todosLosBotones)
-                {
-                    if (b != null)
-                    {
-                        b.Size = new Size(240, 42);
-                        b.TextButton = b.Tag.ToString();
-                    }
-                }
-            }
         }
 
         private void AbrirFormularioEnPanel(Form formHijo)
@@ -301,6 +325,7 @@ namespace AorusMarket.Formularios
                 btnCategorias.Visible = false;
 
                 ResaltarBotonActivo(btnPuntoVenta);
+                pnlIndicador.Top = btnPuntoVenta.Top;
                 AbrirFormularioEnPanel(new FrmPuntoVenta());
             }
             else if (SesionActual.IdPerfil == 3)
@@ -309,11 +334,13 @@ namespace AorusMarket.Formularios
                 btnClientes.Visible = false;
 
                 ResaltarBotonActivo(btnStock);
+                pnlIndicador.Top = btnStock.Top;
                 AbrirFormularioEnPanel(new FrmStock());
             }
             else
             {
                 ResaltarBotonActivo(btnDashboard);
+                pnlIndicador.Top = btnDashboard.Top;
                 AbrirFormularioEnPanel(new FrmDashboard());
             }
         }
@@ -329,6 +356,13 @@ namespace AorusMarket.Formularios
                 FrmLogin login = new FrmLogin();
                 login.Show();
             }
+        }
+
+        private void ActivarDoubleBuffering(Control control)
+        {
+            typeof(Control).InvokeMember("DoubleBuffered",
+                BindingFlags.SetProperty | BindingFlags.Instance | BindingFlags.NonPublic,
+                null, control, new object[] { true });
         }
     }
 }
