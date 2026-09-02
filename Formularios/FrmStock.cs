@@ -2,15 +2,19 @@
 using System.Drawing;
 using System.Windows.Forms;
 using AorusMarket.Utilidades;
+using ReaLTaiizor.Controls; // IMPORTANTE: Agregado para que reconozca los nuevos controles
 
 namespace AorusMarket.Formularios
 {
     public partial class FrmStock : Form
     {
         private ComboBox cmbProducto, cmbSucursal;
-        private TextBox txtCantidad, txtPrecio;
+
+        // 1. Cambiamos TextBox por CyberTextBox y Button por CyberButton
+        private CyberTextBox txtCantidad, txtPrecio;
         private DataGridView dgvStock;
-        private Button btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
+        private CyberButton btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
+
         private int idSeleccionado = 0;
 
         public FrmStock()
@@ -47,10 +51,12 @@ namespace AorusMarket.Formularios
             btnGuardar = EstiloApp.CrearBoton("GUARDAR", new Point(x + 160, y), 150, EstiloApp.Verde);
             btnEliminar = EstiloApp.CrearBoton("ELIMINAR", new Point(x + 320, y), 150, EstiloApp.RojoNeon);
             btnLimpiar = EstiloApp.CrearBoton("LIMPIAR", new Point(x + 480, y), 150, EstiloApp.Gris);
+
             btnNuevo.Click += (s, e) => LimpiarCampos();
             btnLimpiar.Click += (s, e) => LimpiarCampos();
             btnGuardar.Click += BtnGuardar_Click;
             btnEliminar.Click += BtnEliminar_Click;
+
             this.Controls.Add(btnNuevo);
             this.Controls.Add(btnGuardar);
             this.Controls.Add(btnEliminar);
@@ -70,9 +76,11 @@ namespace AorusMarket.Formularios
             dgvStock.Columns.Add("Cantidad", "Cantidad");
             dgvStock.Columns.Add("Precio", "Precio");
             dgvStock.Columns["IdStock"].Visible = false;
+
             // Pinta de rojo la fila si la cantidad está por debajo del mínimo (RF-12)
             dgvStock.CellFormatting += DgvStock_CellFormatting;
             dgvStock.SelectionChanged += DgvStock_SelectionChanged;
+
             this.Controls.Add(dgvStock);
         }
 
@@ -92,8 +100,8 @@ namespace AorusMarket.Formularios
             if (dgvStock.CurrentRow == null) return;
             var fila = dgvStock.CurrentRow;
             idSeleccionado = Convert.ToInt32(fila.Cells["IdStock"].Value ?? 0);
-            txtCantidad.Text = fila.Cells["Cantidad"].Value?.ToString();
-            txtPrecio.Text = fila.Cells["Precio"].Value?.ToString();
+            txtCantidad.TextButton = fila.Cells["Cantidad"].Value?.ToString();
+            txtPrecio.TextButton = fila.Cells["Precio"].Value?.ToString();
         }
 
         private void LimpiarCampos()
@@ -101,27 +109,26 @@ namespace AorusMarket.Formularios
             idSeleccionado = 0;
             cmbProducto.SelectedIndex = -1;
             cmbSucursal.SelectedIndex = -1;
-            txtCantidad.Clear();
-            txtPrecio.Clear();
+            txtCantidad.TextButton = "";
+            txtPrecio.TextButton = "";
             dgvStock.ClearSelection();
         }
 
         private void BtnGuardar_Click(object sender, EventArgs e)
         {
             if (cmbProducto.SelectedIndex == -1 || cmbSucursal.SelectedIndex == -1 ||
-                string.IsNullOrWhiteSpace(txtCantidad.Text) || string.IsNullOrWhiteSpace(txtPrecio.Text))
+                string.IsNullOrWhiteSpace(txtCantidad.TextButton) || string.IsNullOrWhiteSpace(txtPrecio.TextButton))
             {
                 MessageBox.Show("Debe completar todos los campos", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-            if (!int.TryParse(txtCantidad.Text, out _) || !decimal.TryParse(txtPrecio.Text, out _))
+            if (!int.TryParse(txtCantidad.TextButton, out _) || !decimal.TryParse(txtPrecio.TextButton, out _))
             {
                 MessageBox.Show("Cantidad y Precio deben ser numéricos", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-            // TODO: insertar o actualizar en la base de datos (StockSucursalDAL)
             MessageBox.Show("Stock guardado (falta conectar la base de datos)", "AorusMarket");
         }
 

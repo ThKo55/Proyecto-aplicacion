@@ -2,14 +2,16 @@
 using System.Drawing;
 using System.Windows.Forms;
 using AorusMarket.Utilidades;
+using ReaLTaiizor.Controls; // IMPORTANTE: Agregado para que reconozca los nuevos controles
 
 namespace AorusMarket.Formularios
 {
     public partial class FrmClientes : Form
     {
-        private TextBox txtNombre, txtApellido, txtDni, txtTelefono, txtEmail, txtDireccion;
+        // 1. Cambiamos TextBox por CyberTextBox y Button por CyberButton
+        private CyberTextBox txtNombre, txtApellido, txtDni, txtTelefono, txtEmail, txtDireccion;
         private DataGridView dgvClientes;
-        private Button btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
+        private CyberButton btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
         private int idSeleccionado = 0;
 
         public FrmClientes()
@@ -55,10 +57,12 @@ namespace AorusMarket.Formularios
             btnGuardar = EstiloApp.CrearBoton("GUARDAR", new Point(x + 160, y), 150, EstiloApp.Verde);
             btnEliminar = EstiloApp.CrearBoton("ELIMINAR", new Point(x + 320, y), 150, EstiloApp.RojoNeon);
             btnLimpiar = EstiloApp.CrearBoton("LIMPIAR", new Point(x + 480, y), 150, EstiloApp.Gris);
+
             btnNuevo.Click += (s, e) => LimpiarCampos();
             btnLimpiar.Click += (s, e) => LimpiarCampos();
             btnGuardar.Click += BtnGuardar_Click;
             btnEliminar.Click += BtnEliminar_Click;
+
             this.Controls.Add(btnNuevo);
             this.Controls.Add(btnGuardar);
             this.Controls.Add(btnEliminar);
@@ -89,35 +93,34 @@ namespace AorusMarket.Formularios
             if (dgvClientes.CurrentRow == null) return;
             var fila = dgvClientes.CurrentRow;
             idSeleccionado = Convert.ToInt32(fila.Cells["IdCliente"].Value ?? 0);
-            txtNombre.Text = fila.Cells["Nombre"].Value?.ToString();
-            txtApellido.Text = fila.Cells["Apellido"].Value?.ToString();
-            txtDni.Text = fila.Cells["Dni"].Value?.ToString();
-            txtTelefono.Text = fila.Cells["Telefono"].Value?.ToString();
-            txtEmail.Text = fila.Cells["Email"].Value?.ToString();
-            txtDireccion.Text = fila.Cells["Direccion"].Value?.ToString();
+            txtNombre.TextButton = fila.Cells["Nombre"].Value?.ToString();
+            txtApellido.TextButton = fila.Cells["Apellido"].Value?.ToString();
+            txtDni.TextButton = fila.Cells["Dni"].Value?.ToString();
+            txtTelefono.TextButton = fila.Cells["Telefono"].Value?.ToString();
+            txtEmail.TextButton = fila.Cells["Email"].Value?.ToString();
+            txtDireccion.TextButton = fila.Cells["Direccion"].Value?.ToString();
         }
 
         private void LimpiarCampos()
         {
             idSeleccionado = 0;
-            txtNombre.Clear();
-            txtApellido.Clear();
-            txtDni.Clear();
-            txtTelefono.Clear();
-            txtEmail.Clear();
-            txtDireccion.Clear();
+            txtNombre.TextButton = "";
+            txtApellido.TextButton = "";
+            txtDni.TextButton = "";
+            txtTelefono.TextButton = "";
+            txtEmail.TextButton = "";
+            txtDireccion.TextButton = "";
             dgvClientes.ClearSelection();
         }
 
         private void BtnGuardar_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtNombre.Text) || string.IsNullOrWhiteSpace(txtApellido.Text))
+            if (string.IsNullOrWhiteSpace(txtNombre.TextButton) || string.IsNullOrWhiteSpace(txtApellido.TextButton))
             {
                 MessageBox.Show("Debe completar Nombre y Apellido", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-            // TODO: insertar o actualizar en la base de datos (ClienteDAL)
             MessageBox.Show("Cliente guardado (falta conectar la base de datos)", "AorusMarket");
         }
 

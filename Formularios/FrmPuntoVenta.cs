@@ -2,17 +2,19 @@
 using System.Drawing;
 using System.Windows.Forms;
 using AorusMarket.Utilidades;
+using ReaLTaiizor.Controls; // IMPORTANTE: Agregado para que reconozca los nuevos controles
 
 namespace AorusMarket.Formularios
 {
     public partial class FrmPuntoVenta : Form
     {
-        private TextBox txtBuscar;
+        // 1. Cambiamos TextBox por CyberTextBox y Button por CyberButton
+        private CyberTextBox txtBuscar;
         private DataGridView dgvBusqueda;
         private DataGridView dgvCarrito;
         private ComboBox cmbCliente, cmbMetodoPago;
         private Label lblTotal;
-        private Button btnAgregar, btnQuitar, btnConfirmar, btnCancelar;
+        private CyberButton btnAgregar, btnQuitar, btnConfirmar, btnCancelar;
 
         public FrmPuntoVenta()
         {
@@ -28,11 +30,18 @@ namespace AorusMarket.Formularios
 
             // ---------- Búsqueda de productos ----------
             this.Controls.Add(EstiloApp.CrearLabel("BUSCAR PRODUCTO (nombre o código)", new Point(30, 70)));
-            txtBuscar = EstiloApp.CrearTextBox(new Point(30, 90), 400);
-            txtBuscar.TextChanged += TxtBuscar_TextChanged;
+
+            // Achicamos un poco la caja de texto para hacer espacio
+            txtBuscar = EstiloApp.CrearTextBox(new Point(30, 90), 300);
+            // ¡Se eliminó la línea de TextChanged que causaba el error!
             this.Controls.Add(txtBuscar);
 
-            btnAgregar = EstiloApp.CrearBoton("AGREGAR AL CARRITO", new Point(440, 89), 220, EstiloApp.Verde);
+            // NUEVO: Botón explícito para realizar la búsqueda
+            CyberButton btnBuscar = EstiloApp.CrearBoton("BUSCAR", new Point(340, 89), 100, EstiloApp.Gris);
+            btnBuscar.Click += BtnBuscar_Click;
+            this.Controls.Add(btnBuscar);
+
+            btnAgregar = EstiloApp.CrearBoton("AGREGAR AL CARRITO", new Point(450, 89), 220, EstiloApp.Verde);
             btnAgregar.Click += BtnAgregar_Click;
             this.Controls.Add(btnAgregar);
 
@@ -89,7 +98,7 @@ namespace AorusMarket.Formularios
             lblTotal = new Label
             {
                 Text = "TOTAL: $0.00",
-                Font = new Font("Arial Black", 16F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 16F, FontStyle.Bold), // Ajustado para mantener la tipografía general
                 ForeColor = EstiloApp.RojoNeon,
                 BackColor = Color.Transparent,
                 AutoSize = true,
@@ -110,6 +119,17 @@ namespace AorusMarket.Formularios
         {
             // TODO: buscar en stock_sucursal filtrando por SesionActual.IdSucursal
             // y cargar resultados en dgvBusqueda
+        }
+
+        private void BtnBuscar_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtBuscar.TextButton))
+            {
+                MessageBox.Show("Escriba el nombre o código del producto a buscar.", "Aviso",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            MessageBox.Show($"Buscando: {txtBuscar.TextButton} (Falta conectar DB)", "AorusMarket");
         }
 
         private void BtnAgregar_Click(object sender, EventArgs e)
@@ -166,13 +186,12 @@ namespace AorusMarket.Formularios
                 LimpiarVenta();
             }
         }
-
         private void LimpiarVenta()
         {
             dgvCarrito.Rows.Clear();
             cmbCliente.SelectedIndex = -1;
             cmbMetodoPago.SelectedIndex = -1;
-            txtBuscar.Clear();
+            txtBuscar.TextButton = "";
             RecalcularTotal();
         }
     }

@@ -25,6 +25,9 @@ namespace AorusMarket.Formularios
             InitializeComponent();
             ConfigurarFormulario();
             ConstruirInterfaz();
+
+            // 👇 AGREGAR ESTA LÍNEA AL FINAL 👇
+            this.FormClosed += (s, e) => Application.Exit();
         }
 
         private void ConfigurarFormulario()

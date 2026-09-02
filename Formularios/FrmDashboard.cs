@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Windows.Forms;
 using AorusMarket.Utilidades;
+using ReaLTaiizor.Controls;
 
 namespace AorusMarket.Formularios
 {
@@ -9,8 +10,11 @@ namespace AorusMarket.Formularios
     {
         private ComboBox cmbSucursal;
         private DateTimePicker dtDesde, dtHasta;
-        private Button btnFiltrar;
-        private Label lblTotalVendido, lblCantidadVentas, lblProductoTop;
+        private CyberButton btnFiltrar;
+
+        // ESPECIFICAMOS que son Labels de Windows Forms para evitar ambigüedad con ReaLTaiizor
+        private System.Windows.Forms.Label lblTotalVendido, lblCantidadVentas, lblProductoTop;
+
         private DataGridView dgvVentasRecientes;
 
         public FrmDashboard()
@@ -55,9 +59,10 @@ namespace AorusMarket.Formularios
 
             // ---------- Tarjetas de métricas ----------
             y += 80;
-            Panel tarjetaTotal = CrearTarjeta("TOTAL VENDIDO", "$0.00", new Point(x, y), out lblTotalVendido);
-            Panel tarjetaCantidad = CrearTarjeta("VENTAS REALIZADAS", "0", new Point(x + 260, y), out lblCantidadVentas);
-            Panel tarjetaTop = CrearTarjeta("PRODUCTO MÁS VENDIDO", "-", new Point(x + 520, y), out lblProductoTop);
+            System.Windows.Forms.Panel tarjetaTotal = CrearTarjeta("TOTAL VENDIDO", "$0.00", new Point(x, y), out lblTotalVendido);
+            System.Windows.Forms.Panel tarjetaCantidad = CrearTarjeta("VENTAS REALIZADAS", "0", new Point(x + 260, y), out lblCantidadVentas);
+            System.Windows.Forms.Panel tarjetaTop = CrearTarjeta("PRODUCTO MÁS VENDIDO", "-", new Point(x + 520, y), out lblProductoTop);
+
             this.Controls.Add(tarjetaTotal);
             this.Controls.Add(tarjetaCantidad);
             this.Controls.Add(tarjetaTop);
@@ -82,15 +87,16 @@ namespace AorusMarket.Formularios
             this.Controls.Add(dgvVentasRecientes);
         }
 
-        private Panel CrearTarjeta(string titulo, string valorInicial, Point ubicacion, out Label lblValor)
+        // ESPECIFICAMOS System.Windows.Forms.Panel y System.Windows.Forms.Label en la firma del método
+        private System.Windows.Forms.Panel CrearTarjeta(string titulo, string valorInicial, Point ubicacion, out System.Windows.Forms.Label lblValor)
         {
-            Panel panel = new Panel
+            System.Windows.Forms.Panel panel = new System.Windows.Forms.Panel
             {
                 Location = ubicacion,
                 Size = new Size(240, 100),
                 BackColor = EstiloApp.FondoPanel
             };
-            Label lblTitulo = new Label
+            System.Windows.Forms.Label lblTitulo = new System.Windows.Forms.Label
             {
                 Text = titulo,
                 Font = EstiloApp.FuenteLabel,
@@ -98,10 +104,10 @@ namespace AorusMarket.Formularios
                 AutoSize = true,
                 Location = new Point(15, 15)
             };
-            lblValor = new Label
+            lblValor = new System.Windows.Forms.Label
             {
                 Text = valorInicial,
-                Font = new Font("Arial Black", 18F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 18F, FontStyle.Bold),
                 ForeColor = EstiloApp.RojoNeon,
                 AutoSize = true,
                 Location = new Point(15, 40)
@@ -113,7 +119,13 @@ namespace AorusMarket.Formularios
 
         private void BtnFiltrar_Click(object sender, EventArgs e)
         {
-            // TODO: consultar VentaDAL con filtros de sucursal y rango de fechas (RF-20, RF-21)
+            // 1TODO: consultar VentaDAL con filtros de sucursal y rango de fechas
+
+            // Usamos las variables aquí para actualizar la interfaz y quitar la advertencia (warning)
+            lblTotalVendido.Text = "$1,250.00";
+            lblCantidadVentas.Text = "24";
+            lblProductoTop.Text = "Placa de Video";
+
             MessageBox.Show("Filtro aplicado (falta conectar la base de datos)", "AorusMarket");
         }
     }

@@ -2,14 +2,16 @@
 using System.Drawing;
 using System.Windows.Forms;
 using AorusMarket.Utilidades;
+using ReaLTaiizor.Controls; // IMPORTANTE: Agregado para que reconozca los nuevos controles
 
 namespace AorusMarket.Formularios
 {
     public partial class FrmSucursales : Form
     {
-        private TextBox txtNombre, txtDireccion, txtTelefono;
+        // 1. Cambiamos TextBox por CyberTextBox y Button por CyberButton
+        private CyberTextBox txtNombre, txtDireccion, txtTelefono;
         private DataGridView dgvSucursales;
-        private Button btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
+        private CyberButton btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
         private int idSeleccionado = 0;
 
         public FrmSucursales()
@@ -42,10 +44,12 @@ namespace AorusMarket.Formularios
             btnGuardar = EstiloApp.CrearBoton("GUARDAR", new Point(x + 160, y), 150, EstiloApp.Verde);
             btnEliminar = EstiloApp.CrearBoton("ELIMINAR", new Point(x + 320, y), 150, EstiloApp.RojoNeon);
             btnLimpiar = EstiloApp.CrearBoton("LIMPIAR", new Point(x + 480, y), 150, EstiloApp.Gris);
+
             btnNuevo.Click += (s, e) => LimpiarCampos();
             btnLimpiar.Click += (s, e) => LimpiarCampos();
             btnGuardar.Click += BtnGuardar_Click;
             btnEliminar.Click += BtnEliminar_Click;
+
             this.Controls.Add(btnNuevo);
             this.Controls.Add(btnGuardar);
             this.Controls.Add(btnEliminar);
@@ -73,29 +77,28 @@ namespace AorusMarket.Formularios
             if (dgvSucursales.CurrentRow == null) return;
             var fila = dgvSucursales.CurrentRow;
             idSeleccionado = Convert.ToInt32(fila.Cells["IdSucursal"].Value ?? 0);
-            txtNombre.Text = fila.Cells["Nombre"].Value?.ToString();
-            txtDireccion.Text = fila.Cells["Direccion"].Value?.ToString();
-            txtTelefono.Text = fila.Cells["Telefono"].Value?.ToString();
+            txtNombre.TextButton = fila.Cells["Nombre"].Value?.ToString();
+            txtDireccion.TextButton = fila.Cells["Direccion"].Value?.ToString();
+            txtTelefono.TextButton = fila.Cells["Telefono"].Value?.ToString();
         }
 
         private void LimpiarCampos()
         {
             idSeleccionado = 0;
-            txtNombre.Clear();
-            txtDireccion.Clear();
-            txtTelefono.Clear();
+            txtNombre.TextButton = "";
+            txtDireccion.TextButton = "";
+            txtTelefono.TextButton = "";
             dgvSucursales.ClearSelection();
         }
 
         private void BtnGuardar_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtNombre.Text) || string.IsNullOrWhiteSpace(txtDireccion.Text))
+            if (string.IsNullOrWhiteSpace(txtNombre.TextButton) || string.IsNullOrWhiteSpace(txtDireccion.TextButton))
             {
                 MessageBox.Show("Debe completar Nombre y Dirección", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-            // TODO: insertar o actualizar en la base de datos (SucursalDAL)
             MessageBox.Show("Sucursal guardada (falta conectar la base de datos)", "AorusMarket");
         }
 

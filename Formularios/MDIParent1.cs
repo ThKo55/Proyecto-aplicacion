@@ -7,6 +7,7 @@ namespace AorusMarket.Formularios
 {
     public partial class MDIParent1 : Form
     {
+
         private MenuStrip menuPrincipal;
         private StatusStrip barraEstado;
         private ToolStripStatusLabel lblUsuarioActivo;
@@ -40,6 +41,8 @@ namespace AorusMarket.Formularios
                     break;
                 }
             }
+            // 👇 AGREGAR ESTA LÍNEA AL FINAL 👇
+            this.FormClosed += (s, e) => Application.Exit();
         }
 
         private void ConfigurarFormulario()
