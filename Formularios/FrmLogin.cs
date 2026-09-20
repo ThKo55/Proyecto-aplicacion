@@ -2,7 +2,6 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
-using System.Data.SqlClient; // Agregamos esto para la prueba
 
 namespace AorusMarket.Formularios
 {
@@ -15,6 +14,7 @@ namespace AorusMarket.Formularios
         private readonly Color colorGris = EstiloApp.Gris;
         private readonly Color colorCampo = EstiloApp.FondoPanel;
 
+        // ... el resto de tu código queda igual
         private TextBox txtEmail;
         private TextBox txtPassword;
         private Label lblMensaje;
@@ -26,12 +26,9 @@ namespace AorusMarket.Formularios
             ConfigurarFormulario();
             ConstruirInterfaz();
 
-          
-
+            // 👇 AGREGAR ESTA LÍNEA AL FINAL 👇
             this.FormClosed += (s, e) => Application.Exit();
         }
-
-        
 
         private void ConfigurarFormulario()
         {
@@ -249,56 +246,54 @@ namespace AorusMarket.Formularios
                 return;
             }
 
-            string correo = txtEmail.Text.Trim();
+            string correo = txtEmail.Text.ToLower().Trim();
             string clave = txtPassword.Text;
 
-            try
+            // Simulamos que la contraseña para todos es "1234"
+            if (clave != "1234")
             {
-                // Abrimos la conexión a tu base de datos
-                using (System.Data.SqlClient.SqlConnection conexion = AorusMarket.AccesoDatos.Conexion.ObtenerConexion())
-                {
-                    // Buscamos si existe un usuario con ese email y esa contraseña
-                    string query = "SELECT id_usuario, nombre, apellido, id_perfil, id_sucursal FROM usuario WHERE email = @email AND password = @clave";
-
-                    System.Data.SqlClient.SqlCommand cmd = new System.Data.SqlClient.SqlCommand(query, conexion);
-                    cmd.Parameters.AddWithValue("@email", correo);
-                    cmd.Parameters.AddWithValue("@clave", clave);
-
-                    conexion.Open();
-
-                    // Leemos el resultado
-                    using (System.Data.SqlClient.SqlDataReader reader = cmd.ExecuteReader())
-                    {
-                        if (reader.Read()) // Si encontró al usuario en la tabla...
-                        {
-                            // Llenamos la sesión con los datos reales que vinieron de SQL Server
-                            Utilidades.SesionActual.IdUsuario = Convert.ToInt32(reader["id_usuario"]);
-                            Utilidades.SesionActual.NombreCompleto = reader["nombre"].ToString() + " " + reader["apellido"].ToString();
-                            Utilidades.SesionActual.IdPerfil = Convert.ToInt32(reader["id_perfil"]);
-                            Utilidades.SesionActual.IdSucursal = Convert.ToInt32(reader["id_sucursal"]);
-
-                            // Nombres genéricos por ahora (para no hacer la consulta más larga con JOINs)
-                            Utilidades.SesionActual.NombrePerfil = "Perfil ID: " + Utilidades.SesionActual.IdPerfil;
-                            Utilidades.SesionActual.NombreSucursal = "Sucursal ID: " + Utilidades.SesionActual.IdSucursal;
-
-                            // Abrimos el menú principal
-                            this.Hide();
-                            MDIParent1 mdi = new MDIParent1();
-                            mdi.FormClosed += (s, args) => this.Close();
-                            mdi.Show();
-                        }
-                        else
-                        {
-                            // Si no lo encontró, rebotó
-                            lblMensaje.Text = "Correo o contraseña incorrectos";
-                        }
-                    }
-                }
+                lblMensaje.Text = "Contraseña incorrecta (usa: 1234)";
+                return;
             }
-            catch (Exception ex)
+
+            // ========================================================
+            // SIMULADOR DE PERFILES (Hasta conectar la Base de Datos)
+            // ========================================================
+            if (correo == "admin")
             {
-                lblMensaje.Text = "Error de base de datos: " + ex.Message;
+                Utilidades.SesionActual.IdUsuario = 1;
+                Utilidades.SesionActual.NombreCompleto = "Juan (Admin)";
+                Utilidades.SesionActual.IdPerfil = 1;
+                Utilidades.SesionActual.NombrePerfil = "Administrador";
             }
+            else if (correo == "ventas")
+            {
+                Utilidades.SesionActual.IdUsuario = 2;
+                Utilidades.SesionActual.NombreCompleto = "María (Vendedora)";
+                Utilidades.SesionActual.IdPerfil = 2;
+                Utilidades.SesionActual.NombrePerfil = "Cajero";
+            }
+            else if (correo == "stock")
+            {
+                Utilidades.SesionActual.IdUsuario = 3;
+                Utilidades.SesionActual.NombreCompleto = "Pedro (Bodega)";
+                Utilidades.SesionActual.IdPerfil = 3;
+                Utilidades.SesionActual.NombrePerfil = "Gestor de Stock";
+            }
+            else
+            {
+                lblMensaje.Text = "Correo no existe. Usa admin@, ventas@ o stock@";
+                return;
+            }
+
+            // Sucursal compartida para la prueba
+            Utilidades.SesionActual.IdSucursal = 1;
+            Utilidades.SesionActual.NombreSucursal = "Casa Central";
+
+            this.Hide();
+            MDIParent1 mdi = new MDIParent1();
+            mdi.FormClosed += (s, args) => this.Close();
+            mdi.Show();
         }
     }
 }

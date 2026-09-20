@@ -1,180 +1,351 @@
 ﻿using System;
 using System.Drawing;
+using System.Reflection;
 using System.Windows.Forms;
 using AorusMarket.Utilidades;
+using ReaLTaiizor.Controls;
 
 namespace AorusMarket.Formularios
 {
     public partial class MDIParent1 : Form
     {
+        private System.Windows.Forms.Panel panelMenuLateral;
+        private System.Windows.Forms.Panel panelContenedor;
+        private System.Windows.Forms.Panel panelLogo;
+        private System.Windows.Forms.Panel pnlIndicador;
+        private System.Windows.Forms.Label lblUsuarioActivo;
+        private System.Windows.Forms.Label lblLogoTexto;
 
-        private MenuStrip menuPrincipal;
-        private StatusStrip barraEstado;
-        private ToolStripStatusLabel lblUsuarioActivo;
-        private ToolStripMenuItem menuStockPadre;
-        private ToolStripMenuItem menuVentas;
-        private ToolStripMenuItem menuUsuarios;
-        private ToolStripMenuItem menuSucursales;
-        private ToolStripMenuItem menuCategorias;
-        private ToolStripMenuItem menuProductos;
-        private ToolStripMenuItem menuStock;
-        private ToolStripMenuItem menuClientes;
-        private ToolStripMenuItem menuPuntoVenta;
-        private ToolStripMenuItem menuDashboard;
+        private CyberButton btnPuntoVenta, btnClientes, btnStock, btnProductos, btnCategorias, btnUsuarios, btnSucursales, btnDashboard, btnCerrarSesion;
+
+        private Form formularioActivo = null;
+        private CyberButton botonActivo = null;
+
+        private System.Windows.Forms.Timer timerIndicador;
 
         public MDIParent1()
         {
             InitializeComponent();
             ConfigurarFormulario();
-            ConstruirMenu();
-            ConstruirBarraEstado();
-            AplicarPermisosPorPerfil();
+            ConstruirInterfazModerno();
 
-            // =======================================================
-            // CÓDIGO NUEVO: Forzar el color oscuro en el fondo del MDI
-            // =======================================================
-            foreach (Control control in this.Controls)
-            {
-                if (control is MdiClient mdiClient)
-                {
-                    mdiClient.BackColor = EstiloApp.FondoPanel;
-                    break;
-                }
-            }
-            // 👇 AGREGAR ESTA LÍNEA AL FINAL 👇
+            ActivarDoubleBuffering(panelContenedor);
+            ActivarDoubleBuffering(panelMenuLateral);
+
+            AplicarPermisosPorPerfil();
             this.FormClosed += (s, e) => Application.Exit();
         }
 
         private void ConfigurarFormulario()
         {
-            this.Text = "AorusMarket";
+            this.Text = "AorusMarket - Sistema de Gestión";
             this.WindowState = FormWindowState.Maximized;
             this.BackColor = EstiloApp.Fondo;
         }
 
-        private void ConstruirMenu()
+        private void ConstruirInterfazModerno()
         {
-            menuPrincipal = new MenuStrip
+            panelMenuLateral = new System.Windows.Forms.Panel
             {
-                BackColor = EstiloApp.Fondo,
-                ForeColor = EstiloApp.Blanco,
-                Font = EstiloApp.FuenteTexto,
-                Renderer = new ToolStripProfessionalRenderer(new ColoresMenu())
+                Dock = DockStyle.Left,
+                Width = 250,
+                BackColor = EstiloApp.FondoPanel
             };
 
-            var menuArchivo = new ToolStripMenuItem("Archivo");
-            var itemCerrarSesion = new ToolStripMenuItem("Cerrar Sesión");
-            itemCerrarSesion.Click += ItemCerrarSesion_Click;
-            menuArchivo.DropDownItems.Add(itemCerrarSesion);
+            panelLogo = new System.Windows.Forms.Panel { Dock = DockStyle.Top, Height = 90, BackColor = Color.FromArgb(30, 34, 38) };
 
-            var menuAdministracion = new ToolStripMenuItem("Administración");
-            menuUsuarios = new ToolStripMenuItem("Usuarios");
-            menuSucursales = new ToolStripMenuItem("Sucursales");
-            menuCategorias = new ToolStripMenuItem("Categorías");
-            menuProductos = new ToolStripMenuItem("Productos");
-            menuUsuarios.Click += (s, e) => AbrirHijo(new FrmUsuarios());
-            menuSucursales.Click += (s, e) => AbrirHijo(new FrmSucursales());
-            menuCategorias.Click += (s, e) => AbrirHijo(new FrmCategorias());
-            menuProductos.Click += (s, e) => AbrirHijo(new FrmProductos());
-            menuAdministracion.DropDownItems.AddRange(new ToolStripItem[]
-                { menuUsuarios, menuSucursales, menuCategorias, menuProductos });
-
-            // AQUÍ SE QUITÓ EL "var"
-            menuStockPadre = new ToolStripMenuItem("Stock");
-            menuStock = new ToolStripMenuItem("Gestión de Stock");
-            menuStock.Click += (s, e) => AbrirHijo(new FrmStock());
-            menuStockPadre.DropDownItems.Add(menuStock);
-
-            // AQUÍ SE QUITÓ EL "var"
-            menuVentas = new ToolStripMenuItem("Ventas");
-            menuPuntoVenta = new ToolStripMenuItem("Punto de Venta");
-            menuClientes = new ToolStripMenuItem("Clientes");
-            menuPuntoVenta.Click += (s, e) => AbrirHijo(new FrmPuntoVenta());
-            menuClientes.Click += (s, e) => AbrirHijo(new FrmClientes());
-            menuVentas.DropDownItems.AddRange(new ToolStripItem[] { menuPuntoVenta, menuClientes });
-
-            var menuReportes = new ToolStripMenuItem("Reportes");
-            menuDashboard = new ToolStripMenuItem("Dashboard");
-            menuDashboard.Click += (s, e) => AbrirHijo(new FrmDashboard());
-            menuReportes.DropDownItems.Add(menuDashboard);
-
-            menuPrincipal.Items.AddRange(new ToolStripItem[]
-                { menuArchivo, menuAdministracion, menuStockPadre, menuVentas, menuReportes });
-
-            // Forzar color de texto y fondo en los submenús
-            foreach (ToolStripItem item in menuPrincipal.Items)
+            // BOTÓN HAMBURGUESA CORREGIDO (Sin ColorBackground_Hover)
+            CyberButton btnToggle = new CyberButton
             {
-                item.ForeColor = EstiloApp.Blanco;
-                if (item is ToolStripMenuItem menuItem)
+                TextButton = "☰",
+                Size = new Size(40, 40),
+                Location = new Point(10, 25),
+                Alpha = 20,
+                Rounding = true,
+                RoundingInt = 8,
+                ColorBackground = Color.Transparent,
+                ColorBackground_Pen = Color.Transparent,
+                ForeColor = EstiloApp.Blanco,
+                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnToggle.Click += BtnToggle_Click;
+
+            lblLogoTexto = new System.Windows.Forms.Label
+            {
+                Text = "AORUS",
+                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
+                ForeColor = EstiloApp.RojoNeon,
+                AutoSize = true,
+                Location = new Point(60, 20)
+            };
+
+            lblUsuarioActivo = new System.Windows.Forms.Label
+            {
+                Text = SesionActual.NombrePerfil,
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                ForeColor = EstiloApp.Gris,
+                AutoSize = true,
+                Location = new Point(65, 55)
+            };
+
+            panelLogo.Controls.Add(btnToggle);
+            panelLogo.Controls.Add(lblLogoTexto);
+            panelLogo.Controls.Add(lblUsuarioActivo);
+            panelMenuLateral.Controls.Add(panelLogo);
+
+            pnlIndicador = new System.Windows.Forms.Panel
+            {
+                Size = new Size(4, 42),
+                BackColor = EstiloApp.RojoNeon,
+                Left = 0,
+                Visible = false
+            };
+            panelMenuLateral.Controls.Add(pnlIndicador);
+
+            panelContenedor = new System.Windows.Forms.Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = EstiloApp.Fondo
+            };
+
+            this.Controls.Add(panelContenedor);
+            this.Controls.Add(panelMenuLateral);
+            panelMenuLateral.SendToBack();
+            panelContenedor.BringToFront();
+
+            int yPos = 110;
+            int btnHeight = 45;
+
+            btnPuntoVenta = CrearBotonMenu("🛒 Punto de Venta", yPos);
+            btnPuntoVenta.Click += (s, e) => { ResaltarBotonActivo(btnPuntoVenta); AbrirFormularioEnPanel(new FrmPuntoVenta()); };
+            yPos += btnHeight;
+
+            btnClientes = CrearBotonMenu("👥 Clientes", yPos);
+            btnClientes.Click += (s, e) => { ResaltarBotonActivo(btnClientes); AbrirFormularioEnPanel(new FrmClientes()); };
+            yPos += btnHeight;
+
+            btnStock = CrearBotonMenu("📦 Stock", yPos);
+            btnStock.Click += (s, e) => { ResaltarBotonActivo(btnStock); AbrirFormularioEnPanel(new FrmStock()); };
+            yPos += btnHeight;
+
+            btnProductos = CrearBotonMenu("🏷️ Productos", yPos);
+            btnProductos.Click += (s, e) => { ResaltarBotonActivo(btnProductos); AbrirFormularioEnPanel(new FrmProductos()); };
+            yPos += btnHeight;
+
+            btnCategorias = CrearBotonMenu("📁 Categorías", yPos);
+            btnCategorias.Click += (s, e) => { ResaltarBotonActivo(btnCategorias); AbrirFormularioEnPanel(new FrmCategorias()); };
+            yPos += btnHeight;
+
+            btnUsuarios = CrearBotonMenu("👤 Usuarios", yPos);
+            btnUsuarios.Click += (s, e) => { ResaltarBotonActivo(btnUsuarios); AbrirFormularioEnPanel(new FrmUsuarios()); };
+            yPos += btnHeight;
+
+            btnSucursales = CrearBotonMenu("🏢 Sucursales", yPos);
+            btnSucursales.Click += (s, e) => { ResaltarBotonActivo(btnSucursales); AbrirFormularioEnPanel(new FrmSucursales()); };
+            yPos += btnHeight;
+
+            btnDashboard = CrearBotonMenu("📊 Dashboard", yPos);
+            btnDashboard.Click += (s, e) => { ResaltarBotonActivo(btnDashboard); AbrirFormularioEnPanel(new FrmDashboard()); };
+
+            btnCerrarSesion = CrearBotonMenu("🚪 Cerrar Sesión", this.ClientSize.Height - 60);
+            btnCerrarSesion.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            btnCerrarSesion.Click += BtnCerrarSesion_Click;
+
+            panelMenuLateral.Controls.Add(btnPuntoVenta);
+            panelMenuLateral.Controls.Add(btnClientes);
+            panelMenuLateral.Controls.Add(btnStock);
+            panelMenuLateral.Controls.Add(btnProductos);
+            panelMenuLateral.Controls.Add(btnCategorias);
+            panelMenuLateral.Controls.Add(btnUsuarios);
+            panelMenuLateral.Controls.Add(btnSucursales);
+            panelMenuLateral.Controls.Add(btnDashboard);
+            panelMenuLateral.Controls.Add(btnCerrarSesion);
+
+            timerIndicador = new System.Windows.Forms.Timer { Interval = 15 };
+            timerIndicador.Tick += TimerIndicador_Tick;
+        }
+
+        // BOTONES DE MENÚ CORREGIDOS (Sin ColorBackground_Hover)
+        private CyberButton CrearBotonMenu(string texto, int yPos)
+        {
+            CyberButton btn = new CyberButton
+            {
+                TextButton = texto,
+                Tag = texto,
+                Location = new Point(5, yPos),
+                Size = new Size(240, 42),
+                Alpha = 20,
+                Rounding = true,
+                RoundingInt = 8,
+                ColorBackground = Color.Transparent,
+                ColorBackground_Pen = Color.Transparent,
+                ForeColor = EstiloApp.Gris,
+                Font = new Font("Segoe UI Emoji", 10.5F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+
+            btn.MouseEnter += (s, e) =>
+            {
+                if (botonActivo != btn)
                 {
-                    foreach (ToolStripItem subItem in menuItem.DropDownItems)
+                    btn.ColorBackground = Color.FromArgb(60, 64, 68);
+                    btn.ForeColor = EstiloApp.Blanco;
+                }
+            };
+            btn.MouseLeave += (s, e) =>
+            {
+                if (botonActivo != btn)
+                {
+                    btn.ColorBackground = Color.Transparent;
+                    btn.ForeColor = EstiloApp.Gris;
+                }
+            };
+
+            return btn;
+        }
+
+        private void TimerIndicador_Tick(object sender, EventArgs e)
+        {
+            if (botonActivo == null) return;
+
+            int distancia = botonActivo.Top - pnlIndicador.Top;
+
+            if (Math.Abs(distancia) <= 1)
+            {
+                pnlIndicador.Top = botonActivo.Top;
+                timerIndicador.Stop();
+            }
+            else
+            {
+                pnlIndicador.Top += distancia / 3;
+            }
+        }
+
+        private void BtnToggle_Click(object sender, EventArgs e)
+        {
+            if (panelMenuLateral.Width == 250)
+            {
+                panelMenuLateral.Width = 60;
+                lblLogoTexto.Visible = false;
+                lblUsuarioActivo.Visible = false;
+                ModificarTextoBotones(true);
+            }
+            else
+            {
+                panelMenuLateral.Width = 250;
+                lblLogoTexto.Visible = true;
+                lblUsuarioActivo.Visible = true;
+                ModificarTextoBotones(false);
+            }
+        }
+
+        private void ModificarTextoBotones(bool soloIconos)
+        {
+            CyberButton[] todosLosBotones = { btnPuntoVenta, btnClientes, btnStock, btnProductos, btnCategorias, btnUsuarios, btnSucursales, btnDashboard, btnCerrarSesion };
+
+            foreach (var b in todosLosBotones)
+            {
+                if (b != null)
+                {
+                    if (soloIconos)
                     {
-                        subItem.ForeColor = EstiloApp.Blanco;
-                        subItem.BackColor = EstiloApp.FondoPanel;
+                        b.Size = new Size(50, 42);
+                        if (b.Tag.ToString().Contains(" "))
+                            b.TextButton = b.Tag.ToString().Split(' ')[0];
+                    }
+                    else
+                    {
+                        b.Size = new Size(240, 42);
+                        b.TextButton = b.Tag.ToString();
                     }
                 }
             }
-
-            this.MainMenuStrip = menuPrincipal;
-            this.Controls.Add(menuPrincipal);
         }
 
-        private void ConstruirBarraEstado()
+        private void ResaltarBotonActivo(CyberButton btnClickeado)
         {
-            barraEstado = new StatusStrip { BackColor = EstiloApp.Fondo };
-            lblUsuarioActivo = new ToolStripStatusLabel
+            CyberButton[] todosLosBotones = { btnPuntoVenta, btnClientes, btnStock, btnProductos, btnCategorias, btnUsuarios, btnSucursales, btnDashboard };
+
+            foreach (var b in todosLosBotones)
             {
-                ForeColor = EstiloApp.RojoNeon,
-                Text = $"{SesionActual.NombreCompleto} - {SesionActual.NombrePerfil} - Sucursal: {SesionActual.NombreSucursal}"
-            };
-            barraEstado.Items.Add(lblUsuarioActivo);
-            this.Controls.Add(barraEstado);
+                if (b != null)
+                {
+                    b.ColorBackground = Color.Transparent;
+                    b.ForeColor = EstiloApp.Gris;
+                    b.Refresh();
+                }
+            }
+
+            btnClickeado.ColorBackground = EstiloApp.RojoOscuro;
+            btnClickeado.ForeColor = EstiloApp.Blanco;
+            btnClickeado.Refresh();
+
+            botonActivo = btnClickeado;
+
+            pnlIndicador.Visible = true;
+            pnlIndicador.BringToFront();
+            timerIndicador.Start();
+
+            this.ActiveControl = null;
+        }
+
+        private void AbrirFormularioEnPanel(Form formHijo)
+        {
+            if (formularioActivo != null)
+            {
+                formularioActivo.Close();
+            }
+
+            formularioActivo = formHijo;
+            formHijo.TopLevel = false;
+            formHijo.FormBorderStyle = FormBorderStyle.None;
+            formHijo.Dock = DockStyle.Fill;
+            formHijo.BackColor = EstiloApp.Fondo;
+
+            panelContenedor.Controls.Add(formHijo);
+            panelContenedor.Tag = formHijo;
+            formHijo.BringToFront();
+            formHijo.Show();
         }
 
         private void AplicarPermisosPorPerfil()
         {
-            // 1 = Administrador (Ve todo, no ocultamos nada)
-            // 2 = Cajero/Vendedor (Solo ve Ventas)
-            // 3 = Gestor de Stock (Solo ve Stock y Productos)
-
             if (SesionActual.IdPerfil != 1)
             {
-                // Si NO es admin, le quitamos la administración de usuarios y el Dashboard
-                menuUsuarios.Visible = false;
-                menuSucursales.Visible = false;
-                menuDashboard.Visible = false;
+                btnUsuarios.Visible = false;
+                btnSucursales.Visible = false;
+                btnDashboard.Visible = false;
             }
 
             if (SesionActual.IdPerfil == 2)
             {
-                // El Cajero/Vendedor NO debe ver el stock ni crear productos
-                menuStockPadre.Visible = false;
-                menuCategorias.Visible = false;
-                menuProductos.Visible = false;
-            }
+                btnStock.Visible = false;
+                btnProductos.Visible = false;
+                btnCategorias.Visible = false;
 
-            if (SesionActual.IdPerfil == 3)
+                ResaltarBotonActivo(btnPuntoVenta);
+                pnlIndicador.Top = btnPuntoVenta.Top;
+                AbrirFormularioEnPanel(new FrmPuntoVenta());
+            }
+            else if (SesionActual.IdPerfil == 3)
             {
-                // El Gestor de Stock NO debe ver el menú de Ventas ni Clientes
-                menuVentas.Visible = false;
+                btnPuntoVenta.Visible = false;
+                btnClientes.Visible = false;
+
+                ResaltarBotonActivo(btnStock);
+                pnlIndicador.Top = btnStock.Top;
+                AbrirFormularioEnPanel(new FrmStock());
+            }
+            else
+            {
+                ResaltarBotonActivo(btnDashboard);
+                pnlIndicador.Top = btnDashboard.Top;
+                AbrirFormularioEnPanel(new FrmDashboard());
             }
         }
 
-        private void AbrirHijo(Form formHijo)
-        {
-            formHijo.MdiParent = this;
-
-            // =======================================================
-            // CÓDIGO NUEVO: Re-aplicar el color al hijo después de 
-            // asignarle el MdiParent (porque Windows lo borra)
-            // =======================================================
-            formHijo.BackColor = EstiloApp.Fondo;
-
-            formHijo.WindowState = FormWindowState.Maximized;
-            formHijo.Show();
-        }
-
-        private void ItemCerrarSesion_Click(object sender, EventArgs e)
+        private void BtnCerrarSesion_Click(object sender, EventArgs e)
         {
             var resp = MessageBox.Show("¿Seguro que desea cerrar sesión?", "Confirmar",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question);
@@ -186,22 +357,12 @@ namespace AorusMarket.Formularios
                 login.Show();
             }
         }
-    }
-    // Clase auxiliar para pintar el menú minimalista
-    internal class ColoresMenu : ProfessionalColorTable
-    {
-        public override Color MenuItemSelected => EstiloApp.RojoOscuro;
-        public override Color MenuItemBorder => Color.Transparent; // Quitamos el borde duro para que sea más limpio
-        public override Color MenuItemSelectedGradientBegin => EstiloApp.RojoOscuro;
-        public override Color MenuItemSelectedGradientEnd => EstiloApp.RojoOscuro;
-        public override Color MenuItemPressedGradientBegin => EstiloApp.FondoPanel;
-        public override Color MenuItemPressedGradientEnd => EstiloApp.FondoPanel;
-        public override Color ToolStripDropDownBackground => EstiloApp.FondoPanel;
-        public override Color ImageMarginGradientBegin => EstiloApp.FondoPanel;
-        public override Color ImageMarginGradientMiddle => EstiloApp.FondoPanel;
-        public override Color ImageMarginGradientEnd => EstiloApp.FondoPanel;
-        public override Color MenuBorder => EstiloApp.Fondo;
-        public override Color MenuStripGradientBegin => EstiloApp.Fondo;
-        public override Color MenuStripGradientEnd => EstiloApp.Fondo;
+
+        private void ActivarDoubleBuffering(Control control)
+        {
+            typeof(Control).InvokeMember("DoubleBuffered",
+                BindingFlags.SetProperty | BindingFlags.Instance | BindingFlags.NonPublic,
+                null, control, new object[] { true });
+        }
     }
 }
