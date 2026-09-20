@@ -31,10 +31,7 @@ namespace AorusMarket.Formularios
             this.FormClosed += (s, e) => Application.Exit();
         }
 
-        // ======================================================
-        // LA PRUEBA DE FUEGO (Se ejecuta apenas abrís el sistema)
-        // ======================================================
-       
+        
 
         private void ConfigurarFormulario()
         {
