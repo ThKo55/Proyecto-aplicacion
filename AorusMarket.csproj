@@ -48,6 +48,7 @@
     <Reference Include="System.Buffers, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\System.Buffers.4.6.1\lib\net462\System.Buffers.dll</HintPath>
     </Reference>
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Design" />
     <Reference Include="System.Memory, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
@@ -75,7 +76,26 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AccesoDatos\CategoriaDatos.cs" />
+    <Compile Include="AccesoDatos\ClienteDatos.cs" />
     <Compile Include="AccesoDatos\Conexion.cs" />
+    <Compile Include="AccesoDatos\DashboardDatos.cs" />
+    <Compile Include="AccesoDatos\ProductoDatos.cs" />
+    <Compile Include="AccesoDatos\StockDatos.cs" />
+    <Compile Include="AccesoDatos\SucursalDatos.cs" />
+    <Compile Include="AccesoDatos\UsuarioDatos.cs" />
+    <Compile Include="AccesoDatos\VentaDatos.cs" />
+    <Compile Include="Entidades\Categoria.cs" />
+    <Compile Include="Entidades\Cliente.cs" />
+    <Compile Include="Entidades\DashboardModelos.cs" />
+    <Compile Include="Entidades\Producto.cs" />
+    <Compile Include="Entidades\StockModelos.cs" />
+    <Compile Include="Entidades\Sucursal.cs" />
+    <Compile Include="Entidades\Usuario.cs" />
+    <Compile Include="Entidades\VentaModelos.cs" />
+    <Compile Include="Formularios\FrmAuditoriaStock.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Formularios\FrmCategorias.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -93,6 +113,9 @@
     </Compile>
     <Compile Include="Formularios\FrmDashboard.Designer.cs">
       <DependentUpon>FrmDashboard.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Formularios\FrmHistorialVentas.cs">
+      <SubType>Form</SubType>
     </Compile>
     <Compile Include="Formularios\FrmLogin.cs">
       <SubType>Form</SubType>
@@ -136,6 +159,14 @@
     <Compile Include="Formularios\MDIParent1.Designer.cs">
       <DependentUpon>MDIParent1.cs</DependentUpon>
     </Compile>
+    <Compile Include="Negocio\CategoriaNegocio.cs" />
+    <Compile Include="Negocio\ClienteNegocio.cs" />
+    <Compile Include="Negocio\DashboardNegocio.cs" />
+    <Compile Include="Negocio\ProductoNegocio.cs" />
+    <Compile Include="Negocio\StockNegocio.cs" />
+    <Compile Include="Negocio\SucursalNegocio.cs" />
+    <Compile Include="Negocio\UsuarioNegocio.cs" />
+    <Compile Include="Negocio\VentaNegocio.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Utilidades\SesionActual.cs" />
@@ -170,9 +201,6 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Entidades\" />
-    <Folder Include="Negocio\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

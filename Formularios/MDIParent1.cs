@@ -20,7 +20,6 @@ namespace AorusMarket.Formularios
 
         private Form formularioActivo = null;
         private CyberButton botonActivo = null;
-
         private System.Windows.Forms.Timer timerIndicador;
 
         public MDIParent1()
@@ -54,7 +53,6 @@ namespace AorusMarket.Formularios
 
             panelLogo = new System.Windows.Forms.Panel { Dock = DockStyle.Top, Height = 90, BackColor = Color.FromArgb(30, 34, 38) };
 
-            // BOTÓN HAMBURGUESA CORREGIDO (Sin ColorBackground_Hover)
             CyberButton btnToggle = new CyberButton
             {
                 TextButton = "☰",
@@ -141,9 +139,19 @@ namespace AorusMarket.Formularios
             btnUsuarios.Click += (s, e) => { ResaltarBotonActivo(btnUsuarios); AbrirFormularioEnPanel(new FrmUsuarios()); };
             yPos += btnHeight;
 
+
             btnSucursales = CrearBotonMenu("🏢 Sucursales", yPos);
             btnSucursales.Click += (s, e) => { ResaltarBotonActivo(btnSucursales); AbrirFormularioEnPanel(new FrmSucursales()); };
             yPos += btnHeight;
+            CyberButton btnHistorial = CrearBotonMenu("📜 Hist. Ventas", yPos);
+            btnHistorial.Click += (s, e) => { ResaltarBotonActivo(btnHistorial); AbrirFormularioEnPanel(new FrmHistorialVentas()); };
+            panelMenuLateral.Controls.Add(btnHistorial);
+            yPos += btnHeight; 
+                               
+            CyberButton btnAuditoria = CrearBotonMenu("🔎 Auditoría Stock", yPos);
+            btnAuditoria.Click += (s, e) => { ResaltarBotonActivo(btnAuditoria); AbrirFormularioEnPanel(new FrmAuditoriaStock()); };
+            panelMenuLateral.Controls.Add(btnAuditoria);
+            yPos += btnHeight; 
 
             btnDashboard = CrearBotonMenu("📊 Dashboard", yPos);
             btnDashboard.Click += (s, e) => { ResaltarBotonActivo(btnDashboard); AbrirFormularioEnPanel(new FrmDashboard()); };
@@ -166,7 +174,6 @@ namespace AorusMarket.Formularios
             timerIndicador.Tick += TimerIndicador_Tick;
         }
 
-        // BOTONES DE MENÚ CORREGIDOS (Sin ColorBackground_Hover)
         private CyberButton CrearBotonMenu(string texto, int yPos)
         {
             CyberButton btn = new CyberButton
@@ -309,39 +316,45 @@ namespace AorusMarket.Formularios
             formHijo.Show();
         }
 
+        // --- FILTRO DE SEGURIDAD ESTRICTO POR ROLES ---
         private void AplicarPermisosPorPerfil()
         {
-            if (SesionActual.IdPerfil != 1)
+            // 1. ADMINISTRADOR (IdPerfil = 1)
+            if (SesionActual.IdPerfil == 1)
             {
-                btnUsuarios.Visible = false;
-                btnSucursales.Visible = false;
-                btnDashboard.Visible = false;
-            }
+                // Por recomendación académica de segregación de funciones, el Admin NO opera la caja.
+                btnPuntoVenta.Visible = false;
 
-            if (SesionActual.IdPerfil == 2)
+                ResaltarBotonActivo(btnDashboard);
+                pnlIndicador.Top = btnDashboard.Top;
+                AbrirFormularioEnPanel(new FrmDashboard());
+            }
+            // 2. CAJERO (IdPerfil = 2)
+            else if (SesionActual.IdPerfil == 2)
             {
                 btnStock.Visible = false;
                 btnProductos.Visible = false;
                 btnCategorias.Visible = false;
+                btnUsuarios.Visible = false;
+                btnSucursales.Visible = false;
+                btnDashboard.Visible = false;
 
                 ResaltarBotonActivo(btnPuntoVenta);
                 pnlIndicador.Top = btnPuntoVenta.Top;
                 AbrirFormularioEnPanel(new FrmPuntoVenta());
             }
+            // 3. GESTOR DE STOCK (IdPerfil = 3)
             else if (SesionActual.IdPerfil == 3)
             {
                 btnPuntoVenta.Visible = false;
                 btnClientes.Visible = false;
+                btnUsuarios.Visible = false;
+                btnSucursales.Visible = false;
+                btnDashboard.Visible = false;
 
                 ResaltarBotonActivo(btnStock);
                 pnlIndicador.Top = btnStock.Top;
                 AbrirFormularioEnPanel(new FrmStock());
-            }
-            else
-            {
-                ResaltarBotonActivo(btnDashboard);
-                pnlIndicador.Top = btnDashboard.Top;
-                AbrirFormularioEnPanel(new FrmDashboard());
             }
         }
 
@@ -349,6 +362,7 @@ namespace AorusMarket.Formularios
         {
             var resp = MessageBox.Show("¿Seguro que desea cerrar sesión?", "Confirmar",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
             if (resp == DialogResult.Yes)
             {
                 SesionActual.CerrarSesion();

@@ -2,23 +2,28 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using ReaLTaiizor.Controls;
+using AorusMarket.Entidades;
+using AorusMarket.Negocio;
 
 namespace AorusMarket.Formularios
 {
     public partial class FrmLogin : Form
     {
-        // Ahora usamos directamente la paleta minimalista de EstiloApp
         private readonly Color colorFondo = EstiloApp.Fondo;
         private readonly Color colorRojoNeon = EstiloApp.RojoNeon;
         private readonly Color colorRojoOscuro = EstiloApp.RojoOscuro;
         private readonly Color colorGris = EstiloApp.Gris;
         private readonly Color colorCampo = EstiloApp.FondoPanel;
 
-        // ... el resto de tu código queda igual
         private TextBox txtEmail;
         private TextBox txtPassword;
         private Label lblMensaje;
-        private Button btnIngresar;
+
+        // CORRECCIÓN: Especificamos explícitamente que es un botón de Windows Forms
+        private System.Windows.Forms.Button btnIngresar;
+
+        private UsuarioNegocio _usuarioNegocio = new UsuarioNegocio();
 
         public FrmLogin()
         {
@@ -26,7 +31,6 @@ namespace AorusMarket.Formularios
             ConfigurarFormulario();
             ConstruirInterfaz();
 
-            // 👇 AGREGAR ESTA LÍNEA AL FINAL 👇
             this.FormClosed += (s, e) => Application.Exit();
         }
 
@@ -45,7 +49,6 @@ namespace AorusMarket.Formularios
         {
             int anchoForm = this.ClientSize.Width;
 
-            // ---------- LOGO / TÍTULO ----------
             Label lblAorus = new Label
             {
                 Text = "AORUS",
@@ -86,14 +89,14 @@ namespace AorusMarket.Formularios
             lblSubtitulo.Location = new Point(
                 (anchoForm - TextRenderer.MeasureText(lblSubtitulo.Text, lblSubtitulo.Font).Width) / 2, 95);
 
-            Panel lineaDivisoria = new Panel
+            // CORRECCIÓN: Panel específico de Windows Forms
+            System.Windows.Forms.Panel lineaDivisoria = new System.Windows.Forms.Panel
             {
                 BackColor = colorRojoNeon,
                 Size = new Size(280, 2),
                 Location = new Point((anchoForm - 280) / 2, 130)
             };
 
-            // ---------- CAMPO EMAIL ----------
             Label lblEmail = new Label
             {
                 Text = "EMAIL",
@@ -104,7 +107,7 @@ namespace AorusMarket.Formularios
                 Location = new Point(60, 175)
             };
 
-            Panel panelEmailFondo = new Panel
+            System.Windows.Forms.Panel panelEmailFondo = new System.Windows.Forms.Panel
             {
                 BackColor = colorCampo,
                 Location = new Point(55, 195),
@@ -121,14 +124,13 @@ namespace AorusMarket.Formularios
                 Size = new Size(290, 26)
             };
 
-            Panel lineaEmail = new Panel
+            System.Windows.Forms.Panel lineaEmail = new System.Windows.Forms.Panel
             {
                 BackColor = colorRojoNeon,
                 Size = new Size(310, 2),
                 Location = new Point(55, 227)
             };
 
-            // ---------- CAMPO CONTRASEÑA ----------
             Label lblPassword = new Label
             {
                 Text = "CONTRASEÑA",
@@ -139,7 +141,7 @@ namespace AorusMarket.Formularios
                 Location = new Point(60, 255)
             };
 
-            Panel panelPasswordFondo = new Panel
+            System.Windows.Forms.Panel panelPasswordFondo = new System.Windows.Forms.Panel
             {
                 BackColor = colorCampo,
                 Location = new Point(55, 275),
@@ -157,14 +159,13 @@ namespace AorusMarket.Formularios
                 PasswordChar = '●'
             };
 
-            Panel lineaPassword = new Panel
+            System.Windows.Forms.Panel lineaPassword = new System.Windows.Forms.Panel
             {
                 BackColor = colorRojoNeon,
                 Size = new Size(310, 2),
                 Location = new Point(55, 307)
             };
 
-            // ---------- MENSAJE DE ERROR ----------
             lblMensaje = new Label
             {
                 Text = "",
@@ -176,8 +177,7 @@ namespace AorusMarket.Formularios
                 Location = new Point(55, 320)
             };
 
-            // ---------- BOTÓN INGRESAR ----------
-            btnIngresar = new Button
+            btnIngresar = new System.Windows.Forms.Button
             {
                 Text = "INGRESAR",
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
@@ -203,7 +203,6 @@ namespace AorusMarket.Formularios
                     BtnIngresar_Click(s, e);
             };
 
-            // ---------- PIE ----------
             Label lblPie = new Label
             {
                 Text = "© 2026 AorusMarket",
@@ -215,7 +214,6 @@ namespace AorusMarket.Formularios
             lblPie.Location = new Point(
                 (anchoForm - TextRenderer.MeasureText(lblPie.Text, lblPie.Font).Width) / 2, 500);
 
-            // ---------- AGREGAR AL FORM ----------
             this.Controls.Add(lblAorus);
             this.Controls.Add(lblMarket);
             this.Controls.Add(lblSubtitulo);
@@ -239,56 +237,24 @@ namespace AorusMarket.Formularios
         private void BtnIngresar_Click(object sender, EventArgs e)
         {
             lblMensaje.Text = "";
-
-            if (string.IsNullOrWhiteSpace(txtEmail.Text) || string.IsNullOrWhiteSpace(txtPassword.Text))
-            {
-                lblMensaje.Text = "Debe completar todos los campos";
-                return;
-            }
-
-            string correo = txtEmail.Text.ToLower().Trim();
+            string correo = txtEmail.Text.Trim();
             string clave = txtPassword.Text;
 
-            // Simulamos que la contraseña para todos es "1234"
-            if (clave != "1234")
+            string mensajeError;
+            Usuario usuarioLogueado = _usuarioNegocio.Login(correo, clave, out mensajeError);
+
+            if (usuarioLogueado == null)
             {
-                lblMensaje.Text = "Contraseña incorrecta (usa: 1234)";
+                lblMensaje.Text = mensajeError;
                 return;
             }
 
-            // ========================================================
-            // SIMULADOR DE PERFILES (Hasta conectar la Base de Datos)
-            // ========================================================
-            if (correo == "admin")
-            {
-                Utilidades.SesionActual.IdUsuario = 1;
-                Utilidades.SesionActual.NombreCompleto = "Juan (Admin)";
-                Utilidades.SesionActual.IdPerfil = 1;
-                Utilidades.SesionActual.NombrePerfil = "Administrador";
-            }
-            else if (correo == "ventas")
-            {
-                Utilidades.SesionActual.IdUsuario = 2;
-                Utilidades.SesionActual.NombreCompleto = "María (Vendedora)";
-                Utilidades.SesionActual.IdPerfil = 2;
-                Utilidades.SesionActual.NombrePerfil = "Cajero";
-            }
-            else if (correo == "stock")
-            {
-                Utilidades.SesionActual.IdUsuario = 3;
-                Utilidades.SesionActual.NombreCompleto = "Pedro (Bodega)";
-                Utilidades.SesionActual.IdPerfil = 3;
-                Utilidades.SesionActual.NombrePerfil = "Gestor de Stock";
-            }
-            else
-            {
-                lblMensaje.Text = "Correo no existe. Usa admin@, ventas@ o stock@";
-                return;
-            }
-
-            // Sucursal compartida para la prueba
-            Utilidades.SesionActual.IdSucursal = 1;
-            Utilidades.SesionActual.NombreSucursal = "Casa Central";
+            Utilidades.SesionActual.IdUsuario = usuarioLogueado.IdUsuario;
+            Utilidades.SesionActual.NombreCompleto = usuarioLogueado.Nombre + " " + usuarioLogueado.Apellido;
+            Utilidades.SesionActual.IdPerfil = usuarioLogueado.IdPerfil;
+            Utilidades.SesionActual.NombrePerfil = usuarioLogueado.NombrePerfil;
+            Utilidades.SesionActual.IdSucursal = usuarioLogueado.IdSucursal;
+            Utilidades.SesionActual.NombreSucursal = usuarioLogueado.NombreSucursal;
 
             this.Hide();
             MDIParent1 mdi = new MDIParent1();

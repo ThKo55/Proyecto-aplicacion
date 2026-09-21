@@ -2,24 +2,28 @@
 using System.Drawing;
 using System.Windows.Forms;
 using AorusMarket.Utilidades;
-using ReaLTaiizor.Controls; // IMPORTANTE: Agregado para que reconozca los nuevos controles
+using ReaLTaiizor.Controls;
+using AorusMarket.Entidades; // Acceso a la estructura Cliente
+using AorusMarket.Negocio;   // Acceso al cerebro de Clientes
 
 namespace AorusMarket.Formularios
 {
     public partial class FrmClientes : Form
     {
-        // 1. Cambiamos TextBox por CyberTextBox y Button por CyberButton
         private CyberTextBox txtNombre, txtApellido, txtDni, txtTelefono, txtEmail, txtDireccion;
         private DataGridView dgvClientes;
         private CyberButton btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
         private int idSeleccionado = 0;
+
+        // Instanciamos el "cerebro" (capa de negocio) para usarlo en los botones
+        private ClienteNegocio _clienteNegocio = new ClienteNegocio();
 
         public FrmClientes()
         {
             InitializeComponent();
             this.BackColor = EstiloApp.Fondo;
             this.Text = "Gestión de Clientes";
-            ConstruirInterfaz();
+            ConstruirInterfaz(); // Dejamos el diseño de tu compañero intacto
         }
 
         private void ConstruirInterfaz()
@@ -86,13 +90,33 @@ namespace AorusMarket.Formularios
             dgvClientes.Columns["IdCliente"].Visible = false;
             dgvClientes.SelectionChanged += DgvClientes_SelectionChanged;
             this.Controls.Add(dgvClientes);
+
+            // LLAMADO NUEVO: Trae los datos reales de la BD al abrir la ventana
+            CargarGrilla();
+        }
+
+        // METODO NUEVO: Consulta la BD a través de la capa de Negocio y pinta la grilla
+        private void CargarGrilla()
+        {
+            dgvClientes.Rows.Clear(); // Limpia la tabla visual
+            var listaClientes = _clienteNegocio.Listar(); // Pide la data real
+
+            foreach (var item in listaClientes)
+            {
+                // Llena las celdas en el mismo orden que agregamos las columnas arriba
+                dgvClientes.Rows.Add(item.IdCliente, item.Nombre, item.Apellido, item.Dni, item.Telefono, item.Email, item.Direccion);
+            }
+            dgvClientes.ClearSelection();
         }
 
         private void DgvClientes_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvClientes.CurrentRow == null) return;
+
             var fila = dgvClientes.CurrentRow;
             idSeleccionado = Convert.ToInt32(fila.Cells["IdCliente"].Value ?? 0);
+
+            // Usamos TextButton porque así funciona el CyberTextBox de ReaLTaiizor
             txtNombre.TextButton = fila.Cells["Nombre"].Value?.ToString();
             txtApellido.TextButton = fila.Cells["Apellido"].Value?.ToString();
             txtDni.TextButton = fila.Cells["Dni"].Value?.ToString();
@@ -115,13 +139,33 @@ namespace AorusMarket.Formularios
 
         private void BtnGuardar_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtNombre.TextButton) || string.IsNullOrWhiteSpace(txtApellido.TextButton))
+            // 1. Armamos un "paquete" (Objeto Cliente) con lo que tipeó el usuario
+            Cliente nuevoCliente = new Cliente()
             {
-                MessageBox.Show("Debe completar Nombre y Apellido", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
+                IdCliente = idSeleccionado, // Si es 0 se crea uno nuevo, si es > 0 edita el seleccionado
+                Nombre = txtNombre.TextButton,
+                Apellido = txtApellido.TextButton,
+                Dni = txtDni.TextButton,
+                Telefono = txtTelefono.TextButton,
+                Email = txtEmail.TextButton,
+                Direccion = txtDireccion.TextButton
+            };
+
+            // 2. Se lo enviamos al "Cerebro" (Negocio) para que valide y guarde
+            string mensaje;
+            bool resultado = _clienteNegocio.Guardar(nuevoCliente, out mensaje);
+
+            // 3. Revisamos qué nos respondió la capa de negocio
+            if (resultado)
+            {
+                MessageBox.Show("Cliente guardado correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                LimpiarCampos();
+                CargarGrilla(); // Volvemos a pedir los datos a la BD para que aparezca el nuevo cliente
             }
-            MessageBox.Show("Cliente guardado (falta conectar la base de datos)", "AorusMarket");
+            else
+            {
+                MessageBox.Show(mensaje, "Error al guardar", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void BtnEliminar_Click(object sender, EventArgs e)
@@ -132,13 +176,27 @@ namespace AorusMarket.Formularios
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+
             var resp = MessageBox.Show("¿Seguro que desea eliminar este cliente?", "Confirmar Eliminación",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation);
+
             if (resp == DialogResult.Yes)
             {
-                // TODO: eliminar en la base de datos (ClienteDAL)
-                MessageBox.Show("Cliente eliminado (falta conectar la base de datos)", "AorusMarket");
-                LimpiarCampos();
+                // 1. Enviamos solo el ID al Negocio para procesar la baja
+                string mensaje;
+                bool resultado = _clienteNegocio.Eliminar(idSeleccionado, out mensaje);
+
+                // 2. Evaluamos la respuesta
+                if (resultado)
+                {
+                    MessageBox.Show("Cliente eliminado.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LimpiarCampos();
+                    CargarGrilla(); // Actualiza la grilla (el cliente borrado ya no aparecerá)
+                }
+                else
+                {
+                    MessageBox.Show(mensaje, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
         }
     }

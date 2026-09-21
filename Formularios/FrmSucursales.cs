@@ -2,24 +2,28 @@
 using System.Drawing;
 using System.Windows.Forms;
 using AorusMarket.Utilidades;
-using ReaLTaiizor.Controls; // IMPORTANTE: Agregado para que reconozca los nuevos controles
+using ReaLTaiizor.Controls; // IMPORTANTE: Mantenido para reconocer CyberTextBox
+using AorusMarket.Entidades; // Acceso a los moldes
+using AorusMarket.Negocio;   // Acceso a las validaciones y lógica
 
 namespace AorusMarket.Formularios
 {
     public partial class FrmSucursales : Form
     {
-        // 1. Cambiamos TextBox por CyberTextBox y Button por CyberButton
         private CyberTextBox txtNombre, txtDireccion, txtTelefono;
         private DataGridView dgvSucursales;
         private CyberButton btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
         private int idSeleccionado = 0;
+
+        // Instanciamos el "cerebro" (capa de negocio)
+        private SucursalNegocio _sucursalNegocio = new SucursalNegocio();
 
         public FrmSucursales()
         {
             InitializeComponent();
             this.BackColor = EstiloApp.Fondo;
             this.Text = "Gestión de Sucursales";
-            ConstruirInterfaz();
+            ConstruirInterfaz(); // Interfaz visual original
         }
 
         private void ConstruirInterfaz()
@@ -70,12 +74,30 @@ namespace AorusMarket.Formularios
             dgvSucursales.Columns["IdSucursal"].Visible = false;
             dgvSucursales.SelectionChanged += DgvSucursales_SelectionChanged;
             this.Controls.Add(dgvSucursales);
+
+            // LLAMADO NUEVO: Trae los datos reales de la BD al abrir la ventana
+            CargarGrilla();
+        }
+
+        // METODO NUEVO: Consulta a través de la capa de Negocio y pinta la grilla
+        private void CargarGrilla()
+        {
+            dgvSucursales.Rows.Clear(); // Limpia la tabla visual
+            var listaSucursales = _sucursalNegocio.Listar(); // Pide la data real a SQL
+
+            foreach (var item in listaSucursales)
+            {
+                // Llena las celdas en el mismo orden que agregamos las columnas arriba
+                dgvSucursales.Rows.Add(item.IdSucursal, item.Nombre, item.Direccion, item.Telefono);
+            }
+            dgvSucursales.ClearSelection();
         }
 
         private void DgvSucursales_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvSucursales.CurrentRow == null) return;
             var fila = dgvSucursales.CurrentRow;
+
             idSeleccionado = Convert.ToInt32(fila.Cells["IdSucursal"].Value ?? 0);
             txtNombre.TextButton = fila.Cells["Nombre"].Value?.ToString();
             txtDireccion.TextButton = fila.Cells["Direccion"].Value?.ToString();
@@ -93,13 +115,30 @@ namespace AorusMarket.Formularios
 
         private void BtnGuardar_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtNombre.TextButton) || string.IsNullOrWhiteSpace(txtDireccion.TextButton))
+            // 1. Armamos un "paquete" (Objeto Sucursal) con lo que tipeó el usuario
+            Sucursal nuevaSucursal = new Sucursal()
             {
-                MessageBox.Show("Debe completar Nombre y Dirección", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
+                IdSucursal = idSeleccionado, // 0 = Crea uno nuevo / > 0 = Edita el seleccionado
+                Nombre = txtNombre.TextButton,
+                Direccion = txtDireccion.TextButton,
+                Telefono = txtTelefono.TextButton
+            };
+
+            // 2. Se lo enviamos al "Cerebro" (Negocio) para que valide y guarde
+            string mensaje;
+            bool resultado = _sucursalNegocio.Guardar(nuevaSucursal, out mensaje);
+
+            // 3. Revisamos qué nos respondió la capa de negocio
+            if (resultado)
+            {
+                MessageBox.Show("Sucursal guardada correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                LimpiarCampos();
+                CargarGrilla(); // Volvemos a pedir los datos a la BD
             }
-            MessageBox.Show("Sucursal guardada (falta conectar la base de datos)", "AorusMarket");
+            else
+            {
+                MessageBox.Show(mensaje, "Error al guardar", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void BtnEliminar_Click(object sender, EventArgs e)
@@ -110,13 +149,27 @@ namespace AorusMarket.Formularios
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+
             var resp = MessageBox.Show("¿Seguro que desea eliminar esta sucursal?", "Confirmar Eliminación",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation);
+
             if (resp == DialogResult.Yes)
             {
-                // TODO: eliminar en la base de datos (SucursalDAL)
-                MessageBox.Show("Sucursal eliminada (falta conectar la base de datos)", "AorusMarket");
-                LimpiarCampos();
+                // 1. Enviamos solo el ID al Negocio para procesar la baja lógica
+                string mensaje;
+                bool resultado = _sucursalNegocio.Eliminar(idSeleccionado, out mensaje);
+
+                // 2. Evaluamos la respuesta
+                if (resultado)
+                {
+                    MessageBox.Show("Sucursal eliminada.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LimpiarCampos();
+                    CargarGrilla(); // Actualiza la grilla
+                }
+                else
+                {
+                    MessageBox.Show(mensaje, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
         }
     }

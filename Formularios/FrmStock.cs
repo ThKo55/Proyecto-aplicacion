@@ -1,28 +1,33 @@
 ﻿using System;
 using System.Data;
-using System.Data.SqlClient;
 using System.Drawing;
 using System.Windows.Forms;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
+using AorusMarket.Entidades; // Importamos Entidades
+using AorusMarket.Negocio;   // Importamos Negocio
 
 namespace AorusMarket.Formularios
 {
     public partial class FrmStock : Form
     {
         private ComboBox cmbProducto, cmbSucursal;
-
         private CyberTextBox txtCantidad, txtPrecio;
         private DataGridView dgvStock;
         private CyberButton btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
 
         private int idSeleccionado = 0;
 
+        // Instanciamos la capa de Negocio
+        private StockNegocio _stockNegocio = new StockNegocio();
+
         public FrmStock()
         {
             InitializeComponent();
             this.BackColor = EstiloApp.Fondo;
             this.Text = "Gestión de Stock por Sucursal";
+
+            // Construye toda la interfaz visual de tu compañero
             ConstruirInterfaz();
 
             // Cargamos los datos reales de la base de datos al iniciar
@@ -75,12 +80,19 @@ namespace AorusMarket.Formularios
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
             EstiloApp.EstilizarGrid(dgvStock);
+
+            // Agregamos las columnas necesarias (algunas ocultas para poder editar luego)
             dgvStock.Columns.Add("IdStock", "Id");
             dgvStock.Columns.Add("Producto", "Producto");
             dgvStock.Columns.Add("Sucursal", "Sucursal");
             dgvStock.Columns.Add("Cantidad", "Cantidad");
             dgvStock.Columns.Add("Precio", "Precio");
+            dgvStock.Columns.Add("IdProducto", "IdProducto"); // Oculta
+            dgvStock.Columns.Add("IdSucursal", "IdSucursal"); // Oculta
+
             dgvStock.Columns["IdStock"].Visible = false;
+            dgvStock.Columns["IdProducto"].Visible = false;
+            dgvStock.Columns["IdSucursal"].Visible = false;
 
             dgvStock.CellFormatting += DgvStock_CellFormatting;
             dgvStock.SelectionChanged += DgvStock_SelectionChanged;
@@ -88,32 +100,22 @@ namespace AorusMarket.Formularios
             this.Controls.Add(dgvStock);
         }
 
+        // METODO REFACTORIZADO: Delega la conexión a la capa de Negocio
         private void CargarCombos()
         {
             try
             {
-                using (SqlConnection conexion = AorusMarket.AccesoDatos.Conexion.ObtenerConexion())
-                {
-                    conexion.Open();
+                // Cargar Productos
+                cmbProducto.DataSource = _stockNegocio.ObtenerProductos();
+                cmbProducto.DisplayMember = "Nombre";
+                cmbProducto.ValueMember = "Id";
+                cmbProducto.SelectedIndex = -1;
 
-                    // 1. Cargar Productos
-                    SqlDataAdapter daProd = new SqlDataAdapter("SELECT id_producto, nombre FROM producto ORDER BY nombre ASC", conexion);
-                    DataTable dtProd = new DataTable();
-                    daProd.Fill(dtProd);
-                    cmbProducto.DataSource = dtProd;
-                    cmbProducto.DisplayMember = "nombre";
-                    cmbProducto.ValueMember = "id_producto";
-                    cmbProducto.SelectedIndex = -1;
-
-                    // 2. Cargar Sucursales
-                    SqlDataAdapter daSuc = new SqlDataAdapter("SELECT id_sucursal, nombre FROM sucursal ORDER BY nombre ASC", conexion);
-                    DataTable dtSuc = new DataTable();
-                    daSuc.Fill(dtSuc);
-                    cmbSucursal.DataSource = dtSuc;
-                    cmbSucursal.DisplayMember = "nombre";
-                    cmbSucursal.ValueMember = "id_sucursal";
-                    cmbSucursal.SelectedIndex = -1;
-                }
+                // Cargar Sucursales
+                cmbSucursal.DataSource = _stockNegocio.ObtenerSucursales();
+                cmbSucursal.DisplayMember = "Nombre";
+                cmbSucursal.ValueMember = "Id";
+                cmbSucursal.SelectedIndex = -1;
             }
             catch (Exception ex)
             {
@@ -121,34 +123,27 @@ namespace AorusMarket.Formularios
             }
         }
 
+        // METODO REFACTORIZADO: Pide la lista a Negocio y la pinta en pantalla
         private void CargarGrillaStock()
         {
             try
             {
                 dgvStock.Rows.Clear();
-                using (SqlConnection conexion = AorusMarket.AccesoDatos.Conexion.ObtenerConexion())
-                {
-                    string query = @"SELECT ss.id_stock_sucursal, p.nombre AS producto, s.nombre AS sucursal, ss.cantidad, ss.precio
-                                     FROM stock_sucursal ss
-                                     INNER JOIN producto p ON ss.id_producto = p.id_producto
-                                     INNER JOIN sucursal s ON ss.id_sucursal = s.id_sucursal";
+                var listaStock = _stockNegocio.Listar();
 
-                    SqlCommand cmd = new SqlCommand(query, conexion);
-                    conexion.Open();
-                    using (SqlDataReader reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            dgvStock.Rows.Add(
-                                reader["id_stock_sucursal"],
-                                reader["producto"],
-                                reader["sucursal"],
-                                reader["cantidad"],
-                                reader["precio"]
-                            );
-                        }
-                    }
+                foreach (var item in listaStock)
+                {
+                    dgvStock.Rows.Add(
+                        item.IdStock,
+                        item.Producto,
+                        item.Sucursal,
+                        item.Cantidad,
+                        item.Precio,
+                        item.IdProducto,
+                        item.IdSucursal
+                    );
                 }
+                dgvStock.ClearSelection();
             }
             catch (Exception ex)
             {
@@ -156,6 +151,7 @@ namespace AorusMarket.Formularios
             }
         }
 
+        // ESTILO VISUAL MANTENIDO INTACTO (Pinta de rojo si stock < 5)
         private void DgvStock_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dgvStock.Columns[e.ColumnIndex].Name == "Cantidad" && e.Value != null)
@@ -168,11 +164,17 @@ namespace AorusMarket.Formularios
             }
         }
 
+        // Se corrigió para que al hacer clic en la grilla, los datos suban a los textbox y combos
         private void DgvStock_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvStock.CurrentRow == null) return;
-            var fila = dgvStock.CurrentRow; // corregido de dgvStock
-            // ... (mantenemos lógica de selección si hace falta)
+            var fila = dgvStock.CurrentRow;
+
+            idSeleccionado = Convert.ToInt32(fila.Cells["IdStock"].Value ?? 0);
+            cmbProducto.SelectedValue = Convert.ToInt32(fila.Cells["IdProducto"].Value ?? 0);
+            cmbSucursal.SelectedValue = Convert.ToInt32(fila.Cells["IdSucursal"].Value ?? 0);
+            txtCantidad.TextButton = fila.Cells["Cantidad"].Value?.ToString();
+            txtPrecio.TextButton = fila.Cells["Precio"].Value?.ToString();
         }
 
         private void LimpiarCampos()
@@ -187,52 +189,32 @@ namespace AorusMarket.Formularios
 
         private void BtnGuardar_Click(object sender, EventArgs e)
         {
-            if (cmbProducto.SelectedIndex == -1 || cmbSucursal.SelectedIndex == -1 ||
-                string.IsNullOrWhiteSpace(txtCantidad.TextButton) || string.IsNullOrWhiteSpace(txtPrecio.TextButton))
+            // Extraemos los valores como texto
+            string strProd = cmbProducto.SelectedValue?.ToString();
+            string strSuc = cmbSucursal.SelectedValue?.ToString();
+            string strCant = txtCantidad.TextButton;
+            string strPrec = txtPrecio.TextButton;
+            int idUsuarioLogueado = SesionActual.IdUsuario; // Para la tabla de auditoría (movimientos)
+
+            // Enviamos todo al Cerebro de Negocio para que valide e inserte
+            string mensajeError;
+            bool resultado = _stockNegocio.Guardar(strProd, strSuc, strCant, strPrec, idUsuarioLogueado, out mensajeError);
+
+            if (resultado)
             {
-                MessageBox.Show("Debe completar todos los campos", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
+                MessageBox.Show("¡Stock guardado con éxito en la base de datos!", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                LimpiarCampos();
+                CargarGrillaStock();
             }
-
-            if (!int.TryParse(txtCantidad.TextButton, out int cantidad) || !decimal.TryParse(txtPrecio.TextButton, out decimal precio))
+            else
             {
-                MessageBox.Show("Cantidad y Precio deben ser numéricos válidos", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            int idProducto = Convert.ToInt32(cmbProducto.SelectedValue);
-            int idSucursal = Convert.ToInt32(cmbSucursal.SelectedValue);
-
-            try
-            {
-                using (SqlConnection conexion = AorusMarket.AccesoDatos.Conexion.ObtenerConexion())
-                {
-                    conexion.Open();
-                    // Insertamos directo en la tabla stock_sucursal de tu base de datos
-                    string query = "INSERT INTO stock_sucursal (id_producto, id_sucursal, cantidad, precio) VALUES (@idProd, @idSuc, @cant, @prec)";
-
-                    SqlCommand cmd = new SqlCommand(query, conexion);
-                    cmd.Parameters.AddWithValue("@idProd", idProducto);
-                    cmd.Parameters.AddWithValue("@idSuc", idSucursal);
-                    cmd.Parameters.AddWithValue("@cant", cantidad);
-                    cmd.Parameters.AddWithValue("@prec", precio);
-
-                    cmd.ExecuteNonQuery();
-
-                    MessageBox.Show("¡Stock guardado con éxito en la base de datos!", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    LimpiarCampos();
-                    CargarGrillaStock();
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error al guardar en la base de datos: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(mensajeError, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         private void BtnEliminar_Click(object sender, EventArgs e)
         {
-            if (dgvStock.CurrentRow == null)
+            if (idSeleccionado == 0)
             {
                 MessageBox.Show("Seleccione un registro de la tabla para eliminar", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
@@ -243,26 +225,18 @@ namespace AorusMarket.Formularios
 
             if (resp == DialogResult.Yes)
             {
-                try
+                string mensaje;
+                bool resultado = _stockNegocio.Eliminar(idSeleccionado, out mensaje);
+
+                if (resultado)
                 {
-                    int idStock = Convert.ToInt32(dgvStock.CurrentRow.Cells["IdStock"].Value);
-
-                    using (SqlConnection conexion = AorusMarket.AccesoDatos.Conexion.ObtenerConexion())
-                    {
-                        conexion.Open();
-                        string query = "DELETE FROM stock_sucursal WHERE id_stock_sucursal = @id";
-                        SqlCommand cmd = new SqlCommand(query, conexion);
-                        cmd.Parameters.AddWithValue("@id", idStock);
-                        cmd.ExecuteNonQuery();
-
-                        MessageBox.Show("Registro eliminado correctamente", "AorusMarket", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        LimpiarCampos();
-                        CargarGrillaStock();
-                    }
+                    MessageBox.Show("Registro eliminado correctamente", "AorusMarket", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LimpiarCampos();
+                    CargarGrillaStock();
                 }
-                catch (Exception ex)
+                else
                 {
-                    MessageBox.Show("Error al eliminar: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show(mensaje, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }

@@ -2,17 +2,21 @@
 using System.Drawing;
 using System.Windows.Forms;
 using AorusMarket.Utilidades;
-using ReaLTaiizor.Controls; // IMPORTANTE: Agregado para que reconozca los nuevos controles
+using ReaLTaiizor.Controls;
+using AorusMarket.Entidades; // Importamos Entidades
+using AorusMarket.Negocio;   // Importamos Negocio
 
 namespace AorusMarket.Formularios
 {
     public partial class FrmCategorias : Form
     {
-        // 1. Cambiamos TextBox por CyberTextBox y Button por CyberButton
         private CyberTextBox txtNombre, txtDescripcion;
         private DataGridView dgvCategorias;
         private CyberButton btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
         private int idSeleccionado = 0;
+
+        // Instanciamos la capa de negocio
+        private CategoriaNegocio _categoriaNegocio = new CategoriaNegocio();
 
         public FrmCategorias()
         {
@@ -59,12 +63,31 @@ namespace AorusMarket.Formularios
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
             EstiloApp.EstilizarGrid(dgvCategorias);
+
+            // Definimos las columnas
             dgvCategorias.Columns.Add("IdCategoria", "Id");
             dgvCategorias.Columns.Add("Nombre", "Nombre");
             dgvCategorias.Columns.Add("Descripcion", "Descripción");
             dgvCategorias.Columns["IdCategoria"].Visible = false;
+
             dgvCategorias.SelectionChanged += DgvCategorias_SelectionChanged;
             this.Controls.Add(dgvCategorias);
+
+            // Cargar los datos desde la BD al abrir el formulario
+            CargarGrilla();
+        }
+
+        // METODO NUEVO: Consulta a la Capa de Negocio y llena la tabla
+        private void CargarGrilla()
+        {
+            dgvCategorias.Rows.Clear();
+            var listaCategorias = _categoriaNegocio.Listar();
+
+            foreach (var item in listaCategorias)
+            {
+                dgvCategorias.Rows.Add(item.IdCategoria, item.Nombre, item.Descripcion);
+            }
+            dgvCategorias.ClearSelection();
         }
 
         private void DgvCategorias_SelectionChanged(object sender, EventArgs e)
@@ -72,6 +95,8 @@ namespace AorusMarket.Formularios
             if (dgvCategorias.CurrentRow == null) return;
             var fila = dgvCategorias.CurrentRow;
             idSeleccionado = Convert.ToInt32(fila.Cells["IdCategoria"].Value ?? 0);
+
+            // CyberTextBox usa TextButton en lugar de Text
             txtNombre.TextButton = fila.Cells["Nombre"].Value?.ToString();
             txtDescripcion.TextButton = fila.Cells["Descripcion"].Value?.ToString();
         }
@@ -86,13 +111,29 @@ namespace AorusMarket.Formularios
 
         private void BtnGuardar_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtNombre.TextButton))
+            // 1. Armar el objeto Entidad con los datos del Formulario
+            Categoria nuevaCategoria = new Categoria()
             {
-                MessageBox.Show("Debe completar el nombre de la categoría", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
+                IdCategoria = idSeleccionado, // Si es 0 es nuevo, si es > 0 es edición
+                Nombre = txtNombre.TextButton,
+                Descripcion = txtDescripcion.TextButton
+            };
+
+            // 2. Mandar el objeto a la Capa de Negocio
+            string mensaje;
+            bool resultado = _categoriaNegocio.Guardar(nuevaCategoria, out mensaje);
+
+            // 3. Evaluar el resultado y refrescar la pantalla
+            if (resultado)
+            {
+                MessageBox.Show("Categoría guardada exitosamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                LimpiarCampos();
+                CargarGrilla(); // Recarga la grilla para mostrar los cambios
             }
-            MessageBox.Show("Categoría guardada (falta conectar la base de datos)", "AorusMarket");
+            else
+            {
+                MessageBox.Show(mensaje, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void BtnEliminar_Click(object sender, EventArgs e)
@@ -103,13 +144,27 @@ namespace AorusMarket.Formularios
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+
             var resp = MessageBox.Show("¿Seguro que desea eliminar esta categoría?", "Confirmar Eliminación",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation);
+
             if (resp == DialogResult.Yes)
             {
-                // TODO: eliminar en la base de datos (CategoriaDAL)
-                MessageBox.Show("Categoría eliminada (falta conectar la base de datos)", "AorusMarket");
-                LimpiarCampos();
+                // 1. Enviar el ID a la capa de Negocio
+                string mensaje;
+                bool resultado = _categoriaNegocio.Eliminar(idSeleccionado, out mensaje);
+
+                // 2. Evaluar el resultado
+                if (resultado)
+                {
+                    MessageBox.Show("Categoría eliminada exitosamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LimpiarCampos();
+                    CargarGrilla(); // Recarga la grilla para que desaparezca la fila
+                }
+                else
+                {
+                    MessageBox.Show(mensaje, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
         }
     }

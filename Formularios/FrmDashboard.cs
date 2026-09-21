@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Collections.Generic;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
+using AorusMarket.Entidades; // Importamos Entidades
+using AorusMarket.Negocio;   // Importamos Negocio
 
 namespace AorusMarket.Formularios
 {
@@ -14,8 +17,10 @@ namespace AorusMarket.Formularios
 
         // ESPECIFICAMOS que son Labels de Windows Forms para evitar ambigüedad con ReaLTaiizor
         private System.Windows.Forms.Label lblTotalVendido, lblCantidadVentas, lblProductoTop;
-
         private DataGridView dgvVentasRecientes;
+
+        // Instanciamos el Cerebro del Dashboard
+        private DashboardNegocio _dashboardNegocio = new DashboardNegocio();
 
         public FrmDashboard()
         {
@@ -32,7 +37,10 @@ namespace AorusMarket.Formularios
             int x = 30, y = 80;
             this.Controls.Add(EstiloApp.CrearLabel("SUCURSAL", new Point(x, y)));
             cmbSucursal = EstiloApp.CrearComboBox(new Point(x, y + 20), 220);
-            cmbSucursal.Items.Add("Todas las sucursales");
+
+            // Llenamos el ComboBox de Sucursales desde la Base de Datos
+            CargarComboSucursales();
+
             this.Controls.Add(cmbSucursal);
 
             this.Controls.Add(EstiloApp.CrearLabel("DESDE", new Point(x + 240, y)));
@@ -40,7 +48,9 @@ namespace AorusMarket.Formularios
             {
                 Location = new Point(x + 240, y + 20),
                 Size = new Size(160, 28),
-                Format = DateTimePickerFormat.Short
+                Format = DateTimePickerFormat.Short,
+                // Por defecto, restamos 30 días para mostrar el último mes
+                Value = DateTime.Now.AddDays(-30)
             };
             this.Controls.Add(dtDesde);
 
@@ -49,7 +59,8 @@ namespace AorusMarket.Formularios
             {
                 Location = new Point(x + 420, y + 20),
                 Size = new Size(160, 28),
-                Format = DateTimePickerFormat.Short
+                Format = DateTimePickerFormat.Short,
+                Value = DateTime.Now // Hasta hoy
             };
             this.Controls.Add(dtHasta);
 
@@ -85,6 +96,9 @@ namespace AorusMarket.Formularios
             dgvVentasRecientes.Columns.Add("MetodoPago", "Método de Pago");
             dgvVentasRecientes.Columns.Add("Estado", "Estado");
             this.Controls.Add(dgvVentasRecientes);
+
+            // Cargar datos por primera vez al abrir el Dashboard
+            EjecutarFiltros();
         }
 
         // ESPECIFICAMOS System.Windows.Forms.Panel y System.Windows.Forms.Label en la firma del método
@@ -117,16 +131,66 @@ namespace AorusMarket.Formularios
             return panel;
         }
 
+        // METODO NUEVO: Consulta la BD para llenar el combo de sucursales
+        private void CargarComboSucursales()
+        {
+            var sucursales = _dashboardNegocio.ObtenerSucursalesCombo();
+
+            // Insertamos la opción comodín "0" al principio de la lista
+            sucursales.Insert(0, new SucursalCombo() { IdSucursal = 0, Nombre = "Todas las sucursales" });
+
+            cmbSucursal.DataSource = sucursales;
+            cmbSucursal.DisplayMember = "Nombre";    // Lo que ve el usuario
+            cmbSucursal.ValueMember = "IdSucursal";  // El ID real oculto
+              
+        }
+
         private void BtnFiltrar_Click(object sender, EventArgs e)
         {
-            // 1TODO: consultar VentaDAL con filtros de sucursal y rango de fechas
+            EjecutarFiltros();
+        }
 
-            // Usamos las variables aquí para actualizar la interfaz y quitar la advertencia (warning)
-            lblTotalVendido.Text = "$1,250.00";
-            lblCantidadVentas.Text = "24";
-            lblProductoTop.Text = "Placa de Video";
+        // METODO NUEVO: Orquesta la consulta a la BD y pinta los resultados en las tarjetas y la grilla
+        private void EjecutarFiltros()
+        {
+            // 1. Obtener valores de los filtros
+            int idSucursal = Convert.ToInt32(cmbSucursal.SelectedValue);
+            DateTime desde = dtDesde.Value;
+            DateTime hasta = dtHasta.Value;
 
-            MessageBox.Show("Filtro aplicado (falta conectar la base de datos)", "AorusMarket");
+            string mensajeError;
+
+            // 2. Pedir Métricas al Negocio
+            MetricasDashboard metricas = _dashboardNegocio.ObtenerMetricas(idSucursal, desde, hasta, out mensajeError);
+
+            if (!string.IsNullOrEmpty(mensajeError))
+            {
+                MessageBox.Show(mensajeError, "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // 3. Actualizar Tarjetas (Formateando el número como moneda y separador de miles)
+            lblTotalVendido.Text = metricas.TotalVendido.ToString("C2");
+            lblCantidadVentas.Text = metricas.CantidadVentas.ToString();
+            lblProductoTop.Text = string.IsNullOrEmpty(metricas.ProductoMasVendido) ? "-" : metricas.ProductoMasVendido;
+
+            // 4. Pedir Lista de Ventas al Negocio y pintar la Grilla
+            dgvVentasRecientes.Rows.Clear();
+            var listaVentas = _dashboardNegocio.ObtenerVentasRecientes(idSucursal, desde, hasta);
+
+            foreach (var v in listaVentas)
+            {
+                dgvVentasRecientes.Rows.Add(
+                    v.IdVenta,
+                    v.Fecha.ToString("dd/MM/yyyy HH:mm"),
+                    v.Sucursal,
+                    v.Cliente,
+                    v.Total.ToString("C2"),
+                    v.MetodoPago,
+                    v.Estado
+                );
+            }
+            dgvVentasRecientes.ClearSelection();
         }
     }
 }

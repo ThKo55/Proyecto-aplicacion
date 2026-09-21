@@ -1,15 +1,14 @@
-﻿using System.Data.SqlClient; // Usamos la librería nativa para evitar errores
+﻿using System.Configuration; // Agregado para leer el App.config
+using System.Data.SqlClient;
 
 namespace AorusMarket.AccesoDatos
 {
     public static class Conexion
     {
-        // Corregimos el nombre de la base a SuperMercadoDB
-        private static readonly string cadena =
-            "Server=localhost,1433;Database=SuperMercadoDB;User Id=sa;Password=Contraseña123!;TrustServerCertificate=True;";
-
         public static SqlConnection ObtenerConexion()
         {
+            // Ahora la cadena ya no está quemada en el código, la lee del archivo externo
+            string cadena = ConfigurationManager.ConnectionStrings["CadenaSQL"].ConnectionString;
             return new SqlConnection(cadena);
         }
     }
