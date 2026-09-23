@@ -105,6 +105,10 @@ namespace AorusMarket.Formularios
             this.Controls.Add(btnNuevo);
             this.Controls.Add(btnGuardar);
             this.Controls.Add(btnEliminar);
+            // Botón que solo vacía las cajitas de texto en la pantalla
+            CyberButton btnLimpiar = EstiloApp.CrearBoton("LIMPIAR", new Point(x + 830, y + 10), 120, EstiloApp.Gris);
+            btnLimpiar.Click += (s, e) => LimpiarCampos();
+            this.Controls.Add(btnLimpiar);
 
             y += 60;
             // GRILLA
@@ -120,7 +124,24 @@ namespace AorusMarket.Formularios
         }
 
         private void CargarCombos() { cmbPerfil.DataSource = _usuarioNegocio.ObtenerPerfiles(); cmbPerfil.DisplayMember = "Nombre"; cmbPerfil.ValueMember = "Id"; cmbPerfil.SelectedIndex = -1; cmbSucursal.DataSource = _usuarioNegocio.ObtenerSucursales(); cmbSucursal.DisplayMember = "Nombre"; cmbSucursal.ValueMember = "Id"; cmbSucursal.SelectedIndex = -1; }
-        private void CargarGrilla(string filtro = "") { dgvUsuarios.Rows.Clear(); var listaUsuarios = _usuarioNegocio.Listar(filtro); foreach (var item in listaUsuarios) { dgvUsuarios.Rows.Add(item.IdUsuario, item.Dni, item.Nombre, item.Apellido, item.Email, item.Telefono, item.Calle, item.Altura, item.FechaNacimiento.HasValue ? item.FechaNacimiento.Value.ToString("dd/MM/yyyy") : "", item.NombrePerfil, item.NombreSucursal, item.IdPerfil, item.IdSucursal, item.IdDireccion); } dgvUsuarios.ClearSelection(); }
+        private void CargarGrilla(string filtro = "")
+        {
+            // 1. APAGAMOS el evento para que no auto-seleccione nada
+            dgvUsuarios.SelectionChanged -= DgvUsuarios_SelectionChanged;
+
+            dgvUsuarios.Rows.Clear();
+            var listaUsuarios = _usuarioNegocio.Listar(filtro);
+            foreach (var item in listaUsuarios)
+            {
+                dgvUsuarios.Rows.Add(item.IdUsuario, item.Dni, item.Nombre, item.Apellido, item.Email, item.Telefono, item.Calle, item.Altura, item.FechaNacimiento.HasValue ? item.FechaNacimiento.Value.ToString("dd/MM/yyyy") : "", item.NombrePerfil, item.NombreSucursal, item.IdPerfil, item.IdSucursal, item.IdDireccion);
+            }
+
+            // 2. Limpiamos la selección rebelde de Windows Forms
+            dgvUsuarios.ClearSelection();
+
+            // 3. VOLVEMOS A PRENDER el evento
+            dgvUsuarios.SelectionChanged += DgvUsuarios_SelectionChanged;
+        }
         private void DgvUsuarios_SelectionChanged(object sender, EventArgs e) { if (dgvUsuarios.CurrentRow == null) return; var fila = dgvUsuarios.CurrentRow; idSeleccionado = Convert.ToInt32(fila.Cells["IdUsuario"].Value ?? 0); idDireccionSeleccionada = Convert.ToInt32(fila.Cells["IdDireccion"].Value ?? 0); txtDni.TextButton = fila.Cells["Dni"].Value?.ToString(); txtNombre.TextButton = fila.Cells["Nombre"].Value?.ToString(); txtApellido.TextButton = fila.Cells["Apellido"].Value?.ToString(); txtEmail.TextButton = fila.Cells["Email"].Value?.ToString(); txtTelefono.TextButton = fila.Cells["Telefono"].Value?.ToString(); txtCalle.TextButton = fila.Cells["Calle"].Value?.ToString(); txtAltura.TextButton = fila.Cells["Altura"].Value?.ToString(); txtPassword.TextButton = ""; if (DateTime.TryParse(fila.Cells["FechaNacimiento"].Value?.ToString(), out DateTime fechaNac)) { dtFechaNacimiento.Value = fechaNac; } else { dtFechaNacimiento.Value = DateTime.Now; } cmbPerfil.SelectedValue = Convert.ToInt32(fila.Cells["IdPerfil"].Value ?? 0); cmbSucursal.SelectedValue = Convert.ToInt32(fila.Cells["IdSucursal"].Value ?? 0); }
         private void LimpiarCampos() { idSeleccionado = 0; idDireccionSeleccionada = 0; txtDni.TextButton = ""; txtNombre.TextButton = ""; txtApellido.TextButton = ""; txtEmail.TextButton = ""; txtTelefono.TextButton = ""; txtCalle.TextButton = ""; txtAltura.TextButton = ""; txtPassword.TextButton = ""; txtBuscarDni.TextButton = ""; dtFechaNacimiento.Value = DateTime.Now; cmbPerfil.SelectedIndex = -1; cmbSucursal.SelectedIndex = -1; dgvUsuarios.ClearSelection(); CargarGrilla(); }
 

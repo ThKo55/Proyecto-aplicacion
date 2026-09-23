@@ -92,6 +92,10 @@ namespace AorusMarket.Formularios
             btnEliminar.Click += BtnEliminar_Click;
 
             this.Controls.Add(btnNuevo); this.Controls.Add(btnGuardar); this.Controls.Add(btnEliminar);
+            // Botón que solo vacía las cajitas de texto en la pantalla
+            CyberButton btnLimpiar = EstiloApp.CrearBoton("LIMPIAR", new Point(x + 390, y + 10), 120, EstiloApp.Gris);
+            btnLimpiar.Click += (s, e) => LimpiarCampos();
+            this.Controls.Add(btnLimpiar);
 
             y += 60;
             // GRILLA
@@ -105,7 +109,24 @@ namespace AorusMarket.Formularios
             CargarGrilla();
         }
 
-        private void CargarGrilla(string filtro = "") { dgvClientes.Rows.Clear(); var lista = _clienteNegocio.Listar(filtro); foreach (var item in lista) { dgvClientes.Rows.Add(item.IdCliente, item.Dni, item.Nombre, item.Apellido, item.Email, item.Telefono, item.Calle, item.Altura, item.FechaNacimiento.HasValue ? item.FechaNacimiento.Value.ToString("dd/MM/yyyy") : "", item.CuilCuit, item.IdDireccion); } dgvClientes.ClearSelection(); }
+        private void CargarGrilla(string filtro = "")
+        {
+            // 1. APAGAMOS el evento
+            dgvClientes.SelectionChanged -= DgvClientes_SelectionChanged;
+
+            dgvClientes.Rows.Clear();
+            var lista = _clienteNegocio.Listar(filtro);
+            foreach (var item in lista)
+            {
+                dgvClientes.Rows.Add(item.IdCliente, item.Dni, item.Nombre, item.Apellido, item.Email, item.Telefono, item.Calle, item.Altura, item.FechaNacimiento.HasValue ? item.FechaNacimiento.Value.ToString("dd/MM/yyyy") : "", item.CuilCuit, item.IdDireccion);
+            }
+
+            // 2. Limpiamos la selección rebelde
+            dgvClientes.ClearSelection();
+
+            // 3. VOLVEMOS A PRENDER el evento
+            dgvClientes.SelectionChanged += DgvClientes_SelectionChanged;
+        }
         private void DgvClientes_SelectionChanged(object sender, EventArgs e) { if (dgvClientes.CurrentRow == null) return; var fila = dgvClientes.CurrentRow; idSeleccionado = Convert.ToInt32(fila.Cells["IdCliente"].Value ?? 0); idDireccionSeleccionada = Convert.ToInt32(fila.Cells["IdDireccion"].Value ?? 0); txtDni.TextButton = fila.Cells["Dni"].Value?.ToString(); txtNombre.TextButton = fila.Cells["Nombre"].Value?.ToString(); txtApellido.TextButton = fila.Cells["Apellido"].Value?.ToString(); txtEmail.TextButton = fila.Cells["Email"].Value?.ToString(); txtTelefono.TextButton = fila.Cells["Telefono"].Value?.ToString(); txtCalle.TextButton = fila.Cells["Calle"].Value?.ToString(); txtAltura.TextButton = fila.Cells["Altura"].Value?.ToString(); txtCuil.TextButton = fila.Cells["CuilCuit"].Value?.ToString(); if (DateTime.TryParse(fila.Cells["FechaNacimiento"].Value?.ToString(), out DateTime fechaNac)) dtFechaNacimiento.Value = fechaNac; else dtFechaNacimiento.Value = DateTime.Now; }
         private void LimpiarCampos() { idSeleccionado = 0; idDireccionSeleccionada = 0; txtDni.TextButton = ""; txtNombre.TextButton = ""; txtApellido.TextButton = ""; txtEmail.TextButton = ""; txtTelefono.TextButton = ""; txtCalle.TextButton = ""; txtAltura.TextButton = ""; txtCuil.TextButton = ""; txtBuscarDni.TextButton = ""; dtFechaNacimiento.Value = DateTime.Now; dgvClientes.ClearSelection(); CargarGrilla(); }
 
