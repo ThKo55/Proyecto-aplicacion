@@ -1,25 +1,28 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.SqlClient;
-using AorusMarket.Entidades; // Importamos el molde de la entidad Cliente
+using AorusMarket.Entidades;
 
 namespace AorusMarket.AccesoDatos
 {
     public class ClienteDatos
     {
-        // 1. Método para buscar todos los clientes activos y enviarlos a la grilla
-        public List<Cliente> Listar()
+        public List<Cliente> Listar(string filtroDni = "")
         {
             List<Cliente> lista = new List<Cliente>();
-
-            // 'using' abre la conexión y asegura que se cierre sola al terminar
             using (SqlConnection oConexion = Conexion.ObtenerConexion())
             {
-                // Solo listamos los clientes donde activo = 1
-                string query = "SELECT id_cliente, nombre, apellido, dni, telefono, email, direccion FROM cliente WHERE activo = 1";
+                string query = @"
+                    SELECT c.id_cliente, c.dni, c.cuil_cuit, c.nombre, c.apellido, c.email, c.telefono, c.fecha_nacimiento, 
+                           c.id_direccion, d.calle, d.altura
+                    FROM cliente c
+                    INNER JOIN direccion d ON c.id_direccion = d.id_direccion
+                    WHERE c.activo = 1";
+
+                if (!string.IsNullOrEmpty(filtroDni)) query += " AND c.dni LIKE @filtro";
+
                 SqlCommand cmd = new SqlCommand(query, oConexion);
-                cmd.CommandType = CommandType.Text;
+                if (!string.IsNullOrEmpty(filtroDni)) cmd.Parameters.AddWithValue("@filtro", "%" + filtroDni + "%");
 
                 try
                 {
@@ -31,107 +34,105 @@ namespace AorusMarket.AccesoDatos
                             lista.Add(new Cliente()
                             {
                                 IdCliente = Convert.ToInt32(dr["id_cliente"]),
+                                Dni = dr["dni"].ToString(),
+                                CuilCuit = dr["cuil_cuit"].ToString(),
                                 Nombre = dr["nombre"].ToString(),
                                 Apellido = dr["apellido"].ToString(),
-                                Dni = dr["dni"].ToString(),
-                                Telefono = dr["telefono"].ToString(),
                                 Email = dr["email"].ToString(),
-                                Direccion = dr["direccion"].ToString()
+                                Telefono = dr["telefono"].ToString(),
+                                FechaNacimiento = dr["fecha_nacimiento"] != DBNull.Value ? Convert.ToDateTime(dr["fecha_nacimiento"]) : (DateTime?)null,
+                                IdDireccion = Convert.ToInt32(dr["id_direccion"]),
+                                Calle = dr["calle"].ToString(),
+                                Altura = dr["altura"].ToString()
                             });
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    lista = new List<Cliente>(); // Si falla, devuelve lista vacía para no romper el programa
-                    Console.WriteLine("Error al listar clientes: " + ex.Message);
-                }
+                catch (Exception ex) { Console.WriteLine("Error: " + ex.Message); }
             }
             return lista;
         }
 
-        // 2. Método para guardar un nuevo cliente en la base de datos
         public bool Insertar(Cliente obj)
         {
             bool respuesta = false;
             using (SqlConnection oConexion = Conexion.ObtenerConexion())
             {
-                string query = "INSERT INTO cliente (nombre, apellido, dni, telefono, email, direccion) VALUES (@nombre, @apellido, @dni, @telefono, @email, @direccion)";
-                SqlCommand cmd = new SqlCommand(query, oConexion);
-                cmd.Parameters.AddWithValue("@nombre", obj.Nombre);
-                cmd.Parameters.AddWithValue("@apellido", obj.Apellido);
-                cmd.Parameters.AddWithValue("@dni", string.IsNullOrEmpty(obj.Dni) ? (object)DBNull.Value : obj.Dni);
-                cmd.Parameters.AddWithValue("@telefono", string.IsNullOrEmpty(obj.Telefono) ? (object)DBNull.Value : obj.Telefono);
-                cmd.Parameters.AddWithValue("@email", string.IsNullOrEmpty(obj.Email) ? (object)DBNull.Value : obj.Email);
-                cmd.Parameters.AddWithValue("@direccion", string.IsNullOrEmpty(obj.Direccion) ? (object)DBNull.Value : obj.Direccion);
-
+                oConexion.Open();
+                SqlTransaction tx = oConexion.BeginTransaction();
                 try
                 {
-                    oConexion.Open();
-                    respuesta = cmd.ExecuteNonQuery() > 0; // True si afectó 1 o más filas
+                    string qDir = "INSERT INTO direccion (calle, altura) OUTPUT INSERTED.id_direccion VALUES (@calle, @altura)";
+                    SqlCommand cmdDir = new SqlCommand(qDir, oConexion, tx);
+                    cmdDir.Parameters.AddWithValue("@calle", obj.Calle ?? "");
+                    cmdDir.Parameters.AddWithValue("@altura", obj.Altura ?? "");
+                    int idDir = Convert.ToInt32(cmdDir.ExecuteScalar());
+
+                    string qCli = "INSERT INTO cliente (dni, cuil_cuit, nombre, apellido, email, telefono, fecha_nacimiento, id_direccion) VALUES (@dni, @cuil, @nom, @ape, @email, @tel, @fec, @iddir)";
+                    SqlCommand cmdCli = new SqlCommand(qCli, oConexion, tx);
+                    cmdCli.Parameters.AddWithValue("@dni", obj.Dni ?? "");
+                    cmdCli.Parameters.AddWithValue("@cuil", obj.CuilCuit ?? "");
+                    cmdCli.Parameters.AddWithValue("@nom", obj.Nombre);
+                    cmdCli.Parameters.AddWithValue("@ape", obj.Apellido);
+                    cmdCli.Parameters.AddWithValue("@email", obj.Email ?? "");
+                    cmdCli.Parameters.AddWithValue("@tel", obj.Telefono ?? "");
+                    cmdCli.Parameters.AddWithValue("@fec", obj.FechaNacimiento.HasValue ? (object)obj.FechaNacimiento.Value : DBNull.Value);
+                    cmdCli.Parameters.AddWithValue("@iddir", idDir);
+
+                    cmdCli.ExecuteNonQuery();
+                    tx.Commit();
+                    respuesta = true;
                 }
-                catch (Exception ex)
-                {
-                    respuesta = false;
-                    Console.WriteLine("Error al insertar cliente: " + ex.Message);
-                }
+                catch { tx.Rollback(); }
             }
             return respuesta;
         }
 
-        // 3. Método para sobreescribir los datos de un cliente que ya existe
         public bool Editar(Cliente obj)
         {
             bool respuesta = false;
             using (SqlConnection oConexion = Conexion.ObtenerConexion())
             {
-                string query = "UPDATE cliente SET nombre = @nombre, apellido = @apellido, dni = @dni, telefono = @telefono, email = @email, direccion = @direccion WHERE id_cliente = @id";
-                SqlCommand cmd = new SqlCommand(query, oConexion);
-                cmd.Parameters.AddWithValue("@nombre", obj.Nombre);
-                cmd.Parameters.AddWithValue("@apellido", obj.Apellido);
-                cmd.Parameters.AddWithValue("@dni", string.IsNullOrEmpty(obj.Dni) ? (object)DBNull.Value : obj.Dni);
-                cmd.Parameters.AddWithValue("@telefono", string.IsNullOrEmpty(obj.Telefono) ? (object)DBNull.Value : obj.Telefono);
-                cmd.Parameters.AddWithValue("@email", string.IsNullOrEmpty(obj.Email) ? (object)DBNull.Value : obj.Email);
-                cmd.Parameters.AddWithValue("@direccion", string.IsNullOrEmpty(obj.Direccion) ? (object)DBNull.Value : obj.Direccion);
-                cmd.Parameters.AddWithValue("@id", obj.IdCliente);
-
+                oConexion.Open();
+                SqlTransaction tx = oConexion.BeginTransaction();
                 try
                 {
-                    oConexion.Open();
-                    respuesta = cmd.ExecuteNonQuery() > 0;
+                    string qDir = "UPDATE direccion SET calle = @calle, altura = @altura WHERE id_direccion = @idDir";
+                    SqlCommand cmdDir = new SqlCommand(qDir, oConexion, tx);
+                    cmdDir.Parameters.AddWithValue("@calle", obj.Calle ?? "");
+                    cmdDir.Parameters.AddWithValue("@altura", obj.Altura ?? "");
+                    cmdDir.Parameters.AddWithValue("@idDir", obj.IdDireccion);
+                    cmdDir.ExecuteNonQuery();
+
+                    string qCli = "UPDATE cliente SET dni=@dni, cuil_cuit=@cuil, nombre=@nom, apellido=@ape, email=@email, telefono=@tel, fecha_nacimiento=@fec WHERE id_cliente=@id";
+                    SqlCommand cmdCli = new SqlCommand(qCli, oConexion, tx);
+                    cmdCli.Parameters.AddWithValue("@dni", obj.Dni ?? "");
+                    cmdCli.Parameters.AddWithValue("@cuil", obj.CuilCuit ?? "");
+                    cmdCli.Parameters.AddWithValue("@nom", obj.Nombre);
+                    cmdCli.Parameters.AddWithValue("@ape", obj.Apellido);
+                    cmdCli.Parameters.AddWithValue("@email", obj.Email ?? "");
+                    cmdCli.Parameters.AddWithValue("@tel", obj.Telefono ?? "");
+                    cmdCli.Parameters.AddWithValue("@fec", obj.FechaNacimiento.HasValue ? (object)obj.FechaNacimiento.Value : DBNull.Value);
+                    cmdCli.Parameters.AddWithValue("@id", obj.IdCliente);
+
+                    cmdCli.ExecuteNonQuery();
+                    tx.Commit();
+                    respuesta = true;
                 }
-                catch (Exception ex)
-                {
-                    respuesta = false;
-                    Console.WriteLine("Error al editar cliente: " + ex.Message);
-                }
+                catch { tx.Rollback(); }
             }
             return respuesta;
         }
 
-        // 4. Método para Eliminar (Aplicamos Baja Lógica como mejoramos en el modelo)
         public bool Eliminar(int id)
         {
-            bool respuesta = false;
             using (SqlConnection oConexion = Conexion.ObtenerConexion())
             {
-                // Solo ocultamos el cliente, NO hacemos DELETE para proteger el historial de ventas
-                string query = "UPDATE cliente SET activo = 0 WHERE id_cliente = @id";
-                SqlCommand cmd = new SqlCommand(query, oConexion);
+                SqlCommand cmd = new SqlCommand("UPDATE cliente SET activo = 0 WHERE id_cliente = @id", oConexion);
                 cmd.Parameters.AddWithValue("@id", id);
-
-                try
-                {
-                    oConexion.Open();
-                    respuesta = cmd.ExecuteNonQuery() > 0;
-                }
-                catch (Exception ex)
-                {
-                    respuesta = false;
-                    Console.WriteLine("Error al eliminar cliente: " + ex.Message);
-                }
+                oConexion.Open();
+                return cmd.ExecuteNonQuery() > 0;
             }
-            return respuesta;
         }
     }
 }

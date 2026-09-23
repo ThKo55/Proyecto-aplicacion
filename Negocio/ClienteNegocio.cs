@@ -1,5 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions; // IMPORTANTE PARA VALIDAR EMAIL
 using AorusMarket.AccesoDatos;
 using AorusMarket.Entidades;
 
@@ -7,52 +8,46 @@ namespace AorusMarket.Negocio
 {
     public class ClienteNegocio
     {
-        // Traemos a nuestro "obrero" de la base de datos
         private ClienteDatos _clienteDatos = new ClienteDatos();
+        public List<Cliente> Listar(string filtroDni = "") => _clienteDatos.Listar(filtroDni);
 
-        // Solicita el listado de clientes a la capa de datos
-        public List<Cliente> Listar()
-        {
-            return _clienteDatos.Listar();
-        }
-
-        // Valida la información del formulario y decide si debe INSERTAR o EDITAR
         public bool Guardar(Cliente obj, out string mensaje)
         {
             mensaje = string.Empty;
 
-            // 1. Reglas de negocio y Validaciones
-            if (string.IsNullOrWhiteSpace(obj.Nombre) || string.IsNullOrWhiteSpace(obj.Apellido))
+            // 1. VALIDACIONES DE CAMPOS OBLIGATORIOS
+            if (string.IsNullOrWhiteSpace(obj.Dni)) { mensaje = "El DNI es obligatorio."; return false; }
+            if (string.IsNullOrWhiteSpace(obj.Nombre)) { mensaje = "El Nombre es obligatorio."; return false; }
+            if (string.IsNullOrWhiteSpace(obj.Apellido)) { mensaje = "El Apellido es obligatorio."; return false; }
+
+            // 2. VALIDACIÓN DE DIRECCIÓN
+            if (string.IsNullOrWhiteSpace(obj.Calle) || string.IsNullOrWhiteSpace(obj.Altura))
             {
-                mensaje = "El nombre y el apellido son campos obligatorios.";
+                mensaje = "La Calle y la Altura son obligatorias.";
                 return false;
             }
 
-            // 2. Lógica de enrutamiento: Si el ID es 0, lo creamos. Si tiene ID, lo editamos.
-            if (obj.IdCliente == 0)
+            // 3. VALIDACIÓN DE EMAIL Y FORMATO
+            if (string.IsNullOrWhiteSpace(obj.Email)) { mensaje = "El Email es obligatorio."; return false; }
+            if (!Regex.IsMatch(obj.Email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
             {
-                bool resultado = _clienteDatos.Insertar(obj);
-                if (!resultado) mensaje = "No se pudo insertar el cliente. Verifique si el DNI o Email ya existen.";
-                return resultado;
+                mensaje = "El formato del Email no es válido (ejemplo@dominio.com).";
+                return false;
             }
-            else
-            {
-                bool resultado = _clienteDatos.Editar(obj);
-                if (!resultado) mensaje = "No se pudo actualizar el cliente.";
-                return resultado;
-            }
+
+            // 4. VALIDACIÓN DE DNI REPETIDO
+            var listaExistente = _clienteDatos.Listar();
+            bool dniRepetido = listaExistente.Any(c => c.Dni == obj.Dni && c.IdCliente != obj.IdCliente);
+            if (dniRepetido) { mensaje = "El DNI ingresado ya se encuentra registrado en otro cliente."; return false; }
+
+            if (obj.IdCliente == 0) return _clienteDatos.Insertar(obj);
+            else return _clienteDatos.Editar(obj);
         }
 
-        // Delega la petición de eliminación
         public bool Eliminar(int id, out string mensaje)
         {
             mensaje = string.Empty;
-            bool resultado = _clienteDatos.Eliminar(id);
-            if (!resultado)
-            {
-                mensaje = "Ocurrió un error al intentar eliminar el cliente.";
-            }
-            return resultado;
+            return _clienteDatos.Eliminar(id);
         }
     }
 }

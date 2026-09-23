@@ -16,7 +16,7 @@ namespace AorusMarket.Formularios
         private System.Windows.Forms.Label lblUsuarioActivo;
         private System.Windows.Forms.Label lblLogoTexto;
 
-        private CyberButton btnPuntoVenta, btnClientes, btnStock, btnProductos, btnCategorias, btnUsuarios, btnSucursales, btnDashboard, btnCerrarSesion;
+        private CyberButton btnPuntoVenta, btnClientes, btnStock, btnProductos, btnCategorias, btnUsuarios, btnSucursales, btnDashboard, btnCerrarSesion, btnHistorial, btnAuditoria;
 
         private Form formularioActivo = null;
         private CyberButton botonActivo = null;
@@ -143,12 +143,12 @@ namespace AorusMarket.Formularios
             btnSucursales = CrearBotonMenu("🏢 Sucursales", yPos);
             btnSucursales.Click += (s, e) => { ResaltarBotonActivo(btnSucursales); AbrirFormularioEnPanel(new FrmSucursales()); };
             yPos += btnHeight;
-            CyberButton btnHistorial = CrearBotonMenu("📜 Hist. Ventas", yPos);
+             btnHistorial = CrearBotonMenu("📜 Hist. Ventas", yPos);
             btnHistorial.Click += (s, e) => { ResaltarBotonActivo(btnHistorial); AbrirFormularioEnPanel(new FrmHistorialVentas()); };
             panelMenuLateral.Controls.Add(btnHistorial);
             yPos += btnHeight; 
                                
-            CyberButton btnAuditoria = CrearBotonMenu("🔎 Auditoría Stock", yPos);
+             btnAuditoria = CrearBotonMenu("🔎 Auditoría Stock", yPos);
             btnAuditoria.Click += (s, e) => { ResaltarBotonActivo(btnAuditoria); AbrirFormularioEnPanel(new FrmAuditoriaStock()); };
             panelMenuLateral.Controls.Add(btnAuditoria);
             yPos += btnHeight; 
@@ -316,20 +316,18 @@ namespace AorusMarket.Formularios
             formHijo.Show();
         }
 
-        // --- FILTRO DE SEGURIDAD ESTRICTO POR ROLES ---
         private void AplicarPermisosPorPerfil()
         {
             // 1. ADMINISTRADOR (IdPerfil = 1)
             if (SesionActual.IdPerfil == 1)
             {
-                // Por recomendación académica de segregación de funciones, el Admin NO opera la caja.
-                btnPuntoVenta.Visible = false;
+                btnPuntoVenta.Visible = false; // El admin no usa la caja
 
                 ResaltarBotonActivo(btnDashboard);
                 pnlIndicador.Top = btnDashboard.Top;
                 AbrirFormularioEnPanel(new FrmDashboard());
             }
-            // 2. CAJERO (IdPerfil = 2)
+            // 2. CAJERO / VENTAS (IdPerfil = 2)
             else if (SesionActual.IdPerfil == 2)
             {
                 btnStock.Visible = false;
@@ -338,6 +336,10 @@ namespace AorusMarket.Formularios
                 btnUsuarios.Visible = false;
                 btnSucursales.Visible = false;
                 btnDashboard.Visible = false;
+
+                // --- ACÁ OCULTAMOS LOS HISTORIALES AL CAJERO ---
+                btnHistorial.Visible = false;
+                btnAuditoria.Visible = false;
 
                 ResaltarBotonActivo(btnPuntoVenta);
                 pnlIndicador.Top = btnPuntoVenta.Top;
@@ -351,6 +353,11 @@ namespace AorusMarket.Formularios
                 btnUsuarios.Visible = false;
                 btnSucursales.Visible = false;
                 btnDashboard.Visible = false;
+
+              
+                // --- ACÁ OCULTAMOS LOS HISTORIALES AL CAJERO ---
+                btnHistorial.Visible = false;
+                btnAuditoria.Visible = false;
 
                 ResaltarBotonActivo(btnStock);
                 pnlIndicador.Top = btnStock.Top;

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions; // IMPORTANTE PARA VALIDAR EMAIL
 using AorusMarket.AccesoDatos;
 using AorusMarket.Entidades;
 
@@ -9,85 +11,65 @@ namespace AorusMarket.Negocio
     {
         private UsuarioDatos _usuarioDatos = new UsuarioDatos();
 
-        // --- ESTE ES EL MÉTODO QUE TE FALTABA PARA EL LOGIN ---
-        public Usuario Login(string email, string password, out string mensajeError)
+        public Usuario Login(string email, string password, out string mensaje)
         {
-            mensajeError = string.Empty;
-
-            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+            mensaje = string.Empty;
+            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
             {
-                mensajeError = "Debe completar todos los campos.";
+                mensaje = "Debe ingresar el correo y la contraseña.";
                 return null;
             }
 
-            Usuario objUsuario = _usuarioDatos.Autenticar(email, password);
-
-            if (objUsuario == null)
-            {
-                mensajeError = "Correo o contraseña incorrectos, o usuario inactivo.";
-                return null;
-            }
-
-            return objUsuario;
+            Usuario usuarioEncontrado = _usuarioDatos.Autenticar(email, password);
+            if (usuarioEncontrado == null) mensaje = "Correo o contraseña incorrectos, o usuario inactivo.";
+            return usuarioEncontrado;
         }
-        // ------------------------------------------------------
 
-        // Solicitamos los combos
-        public List<ComboUsuario> ObtenerPerfiles() => _usuarioDatos.ObtenerDatosCombo("perfil", "id_perfil", "nombre");
-        public List<ComboUsuario> ObtenerSucursales() => _usuarioDatos.ObtenerDatosCombo("sucursal", "id_sucursal", "nombre");
+        public List<ComboUsuario> ObtenerPerfiles() => _usuarioDatos.ObtenerPerfiles();
+        public List<ComboUsuario> ObtenerSucursales() => _usuarioDatos.ObtenerSucursales();
+        public List<Usuario> Listar(string filtroDni = "") => _usuarioDatos.Listar(filtroDni);
 
-        // Solicitamos el listado
-        public List<Usuario> Listar() => _usuarioDatos.Listar();
-
-        // Validaciones antes de guardar
         public bool Guardar(Usuario obj, out string mensaje)
         {
             mensaje = string.Empty;
 
-            // 1. Reglas de negocio obligatorias
-            if (string.IsNullOrWhiteSpace(obj.Nombre) || string.IsNullOrWhiteSpace(obj.Apellido) || string.IsNullOrWhiteSpace(obj.Email))
+            // 1. VALIDACIONES DE CAMPOS OBLIGATORIOS
+            if (string.IsNullOrWhiteSpace(obj.Dni)) { mensaje = "El DNI es obligatorio."; return false; }
+            if (string.IsNullOrWhiteSpace(obj.Nombre)) { mensaje = "El Nombre es obligatorio."; return false; }
+            if (string.IsNullOrWhiteSpace(obj.Apellido)) { mensaje = "El Apellido es obligatorio."; return false; }
+
+            // 2. VALIDACIÓN DE DIRECCIÓN
+            if (string.IsNullOrWhiteSpace(obj.Calle) || string.IsNullOrWhiteSpace(obj.Altura))
             {
-                mensaje = "El nombre, apellido y correo electrónico son obligatorios.";
+                mensaje = "La Calle y la Altura son obligatorias.";
                 return false;
             }
 
-            if (obj.IdPerfil <= 0 || obj.IdSucursal <= 0)
+            // 3. VALIDACIÓN DE EMAIL Y FORMATO
+            if (string.IsNullOrWhiteSpace(obj.Email)) { mensaje = "El Email es obligatorio."; return false; }
+            if (!Regex.IsMatch(obj.Email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
             {
-                mensaje = "Debe seleccionar un Perfil y una Sucursal válidos.";
+                mensaje = "El formato del Email no es válido (ejemplo@dominio.com).";
                 return false;
             }
 
-            // Si es un usuario NUEVO (ID = 0), la contraseña es 100% obligatoria
-            if (obj.IdUsuario == 0 && string.IsNullOrWhiteSpace(obj.Password))
-            {
-                mensaje = "Para crear un nuevo usuario, debe asignarle una contraseña.";
-                return false;
-            }
+            // 4. VALIDACIÓN DE DNI REPETIDO
+            var listaExistente = _usuarioDatos.Listar();
+            bool dniRepetido = listaExistente.Any(u => u.Dni == obj.Dni && u.IdUsuario != obj.IdUsuario);
+            if (dniRepetido) { mensaje = "El DNI ingresado ya se encuentra registrado en otro usuario."; return false; }
 
-            // 2. Enrutar a INSERTAR o EDITAR según el ID
             if (obj.IdUsuario == 0)
             {
-                bool resultado = _usuarioDatos.Insertar(obj);
-                if (!resultado) mensaje = "No se pudo crear el usuario. Verifique que el correo no esté duplicado.";
-                return resultado;
+                if (string.IsNullOrWhiteSpace(obj.Password)) { mensaje = "La Contraseña es obligatoria para nuevos usuarios."; return false; }
+                return _usuarioDatos.Insertar(obj);
             }
-            else
-            {
-                bool resultado = _usuarioDatos.Editar(obj);
-                if (!resultado) mensaje = "No se pudo actualizar el usuario.";
-                return resultado;
-            }
+            else return _usuarioDatos.Editar(obj);
         }
 
         public bool Eliminar(int id, out string mensaje)
         {
             mensaje = string.Empty;
-            bool resultado = _usuarioDatos.Eliminar(id);
-            if (!resultado)
-            {
-                mensaje = "Ocurrió un error al intentar eliminar el usuario.";
-            }
-            return resultado;
+            return _usuarioDatos.Eliminar(id);
         }
     }
 }
