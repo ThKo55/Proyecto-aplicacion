@@ -11,6 +11,7 @@ namespace AorusMarket.Formularios
     {
         private DateTimePicker dtpDesde, dtpHasta;
         private DataGridView dgvHistorial;
+        private ComboBox cmbProductosVendidos; // EL NUEVO DESPLEGABLE
         private CyberButton btnBuscar, btnAnular;
         private int idVentaSeleccionada = 0;
         private string estadoSeleccionado = "";
@@ -38,7 +39,7 @@ namespace AorusMarket.Formularios
                 Size = new Size(180, 28),
                 Format = DateTimePickerFormat.Short,
                 Font = new Font("Segoe UI", 10F),
-                Value = DateTime.Now.AddDays(-7) // Por defecto muestra los últimos 7 días
+                Value = DateTime.Now.AddDays(-7)
             };
             this.Controls.Add(dtpDesde);
 
@@ -57,12 +58,25 @@ namespace AorusMarket.Formularios
             btnBuscar.Click += BtnBuscar_Click;
             this.Controls.Add(btnBuscar);
 
-            // Botón de Peligro para Anular
             btnAnular = EstiloApp.CrearBoton("ANULAR VENTA", new Point(x + 580, y + 10), 160, EstiloApp.RojoNeon);
             btnAnular.Click += BtnAnular_Click;
             this.Controls.Add(btnAnular);
 
             y += 60;
+
+            // CREAMOS EL DESPLEGABLE DE PRODUCTOS
+            this.Controls.Add(EstiloApp.CrearLabel("PRODUCTOS DE LA VENTA SELECCIONADA:", new Point(x, y)));
+            cmbProductosVendidos = new ComboBox
+            {
+                Location = new Point(x, y + 20),
+                Size = new Size(600, 30),
+                Font = new Font("Segoe UI", 10F),
+                DropDownStyle = ComboBoxStyle.DropDownList // Impide que el usuario escriba adentro
+            };
+            this.Controls.Add(cmbProductosVendidos);
+
+            y += 60; // Bajamos un poco más para que entre la grilla
+
             dgvHistorial = new DataGridView
             {
                 Location = new Point(x, y),
@@ -84,34 +98,30 @@ namespace AorusMarket.Formularios
 
             this.Controls.Add(dgvHistorial);
 
-            // Cargar inicial
             CargarGrilla();
         }
 
         private void CargarGrilla()
         {
+            dgvHistorial.SelectionChanged -= DgvHistorial_SelectionChanged; // Prevenir bug visual
             dgvHistorial.Rows.Clear();
+            cmbProductosVendidos.Items.Clear();
 
-            // Si el Admin (Perfil 1) consulta, ve todas (0). Si consulta un cajero, ve solo la suya.
-            int idFiltro = SesionActual.IdPerfil == 1 ? 0 : SesionActual.IdSucursal;
+            // LÓGICA DE SEGURIDAD: 
+            // Si el Administrador (Perfil 1) consulta, el filtro es 0 (ve todo). 
+            // Si consulta un cajero (Perfil distinto de 1), el filtro es su propio IdUsuario.
+            int idUsuarioFiltro = Utilidades.SesionActual.IdPerfil == 1 ? 0 : Utilidades.SesionActual.IdUsuario;
 
-            var lista = _ventaNegocio.ListarHistorial(dtpDesde.Value, dtpHasta.Value, idFiltro);
+            var lista = _ventaNegocio.ListarHistorial(dtpDesde.Value, dtpHasta.Value, idUsuarioFiltro);
 
             foreach (var item in lista)
             {
                 dgvHistorial.Rows.Add(
-                    item.IdVenta,
-                    item.Fecha,
-                    item.Cliente,
-                    item.Sucursal,
-                    item.Cajero,
-                    item.Total,
-                    item.MetodoPago,
-                    item.Estado
+                    item.IdVenta, item.Fecha, item.Cliente, item.Sucursal,
+                    item.Cajero, item.Total, item.MetodoPago, item.Estado
                 );
             }
 
-            // Pintar de rojo las filas anuladas
             foreach (DataGridViewRow fila in dgvHistorial.Rows)
             {
                 if (fila.Cells["Estado"].Value.ToString() == "Anulada")
@@ -123,6 +133,7 @@ namespace AorusMarket.Formularios
 
             dgvHistorial.ClearSelection();
             idVentaSeleccionada = 0;
+            dgvHistorial.SelectionChanged += DgvHistorial_SelectionChanged;
         }
 
         private void BtnBuscar_Click(object sender, EventArgs e)
@@ -132,11 +143,27 @@ namespace AorusMarket.Formularios
 
         private void DgvHistorial_SelectionChanged(object sender, EventArgs e)
         {
+            cmbProductosVendidos.Items.Clear(); // Limpiamos el combo al cambiar de fila
+
             if (dgvHistorial.CurrentRow == null) return;
 
             var fila = dgvHistorial.CurrentRow;
             idVentaSeleccionada = Convert.ToInt32(fila.Cells["IdVenta"].Value);
             estadoSeleccionado = fila.Cells["Estado"].Value.ToString();
+
+            // Buscamos los productos de esa venta particular
+            var detalles = _ventaNegocio.ObtenerDetallesDeVenta(idVentaSeleccionada);
+
+            foreach (var det in detalles)
+            {
+                string textoCombo = $"{det.Cantidad}x {det.NombreProducto} | Unitario: ${det.PrecioUnitario} | Subtotal: ${det.SubTotal}";
+                cmbProductosVendidos.Items.Add(textoCombo);
+            }
+
+            if (cmbProductosVendidos.Items.Count > 0)
+                cmbProductosVendidos.SelectedIndex = 0; // Seleccionamos el primer producto automáticamente
+            else
+                cmbProductosVendidos.Items.Add("No hay detalles registrados.");
         }
 
         private void BtnAnular_Click(object sender, EventArgs e)
@@ -153,8 +180,7 @@ namespace AorusMarket.Formularios
             if (resp == DialogResult.Yes)
             {
                 string mensaje;
-                // Le pasamos el ID del cajero/admin que está haciendo la anulación para la tabla de auditoría
-                bool resultado = _ventaNegocio.AnularVenta(idVentaSeleccionada, estadoSeleccionado, SesionActual.IdUsuario, out mensaje);
+                bool resultado = _ventaNegocio.AnularVenta(idVentaSeleccionada, estadoSeleccionado, Utilidades.SesionActual.IdUsuario, out mensaje);
 
                 if (resultado)
                 {
