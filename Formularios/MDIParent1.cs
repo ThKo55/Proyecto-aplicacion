@@ -1,9 +1,10 @@
-﻿using System;
+﻿using AorusMarket.Utilidades;
+using ReaLTaiizor.Controls;
+using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Reflection;
 using System.Windows.Forms;
-using AorusMarket.Utilidades;
-using ReaLTaiizor.Controls;
 
 namespace AorusMarket.Formularios
 {
@@ -176,6 +177,9 @@ namespace AorusMarket.Formularios
 
         private CyberButton CrearBotonMenu(string texto, int yPos)
         {
+            // Color gris moderno y limpio
+            Color colorGrisModerno = Color.FromArgb(200, 205, 210);
+
             CyberButton btn = new CyberButton
             {
                 TextButton = texto,
@@ -185,11 +189,19 @@ namespace AorusMarket.Formularios
                 Alpha = 20,
                 Rounding = true,
                 RoundingInt = 8,
+                Font = new Font("Segoe UI Emoji", 10.5F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+
+                // 1. APAGAMOS LOS EFECTOS PROBLEMÁTICOS DE REALTAIIZOR
+                Background = true,
+                BackgroundPen = true,
+                Lighting = false,
+                RGB = false,
+
+                // 2. DEJAMOS SOLO EL COLOR BASE TRANSPARENTE
                 ColorBackground = Color.Transparent,
                 ColorBackground_Pen = Color.Transparent,
-                ForeColor = EstiloApp.Gris,
-                Font = new Font("Segoe UI Emoji", 10.5F, FontStyle.Bold),
-                Cursor = Cursors.Hand
+                ForeColor = colorGrisModerno
             };
 
             btn.MouseEnter += (s, e) =>
@@ -197,15 +209,18 @@ namespace AorusMarket.Formularios
                 if (botonActivo != btn)
                 {
                     btn.ColorBackground = Color.FromArgb(60, 64, 68);
-                    btn.ForeColor = EstiloApp.Blanco;
+                    btn.ColorBackground_Pen = Color.FromArgb(60, 64, 68);
+                    btn.ForeColor = Color.White;
                 }
             };
+
             btn.MouseLeave += (s, e) =>
             {
                 if (botonActivo != btn)
                 {
                     btn.ColorBackground = Color.Transparent;
-                    btn.ForeColor = EstiloApp.Gris;
+                    btn.ColorBackground_Pen = Color.Transparent;
+                    btn.ForeColor = colorGrisModerno;
                 }
             };
 
@@ -249,7 +264,12 @@ namespace AorusMarket.Formularios
 
         private void ModificarTextoBotones(bool soloIconos)
         {
-            CyberButton[] todosLosBotones = { btnPuntoVenta, btnClientes, btnStock, btnProductos, btnCategorias, btnUsuarios, btnSucursales, btnDashboard, btnCerrarSesion };
+            // AHORA ESTÁN INCLUIDOS HISTORIAL Y AUDITORÍA
+            CyberButton[] todosLosBotones = {
+        btnPuntoVenta, btnClientes, btnStock, btnProductos,
+        btnCategorias, btnUsuarios, btnSucursales, btnHistorial,
+        btnAuditoria, btnDashboard, btnCerrarSesion
+    };
 
             foreach (var b in todosLosBotones)
             {
@@ -257,14 +277,14 @@ namespace AorusMarket.Formularios
                 {
                     if (soloIconos)
                     {
-                        b.Size = new Size(50, 42);
+                        b.Size = new Size(50, 42); // Tamaño encogido
                         if (b.Tag.ToString().Contains(" "))
-                            b.TextButton = b.Tag.ToString().Split(' ')[0];
+                            b.TextButton = b.Tag.ToString().Split(' ')[0]; // Deja solo el emoji
                     }
                     else
                     {
-                        b.Size = new Size(240, 42);
-                        b.TextButton = b.Tag.ToString();
+                        b.Size = new Size(240, 42); // Tamaño normal expandido
+                        b.TextButton = b.Tag.ToString(); // Restaura el texto completo
                     }
                 }
             }
@@ -272,27 +292,46 @@ namespace AorusMarket.Formularios
 
         private void ResaltarBotonActivo(CyberButton btnClickeado)
         {
-            CyberButton[] todosLosBotones = { btnPuntoVenta, btnClientes, btnStock, btnProductos, btnCategorias, btnUsuarios, btnSucursales, btnDashboard };
+            CyberButton[] todosLosBotones = {
+        btnPuntoVenta, btnClientes, btnStock, btnProductos,
+        btnCategorias, btnUsuarios, btnSucursales, btnDashboard,
+        btnHistorial, btnAuditoria
+    };
 
+            Color colorGrisModerno = Color.FromArgb(200, 205, 210);
+
+            // 1. Apagamos todos los botones sin forzar el Refresh individual
             foreach (var b in todosLosBotones)
             {
                 if (b != null)
                 {
                     b.ColorBackground = Color.Transparent;
-                    b.ForeColor = EstiloApp.Gris;
-                    b.Refresh();
+                    b.ColorBackground_Pen = Color.Transparent;
+                    b.ForeColor = colorGrisModerno;
                 }
             }
 
-            btnClickeado.ColorBackground = EstiloApp.RojoOscuro;
-            btnClickeado.ForeColor = EstiloApp.Blanco;
-            btnClickeado.Refresh();
+            // 2. Encendemos únicamente el botón clickeado
+            if (btnClickeado != null)
+            {
+                btnClickeado.ColorBackground = EstiloApp.RojoOscuro;
+                btnClickeado.ColorBackground_Pen = EstiloApp.RojoOscuro;
+                btnClickeado.ForeColor = Color.White;
 
-            botonActivo = btnClickeado;
+                botonActivo = btnClickeado;
+                pnlIndicador.Top = btnClickeado.Top;
+            }
+
+            // 3. Forzamos un único refresco general al panel (elimina los parpadeos)
+            panelMenuLateral.Refresh();
 
             pnlIndicador.Visible = true;
             pnlIndicador.BringToFront();
-            timerIndicador.Start();
+
+            if (timerIndicador != null)
+            {
+                timerIndicador.Start();
+            }
 
             this.ActiveControl = null;
         }
@@ -318,50 +357,72 @@ namespace AorusMarket.Formularios
 
         private void AplicarPermisosPorPerfil()
         {
-            // 1. ADMINISTRADOR (IdPerfil = 1)
-            if (SesionActual.IdPerfil == 1)
+            // 1. Ocultar TODOS los botones para dejar el menú en blanco
+            CyberButton[] todosLosBotones = {
+        btnPuntoVenta, btnClientes, btnStock, btnProductos,
+        btnCategorias, btnUsuarios, btnSucursales, btnHistorial,
+        btnAuditoria, btnDashboard
+    };
+
+            foreach (var btn in todosLosBotones)
             {
-                btnPuntoVenta.Visible = false; // El admin no usa la caja
+                btn.Visible = false;
+            }
+
+            // 2. Crear una lista dinámica para armar el menú a medida según el perfil
+            List<CyberButton> menuDelUsuario = new List<CyberButton>();
+
+            if (SesionActual.IdPerfil == 1) // 👑 ADMINISTRADOR
+            {
+                // Agregas los botones en el orden exacto que quieres que los vea el Admin
+                menuDelUsuario.Add(btnDashboard);
+                menuDelUsuario.Add(btnUsuarios);
+                menuDelUsuario.Add(btnSucursales);
+                menuDelUsuario.Add(btnAuditoria);
+                menuDelUsuario.Add(btnClientes);
+                menuDelUsuario.Add(btnHistorial);
+                menuDelUsuario.Add(btnStock);
+                menuDelUsuario.Add(btnProductos);
+                menuDelUsuario.Add(btnCategorias);
 
                 ResaltarBotonActivo(btnDashboard);
-                pnlIndicador.Top = btnDashboard.Top;
                 AbrirFormularioEnPanel(new FrmDashboard());
             }
-            // 2. CAJERO / VENTAS (IdPerfil = 2)
-            else if (SesionActual.IdPerfil == 2)
+            else if (SesionActual.IdPerfil == 2) // 🛒 CAJERO
             {
-                btnStock.Visible = false;
-                btnProductos.Visible = false;
-                btnCategorias.Visible = false;
-                btnUsuarios.Visible = false;
-                btnSucursales.Visible = false;
-                btnDashboard.Visible = false;
-
-                // --- ACÁ OCULTAMOS LOS HISTORIALES AL CAJERO ---
-                btnHistorial.Visible = false;
-                btnAuditoria.Visible = false;
+                // El cajero tiene su propia "forma" de menú, solo con sus 3 opciones
+                menuDelUsuario.Add(btnPuntoVenta);
+                menuDelUsuario.Add(btnClientes);
+                menuDelUsuario.Add(btnHistorial);
 
                 ResaltarBotonActivo(btnPuntoVenta);
-                pnlIndicador.Top = btnPuntoVenta.Top;
                 AbrirFormularioEnPanel(new FrmPuntoVenta());
             }
-            // 3. GESTOR DE STOCK (IdPerfil = 3)
-            else if (SesionActual.IdPerfil == 3)
+            else if (SesionActual.IdPerfil == 3) // 📦 GESTOR DE STOCK
             {
-                btnPuntoVenta.Visible = false;
-                btnClientes.Visible = false;
-                btnUsuarios.Visible = false;
-                btnSucursales.Visible = false;
-                btnDashboard.Visible = false;
-
-              
-                // --- ACÁ OCULTAMOS LOS HISTORIALES AL CAJERO ---
-                btnHistorial.Visible = false;
-                btnAuditoria.Visible = false;
+                menuDelUsuario.Add(btnStock);
+                menuDelUsuario.Add(btnProductos);
+                menuDelUsuario.Add(btnCategorias);
 
                 ResaltarBotonActivo(btnStock);
-                pnlIndicador.Top = btnStock.Top;
                 AbrirFormularioEnPanel(new FrmStock());
+            }
+
+            // 3. Dibujar el menú apilando únicamente los botones de la lista generada
+            int yPos = 110;
+            int btnHeight = 45;
+
+            foreach (var btn in menuDelUsuario)
+            {
+                btn.Visible = true; // Lo encendemos
+                btn.Location = new Point(5, yPos); // Lo posicionamos sin dejar espacios
+                yPos += btnHeight; // Empujamos el siguiente hacia abajo
+            }
+
+            // Acomodamos la barrita roja indicadora al botón activo
+            if (botonActivo != null)
+            {
+                pnlIndicador.Top = botonActivo.Top;
             }
         }
 
@@ -381,9 +442,14 @@ namespace AorusMarket.Formularios
 
         private void ActivarDoubleBuffering(Control control)
         {
-            typeof(Control).InvokeMember("DoubleBuffered",
-                BindingFlags.SetProperty | BindingFlags.Instance | BindingFlags.NonPublic,
-                null, control, new object[] { true });
+            PropertyInfo prop = typeof(Control).GetProperty("DoubleBuffered",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+
+            if (prop != null)
+            {
+                prop.SetValue(control, true, null);
+            }
         }
+
     }
 }
