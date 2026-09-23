@@ -11,6 +11,13 @@ namespace AorusMarket.Entidades
         public decimal Precio { get; set; }
         public int StockDisponible { get; set; }
     }
+    public class DetalleHistorial
+    {
+        public string NombreProducto { get; set; }
+        public int Cantidad { get; set; }
+        public decimal PrecioUnitario { get; set; }
+        public decimal SubTotal { get; set; }
+    }
 
     public class DetalleVenta
     {

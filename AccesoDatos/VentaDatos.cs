@@ -44,10 +44,7 @@ namespace AorusMarket.AccesoDatos
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("Error en buscador: " + ex.Message);
-                }
+                catch (Exception ex) { Console.WriteLine("Error en buscador: " + ex.Message); }
             }
             return lista;
         }
@@ -119,13 +116,12 @@ namespace AorusMarket.AccesoDatos
             return respuesta;
         }
 
-        // 3. NUEVO: Traer Historial con filtros de Fecha
-        public List<VentaHistorial> ListarHistorial(DateTime fechaDesde, DateTime fechaHasta, int idSucursalFiltro)
+        // 3. Traer Historial con filtros de Fecha y USUARIO (Vendedor)
+        public List<VentaHistorial> ListarHistorial(DateTime fechaDesde, DateTime fechaHasta, int idUsuarioFiltro)
         {
             List<VentaHistorial> lista = new List<VentaHistorial>();
             using (SqlConnection oConexion = Conexion.ObtenerConexion())
             {
-                // Usamos ISNULL para cuando el cliente es Consumidor Final
                 string query = @"
                     SELECT v.id_venta, v.fecha, 
                            ISNULL(c.nombre + ' ' + c.apellido, 'Consumidor Final') AS Cliente,
@@ -138,10 +134,10 @@ namespace AorusMarket.AccesoDatos
                     INNER JOIN usuario u ON v.id_usuario = u.id_usuario
                     WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta ";
 
-                // Si es cajero o gerente de sucursal, solo ve su sucursal. (Si es 0, ve todas).
-                if (idSucursalFiltro > 0)
+                // Si es mayor a 0, filtramos estrictamente por el cajero que inició sesión
+                if (idUsuarioFiltro > 0)
                 {
-                    query += " AND v.id_sucursal = @idSuc";
+                    query += " AND v.id_usuario = @idUsr";
                 }
 
                 query += " ORDER BY v.fecha DESC";
@@ -149,7 +145,7 @@ namespace AorusMarket.AccesoDatos
                 SqlCommand cmd = new SqlCommand(query, oConexion);
                 cmd.Parameters.AddWithValue("@desde", fechaDesde.Date);
                 cmd.Parameters.AddWithValue("@hasta", fechaHasta.Date);
-                if (idSucursalFiltro > 0) cmd.Parameters.AddWithValue("@idSuc", idSucursalFiltro);
+                if (idUsuarioFiltro > 0) cmd.Parameters.AddWithValue("@idUsr", idUsuarioFiltro);
 
                 try
                 {
@@ -172,15 +168,49 @@ namespace AorusMarket.AccesoDatos
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("Error al listar historial: " + ex.Message);
-                }
+                catch (Exception ex) { Console.WriteLine("Error al listar historial: " + ex.Message); }
             }
             return lista;
         }
 
-        // 4. NUEVO: Transacción pesada de Anulación
+        // 4. NUEVO: Traer los productos vendidos de una venta seleccionada
+        public List<DetalleHistorial> ObtenerDetallesDeVenta(int idVenta)
+        {
+            List<DetalleHistorial> lista = new List<DetalleHistorial>();
+            using (SqlConnection oConexion = Conexion.ObtenerConexion())
+            {
+                string query = @"
+                    SELECT p.nombre, dv.cantidad, dv.precio_unitario, dv.subtotal
+                    FROM detalleVenta dv
+                    INNER JOIN producto p ON dv.id_producto = p.id_producto
+                    WHERE dv.id_venta = @idVenta";
+
+                SqlCommand cmd = new SqlCommand(query, oConexion);
+                cmd.Parameters.AddWithValue("@idVenta", idVenta);
+
+                try
+                {
+                    oConexion.Open();
+                    using (SqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            lista.Add(new DetalleHistorial()
+                            {
+                                NombreProducto = dr["nombre"].ToString(),
+                                Cantidad = Convert.ToInt32(dr["cantidad"]),
+                                PrecioUnitario = Convert.ToDecimal(dr["precio_unitario"]),
+                                SubTotal = Convert.ToDecimal(dr["subtotal"])
+                            });
+                        }
+                    }
+                }
+                catch (Exception ex) { Console.WriteLine("Error al listar detalles: " + ex.Message); }
+            }
+            return lista;
+        }
+
+        // 5. Transacción de Anulación (Queda igual, funciona perfecto)
         public bool AnularVenta(int idVenta, int idUsuarioAuditoria)
         {
             bool respuesta = false;
@@ -190,7 +220,6 @@ namespace AorusMarket.AccesoDatos
                 SqlTransaction transaccion = oConexion.BeginTransaction();
                 try
                 {
-                    // A. Obtenemos datos de la venta
                     string qVenta = "SELECT id_sucursal, estado FROM venta WHERE id_venta = @id";
                     SqlCommand cmdVenta = new SqlCommand(qVenta, oConexion, transaccion);
                     cmdVenta.Parameters.AddWithValue("@id", idVenta);
@@ -208,13 +237,11 @@ namespace AorusMarket.AccesoDatos
 
                     if (estado == 2) throw new Exception("La venta ya se encuentra anulada.");
 
-                    // B. Cambiamos estado de la venta
                     string qUpdate = "UPDATE venta SET estado = 2 WHERE id_venta = @id";
                     SqlCommand cmdUpdate = new SqlCommand(qUpdate, oConexion, transaccion);
                     cmdUpdate.Parameters.AddWithValue("@id", idVenta);
                     cmdUpdate.ExecuteNonQuery();
 
-                    // C. Leemos los detalles de la venta (lo que hay que devolver)
                     string qDetalle = "SELECT id_producto, cantidad FROM detalleVenta WHERE id_venta = @id";
                     SqlCommand cmdDetalle = new SqlCommand(qDetalle, oConexion, transaccion);
                     cmdDetalle.Parameters.AddWithValue("@id", idVenta);
@@ -232,7 +259,6 @@ namespace AorusMarket.AccesoDatos
                         }
                     }
 
-                    // D. Devolvemos el stock y generamos el registro de auditoría
                     foreach (var d in detalles)
                     {
                         string qStock = @"
