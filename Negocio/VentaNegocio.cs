@@ -32,6 +32,7 @@ namespace AorusMarket.Negocio
                 mensaje = "Ocurrió un error crítico al intentar registrar la venta en la base de datos.";
             }
             return respuesta;
+         
         }
 
         // 3. Listar el Historial

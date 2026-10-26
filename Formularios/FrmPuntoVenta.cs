@@ -128,10 +128,20 @@ namespace AorusMarket.Formularios
         private void CargarComboClientes()
         {
             var clientes = _ventaNegocio.ObtenerClientesCombo();
-            clientes.Insert(0, new Cliente() { IdCliente = 0, Nombre = "Consumidor", Apellido = "Final" });
+
+            // Agregamos la opción por defecto con un DNI genérico
+            clientes.Insert(0, new Cliente() { IdCliente = 0, Dni = "00000000", Nombre = "Consumidor", Apellido = "Final" });
+
             cmbCliente.DataSource = clientes;
-            cmbCliente.DisplayMember = "Nombre";
+            cmbCliente.DisplayMember = "InfoBusqueda"; // Muestra "DNI - Nombre Apellido"
             cmbCliente.ValueMember = "IdCliente";
+
+            // LA SOLUCIÓN: Habilitar la escritura en la cajita
+            cmbCliente.DropDownStyle = ComboBoxStyle.DropDown;
+
+            // ACTIVAR EL BUSCADOR INTELIGENTE POR DNI
+            cmbCliente.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+            cmbCliente.AutoCompleteSource = AutoCompleteSource.ListItems;
         }
 
         private void BtnBuscar_Click(object sender, EventArgs e)
@@ -152,7 +162,6 @@ namespace AorusMarket.Formularios
             dgvBusqueda.ClearSelection();
         }
 
-        // AQUÍ SE INTEGRÓ LA ALERTA DE STOCK EN TU BOTÓN REAL DE AGREGAR
         private void BtnAgregar_Click(object sender, EventArgs e)
         {
             if (dgvBusqueda.CurrentRow == null)
@@ -241,7 +250,6 @@ namespace AorusMarket.Formularios
             lblTotal.Text = $"TOTAL: {totalAcumulado:C2}";
         }
 
-        // AQUÍ SE INTEGRÓ LA DOBLE VALIDACIÓN EN TU BOTÓN REAL DE CONFIRMAR
         private void BtnConfirmar_Click(object sender, EventArgs e)
         {
             if (dgvCarrito.Rows.Count == 0)
@@ -271,9 +279,8 @@ namespace AorusMarket.Formularios
             // Opcional: Validación de clave de gerente si el monto es mayor a 50.000
             if (totalAcumulado > 50000)
             {
-                // Aquí podrías abrir un formulario FrmAutorizacion para pedir clave
                 DialogResult dialogoGerente = MessageBox.Show(
-                    "Esta venta supera el límite de $50,000. ¿Desea continuar de todas formas? (Aquí iría la clave del gerente)",
+                    "Esta venta supera el límite de $50,000. ¿Desea continuar de todas formas?",
                     "Autorización Requerida",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Warning);
@@ -307,10 +314,35 @@ namespace AorusMarket.Formularios
             string mensaje;
             bool resultado = _ventaNegocio.ConfirmarVenta(nuevaVenta, out mensaje);
 
-            // 4. Evaluar resultado
+            // 4. Evaluar resultado y generar PDF
             if (resultado)
             {
                 MessageBox.Show("¡Venta procesada con éxito!", "AorusMarket", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // --- GENERACIÓN DEL PDF ---
+                var resp = MessageBox.Show("¿Desea generar y descargar la Factura en PDF ahora?", "Factura", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (resp == DialogResult.Yes)
+                {
+                    List<DetalleHistorial> detallesPdf = new List<DetalleHistorial>();
+                    foreach (DataGridViewRow row in dgvCarrito.Rows)
+                    {
+                        detallesPdf.Add(new DetalleHistorial()
+                        {
+                            NombreProducto = row.Cells["Producto"].Value.ToString(),
+                            Cantidad = Convert.ToInt32(row.Cells["Cantidad"].Value),
+                            PrecioUnitario = Convert.ToDecimal(row.Cells["PrecioUnitario"].Value),
+                            SubTotal = Convert.ToDecimal(row.Cells["Subtotal"].Value)
+                        });
+                    }
+
+                    // Parseamos el nombre del cliente
+                    string nombreCliente = cmbCliente.Text.Contains("-") ? cmbCliente.Text.Split('-')[1].Trim() : "Consumidor Final";
+                    string nombreCajero = "Cajero " + SesionActual.IdUsuario.ToString();
+
+                    // Llamamos a tu clase para crear y abrir el PDF (usamos ID de venta 0 temporal porque se acaba de generar)
+                    GeneradorFactura.GenerarPDF(0, DateTime.Now.ToString("dd/MM/yyyy HH:mm"), nombreCliente, nombreCajero, nuevaVenta.Total, nuevaVenta.MetodoPago, detallesPdf, true);
+                }
+
                 LimpiarVenta();
             }
             else

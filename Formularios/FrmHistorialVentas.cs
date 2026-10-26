@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Collections.Generic;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
+using AorusMarket.Entidades;
 using AorusMarket.Negocio;
 
 namespace AorusMarket.Formularios
@@ -11,8 +13,8 @@ namespace AorusMarket.Formularios
     {
         private DateTimePicker dtpDesde, dtpHasta;
         private DataGridView dgvHistorial;
-        private ComboBox cmbProductosVendidos; // EL NUEVO DESPLEGABLE
-        private CyberButton btnBuscar, btnAnular;
+        private ComboBox cmbProductosVendidos;
+        private CyberButton btnBuscar, btnAnular, btnDescargarFactura;
         private int idVentaSeleccionada = 0;
         private string estadoSeleccionado = "";
 
@@ -69,13 +71,18 @@ namespace AorusMarket.Formularios
             cmbProductosVendidos = new ComboBox
             {
                 Location = new Point(x, y + 20),
-                Size = new Size(600, 30),
+                Size = new Size(580, 30),
                 Font = new Font("Segoe UI", 10F),
-                DropDownStyle = ComboBoxStyle.DropDownList // Impide que el usuario escriba adentro
+                DropDownStyle = ComboBoxStyle.DropDownList
             };
             this.Controls.Add(cmbProductosVendidos);
 
-            y += 60; // Bajamos un poco más para que entre la grilla
+            // NUEVO BOTÓN PARA DESCARGAR EL PDF (Al lado del desplegable)
+            btnDescargarFactura = EstiloApp.CrearBoton("DESCARGAR PDF", new Point(x + 600, y + 15), 150, EstiloApp.Gris);
+            btnDescargarFactura.Click += BtnDescargarFactura_Click;
+            this.Controls.Add(btnDescargarFactura);
+
+            y += 60;
 
             dgvHistorial = new DataGridView
             {
@@ -103,13 +110,10 @@ namespace AorusMarket.Formularios
 
         private void CargarGrilla()
         {
-            dgvHistorial.SelectionChanged -= DgvHistorial_SelectionChanged; // Prevenir bug visual
+            dgvHistorial.SelectionChanged -= DgvHistorial_SelectionChanged;
             dgvHistorial.Rows.Clear();
             cmbProductosVendidos.Items.Clear();
 
-            // LÓGICA DE SEGURIDAD: 
-            // Si el Administrador (Perfil 1) consulta, el filtro es 0 (ve todo). 
-            // Si consulta un cajero (Perfil distinto de 1), el filtro es su propio IdUsuario.
             int idUsuarioFiltro = Utilidades.SesionActual.IdPerfil == 1 ? 0 : Utilidades.SesionActual.IdUsuario;
 
             var lista = _ventaNegocio.ListarHistorial(dtpDesde.Value, dtpHasta.Value, idUsuarioFiltro);
@@ -143,7 +147,7 @@ namespace AorusMarket.Formularios
 
         private void DgvHistorial_SelectionChanged(object sender, EventArgs e)
         {
-            cmbProductosVendidos.Items.Clear(); // Limpiamos el combo al cambiar de fila
+            cmbProductosVendidos.Items.Clear();
 
             if (dgvHistorial.CurrentRow == null) return;
 
@@ -151,7 +155,6 @@ namespace AorusMarket.Formularios
             idVentaSeleccionada = Convert.ToInt32(fila.Cells["IdVenta"].Value);
             estadoSeleccionado = fila.Cells["Estado"].Value.ToString();
 
-            // Buscamos los productos de esa venta particular
             var detalles = _ventaNegocio.ObtenerDetallesDeVenta(idVentaSeleccionada);
 
             foreach (var det in detalles)
@@ -161,9 +164,31 @@ namespace AorusMarket.Formularios
             }
 
             if (cmbProductosVendidos.Items.Count > 0)
-                cmbProductosVendidos.SelectedIndex = 0; // Seleccionamos el primer producto automáticamente
+                cmbProductosVendidos.SelectedIndex = 0;
             else
                 cmbProductosVendidos.Items.Add("No hay detalles registrados.");
+        }
+
+        private void BtnDescargarFactura_Click(object sender, EventArgs e)
+        {
+            if (idVentaSeleccionada == 0)
+            {
+                MessageBox.Show("Seleccione una venta de la grilla para descargar su factura.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var fila = dgvHistorial.CurrentRow;
+            string fecha = fila.Cells["Fecha"].Value.ToString();
+            string cliente = fila.Cells["Cliente"].Value.ToString();
+            string cajero = fila.Cells["Cajero"].Value.ToString();
+            decimal total = Convert.ToDecimal(fila.Cells["Total"].Value);
+            string metodoPago = fila.Cells["MetodoPago"].Value.ToString();
+
+            // Buscamos los productos exactos desde la base de datos
+            var detallesBD = _ventaNegocio.ObtenerDetallesDeVenta(idVentaSeleccionada);
+
+            // Generamos el PDF (le pasamos true al final para que lo abra ni bien lo guarda)
+            Utilidades.GeneradorFactura.GenerarPDF(idVentaSeleccionada, fecha, cliente, cajero, total, metodoPago, detallesBD, true);
         }
 
         private void BtnAnular_Click(object sender, EventArgs e)

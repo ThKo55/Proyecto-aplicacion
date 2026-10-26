@@ -18,5 +18,14 @@ namespace AorusMarket.Entidades
         public string Altura { get; set; }
 
         public bool Activo { get; set; }
+        // Esta propiedad combina el DNI y el Nombre para el buscador del POS
+        public string InfoBusqueda
+        {
+            get
+            {
+                if (IdCliente == 0) return "Consumidor Final";
+                return $"{Dni} - {Nombre} {Apellido}";
+            }
+        }
     }
 }
