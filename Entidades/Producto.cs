@@ -14,5 +14,7 @@ namespace AorusMarket.Entidades
         // Propiedad adicional (no está en la tabla producto, pero la traemos con INNER JOIN 
         // desde la tabla categoria para mostrarla en la tabla visual)
         public string NombreCategoria { get; set; }
+        public int StockActual { get; set; }
+        public int StockMinimo { get; set; }
     }
 }

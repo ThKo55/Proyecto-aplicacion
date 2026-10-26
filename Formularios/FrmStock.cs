@@ -212,6 +212,17 @@ namespace AorusMarket.Formularios
             }
         }
 
+        public bool HayStockSuficiente(int idProducto, int cantidadSolicitada)
+        {
+            // Agregamos SesionActual.IdSucursal como segundo parámetro
+            return _stockNegocio.HayStockSuficiente(idProducto, SesionActual.IdSucursal, cantidadSolicitada);
+        }
+
+        public bool StockEsCritico(int idProducto)
+        {
+            return _stockNegocio.StockEsCritico(idProducto);
+        }
+
         private void BtnEliminar_Click(object sender, EventArgs e)
         {
             if (idSeleccionado == 0)

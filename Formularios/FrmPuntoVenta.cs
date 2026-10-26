@@ -4,8 +4,8 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
-using AorusMarket.Entidades; // Moldes
-using AorusMarket.Negocio;   // Cerebro
+using AorusMarket.Entidades;
+using AorusMarket.Negocio;
 
 namespace AorusMarket.Formularios
 {
@@ -18,8 +18,10 @@ namespace AorusMarket.Formularios
         private Label lblTotal;
         private CyberButton btnAgregar, btnQuitar, btnConfirmar, btnCancelar;
 
-        // Cerebro de la venta
+        // Instancias a la capa de Negocio
+        private StockNegocio _stockNegocio = new StockNegocio();
         private VentaNegocio _ventaNegocio = new VentaNegocio();
+
         private decimal totalAcumulado = 0;
 
         public FrmPuntoVenta()
@@ -57,7 +59,6 @@ namespace AorusMarket.Formularios
             EstiloApp.EstilizarGrid(dgvBusqueda);
             dgvBusqueda.ReadOnly = false;
 
-            // Reemplazamos IdStock por IdProducto siguiendo la mejora arquitectónica
             dgvBusqueda.Columns.Add("IdProducto", "IdProducto");
             dgvBusqueda.Columns.Add("Producto", "Producto");
             dgvBusqueda.Columns.Add("Precio", "Precio");
@@ -96,7 +97,7 @@ namespace AorusMarket.Formularios
             // ---------- Pie ----------
             this.Controls.Add(EstiloApp.CrearLabel("CLIENTE (opcional)", new Point(230, 565)));
             cmbCliente = EstiloApp.CrearComboBox(new Point(230, 585), 220);
-            CargarComboClientes(); // Llamado a BD
+            CargarComboClientes();
             this.Controls.Add(cmbCliente);
 
             this.Controls.Add(EstiloApp.CrearLabel("MÉTODO DE PAGO", new Point(470, 565)));
@@ -124,16 +125,13 @@ namespace AorusMarket.Formularios
             this.Controls.Add(btnCancelar);
         }
 
-        // METODO NUEVO: Consulta clientes a la BD
         private void CargarComboClientes()
         {
             var clientes = _ventaNegocio.ObtenerClientesCombo();
             clientes.Insert(0, new Cliente() { IdCliente = 0, Nombre = "Consumidor", Apellido = "Final" });
-
             cmbCliente.DataSource = clientes;
-            cmbCliente.DisplayMember = "Nombre"; // Podés personalizar para que muestre Apellido también si preferís
+            cmbCliente.DisplayMember = "Nombre";
             cmbCliente.ValueMember = "IdCliente";
-            
         }
 
         private void BtnBuscar_Click(object sender, EventArgs e)
@@ -144,18 +142,17 @@ namespace AorusMarket.Formularios
                 return;
             }
 
-            // Consultar a la BD filtrando por la sucursal del cajero logueado
             dgvBusqueda.Rows.Clear();
             var resultados = _ventaNegocio.BuscarProducto(txtBuscar.TextButton, SesionActual.IdSucursal);
 
             foreach (var r in resultados)
             {
-                // Agregamos la fila (la columna "Cantidad" queda vacía para que el cajero la escriba)
                 dgvBusqueda.Rows.Add(r.IdProducto, r.Nombre, r.Precio, r.StockDisponible, "");
             }
             dgvBusqueda.ClearSelection();
         }
 
+        // AQUÍ SE INTEGRÓ LA ALERTA DE STOCK EN TU BOTÓN REAL DE AGREGAR
         private void BtnAgregar_Click(object sender, EventArgs e)
         {
             if (dgvBusqueda.CurrentRow == null)
@@ -167,33 +164,59 @@ namespace AorusMarket.Formularios
             var fila = dgvBusqueda.CurrentRow;
             string cantIngresadaStr = fila.Cells["Cantidad"].Value?.ToString();
 
-            // 1. Validar que escribió un número
+            // 1. Validar que escribió un número mayor a 0
             if (!int.TryParse(cantIngresadaStr, out int cantIngresada) || cantIngresada <= 0)
             {
                 MessageBox.Show("Ingrese una cantidad válida mayor a 0 en la grilla.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            // 2. Validar que haya stock suficiente
-            int stockDisp = Convert.ToInt32(fila.Cells["Disponible"].Value);
-            if (cantIngresada > stockDisp)
+            int idProd = Convert.ToInt32(fila.Cells["IdProducto"].Value);
+            int stockDispGrilla = Convert.ToInt32(fila.Cells["Disponible"].Value);
+
+            // 2. NUEVO: Calcular cuántos de este producto YA metió al carrito antes
+            int cantidadYaEnCarrito = 0;
+            foreach (DataGridViewRow row in dgvCarrito.Rows)
             {
-                MessageBox.Show("No hay stock suficiente en esta sucursal.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (Convert.ToInt32(row.Cells["IdProducto"].Value) == idProd)
+                {
+                    cantidadYaEnCarrito += Convert.ToInt32(row.Cells["Cantidad"].Value);
+                }
+            }
+
+            // Sumamos lo que quiere llevar AHORA + lo que YA TENÍA en el carrito
+            int cantidadTotalDeseada = cantIngresada + cantidadYaEnCarrito;
+
+            // 3. Validación Rápida (Contra lo que dice la grilla de la sucursal actual)
+            if (cantidadTotalDeseada > stockDispGrilla)
+            {
+                MessageBox.Show($"No hay stock suficiente.\nTienes {stockDispGrilla} disponibles y estás intentando vender un total de {cantidadTotalDeseada} (incluyendo los que ya pusiste en el carrito).", "Stock Insuficiente", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            // 3. Todo OK -> Mandar al carrito
-            int idProd = Convert.ToInt32(fila.Cells["IdProducto"].Value);
+            // 4. Validación de Seguridad en BD (para evitar problemas si otro cajero vendió al mismo tiempo)
+            if (!_stockNegocio.HayStockSuficiente(idProd, SesionActual.IdSucursal, cantidadTotalDeseada))
+            {
+                MessageBox.Show("El stock en la base de datos ya no es suficiente (quizás otra caja acaba de venderlo).", "Error de Stock", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            // 5. Todo OK -> Mandar al carrito
             string nombre = fila.Cells["Producto"].Value.ToString();
             decimal precio = Convert.ToDecimal(fila.Cells["Precio"].Value);
             decimal subtotal = precio * cantIngresada;
 
             dgvCarrito.Rows.Add(idProd, nombre, cantIngresada, precio, subtotal);
 
-            // Limpiamos la celda de cantidad del buscador
+            // Limpiamos la celda de cantidad
             fila.Cells["Cantidad"].Value = "";
-
             RecalcularTotal();
+
+            // 6. Alerta visual de stock bajo
+            if (_stockNegocio.StockEsCritico(idProd))
+            {
+                MessageBox.Show("¡ALERTA! El stock de este producto ha llegado a su nivel mínimo. Considere reponer.", "Stock Bajo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         private void BtnQuitar_Click(object sender, EventArgs e)
@@ -218,15 +241,54 @@ namespace AorusMarket.Formularios
             lblTotal.Text = $"TOTAL: {totalAcumulado:C2}";
         }
 
+        // AQUÍ SE INTEGRÓ LA DOBLE VALIDACIÓN EN TU BOTÓN REAL DE CONFIRMAR
         private void BtnConfirmar_Click(object sender, EventArgs e)
         {
+            if (dgvCarrito.Rows.Count == 0)
+            {
+                MessageBox.Show("El carrito está vacío.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (cmbMetodoPago.SelectedIndex == -1)
+            {
+                MessageBox.Show("Seleccione un método de pago.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // --- INICIO DOBLE VALIDACIÓN ---
+            DialogResult dialogo = MessageBox.Show(
+                $"¿Confirmar venta por un total de {totalAcumulado:C2}?\n\nVerifique el vuelto antes de continuar.",
+                "Doble Validación de Venta",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (dialogo == DialogResult.No)
+            {
+                return; // Si el cajero dice que No, se corta la ejecución y no cobra
+            }
+
+            // Opcional: Validación de clave de gerente si el monto es mayor a 50.000
+            if (totalAcumulado > 50000)
+            {
+                // Aquí podrías abrir un formulario FrmAutorizacion para pedir clave
+                DialogResult dialogoGerente = MessageBox.Show(
+                    "Esta venta supera el límite de $50,000. ¿Desea continuar de todas formas? (Aquí iría la clave del gerente)",
+                    "Autorización Requerida",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+
+                if (dialogoGerente == DialogResult.No) return;
+            }
+            // --- FIN DOBLE VALIDACIÓN ---
+
             // 1. Empaquetamos la cabecera
             Venta nuevaVenta = new Venta()
             {
                 Total = totalAcumulado,
                 MetodoPago = cmbMetodoPago.SelectedItem?.ToString(),
-                IdUsuario = SesionActual.IdUsuario,     // Quien lo cobró
-                IdSucursal = SesionActual.IdSucursal,   // Dónde se cobró
+                IdUsuario = SesionActual.IdUsuario,
+                IdSucursal = SesionActual.IdSucursal,
                 IdCliente = Convert.ToInt32(cmbCliente.SelectedValue) == 0 ? (int?)null : Convert.ToInt32(cmbCliente.SelectedValue)
             };
 
@@ -261,7 +323,7 @@ namespace AorusMarket.Formularios
         {
             dgvCarrito.Rows.Clear();
             dgvBusqueda.Rows.Clear();
-            cmbCliente.SelectedIndex = 0; // Vuelve a consumidor final
+            cmbCliente.SelectedIndex = 0;
             cmbMetodoPago.SelectedIndex = -1;
             txtBuscar.TextButton = "";
             RecalcularTotal();

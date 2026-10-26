@@ -63,5 +63,30 @@ namespace AorusMarket.Negocio
         {
             return _stockDatos.ListarMovimientos(desde, hasta);
         }
+
+        // ESTA LÍNEA ES CLAVE: Instancia la capa de datos. Resuelve el error "El nombre 'datos' no existe"
+        private StockDatos datos = new StockDatos();
+
+        // Le agregamos el parámetro idSucursal
+        public bool HayStockSuficiente(int idProducto, int idSucursal, int cantidadSolicitada)
+        {
+            int stockActual = datos.ObtenerStock(idProducto, idSucursal);
+            return stockActual >= cantidadSolicitada;
+        }
+
+        public bool StockEsCritico(int idProducto)
+        {
+            // Llama al método que acabamos de crear en StockDatos
+            Producto p = datos.ObtenerProducto(idProducto);
+
+            // Si el stock actual bajó del límite, devuelve true (es crítico)
+            if (p != null && p.StockActual <= p.StockMinimo)
+            {
+                return true;
+            }
+            return false;
+        }
+
+
     }
 }

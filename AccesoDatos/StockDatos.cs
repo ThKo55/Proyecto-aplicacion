@@ -235,5 +235,63 @@ namespace AorusMarket.AccesoDatos
             }
             return lista;
         }
+
+
+
+        public int ObtenerStock(int idProducto, int idSucursal)
+        {
+            int cantidad = 0;
+            using (SqlConnection conexion = Conexion.ObtenerConexion())
+            {
+                // Ahora filtramos estrictamente por la sucursal actual
+                string query = "SELECT ISNULL(cantidad, 0) FROM stock_sucursal WHERE id_producto = @idProducto AND id_sucursal = @idSucursal";
+                SqlCommand cmd = new SqlCommand(query, conexion);
+                cmd.Parameters.AddWithValue("@idProducto", idProducto);
+                cmd.Parameters.AddWithValue("@idSucursal", idSucursal); // Parámetro nuevo
+
+                conexion.Open();
+                object result = cmd.ExecuteScalar();
+                if (result != null)
+                {
+                    cantidad = Convert.ToInt32(result);
+                }
+            }
+            return cantidad;
+        }
+
+
+
+        // 2. Método que trae el Producto con su StockActual y StockMinimo cruzando tablas
+        public Producto ObtenerProducto(int idProducto)
+        {
+            Producto p = new Producto();
+            using (SqlConnection conexion = Conexion.ObtenerConexion())
+            {
+                string query = @"
+                    SELECT p.id_producto, s.cantidad AS StockActual, s.stock_minimo AS StockMinimo
+                    FROM producto p
+                    INNER JOIN stock_sucursal s ON p.id_producto = s.id_producto
+                    WHERE p.id_producto = @idProducto";
+
+                SqlCommand cmd = new SqlCommand(query, conexion);
+                cmd.Parameters.AddWithValue("@idProducto", idProducto);
+
+                conexion.Open();
+                using (SqlDataReader dr = cmd.ExecuteReader())
+                {
+                    if (dr.Read())
+                    {
+                        // Asegúrate de que las propiedades de Producto.cs coincidan con estos nombres
+                        p.StockActual = Convert.ToInt32(dr["StockActual"]);
+                        p.StockMinimo = Convert.ToInt32(dr["StockMinimo"]);
+                    }
+                }
+            }
+            return p;
+        }
+
+
+
+
     }
 }

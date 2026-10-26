@@ -76,6 +76,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AccesoDatos\BackupDatos.cs" />
     <Compile Include="AccesoDatos\CategoriaDatos.cs" />
     <Compile Include="AccesoDatos\ClienteDatos.cs" />
     <Compile Include="AccesoDatos\Conexion.cs" />
@@ -85,6 +86,7 @@
     <Compile Include="AccesoDatos\SucursalDatos.cs" />
     <Compile Include="AccesoDatos\UsuarioDatos.cs" />
     <Compile Include="AccesoDatos\VentaDatos.cs" />
+    <Compile Include="Entidades\BackupSolicitud.cs" />
     <Compile Include="Entidades\Categoria.cs" />
     <Compile Include="Entidades\Cliente.cs" />
     <Compile Include="Entidades\DashboardModelos.cs" />
@@ -95,6 +97,12 @@
     <Compile Include="Entidades\VentaModelos.cs" />
     <Compile Include="Formularios\FrmAuditoriaStock.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Formularios\FrmBackup.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Formularios\FrmBackup.Designer.cs">
+      <DependentUpon>FrmBackup.cs</DependentUpon>
     </Compile>
     <Compile Include="Formularios\FrmCategorias.cs">
       <SubType>Form</SubType>
@@ -159,6 +167,7 @@
     <Compile Include="Formularios\MDIParent1.Designer.cs">
       <DependentUpon>MDIParent1.cs</DependentUpon>
     </Compile>
+    <Compile Include="Negocio\BackupNegocio.cs" />
     <Compile Include="Negocio\CategoriaNegocio.cs" />
     <Compile Include="Negocio\ClienteNegocio.cs" />
     <Compile Include="Negocio\DashboardNegocio.cs" />
