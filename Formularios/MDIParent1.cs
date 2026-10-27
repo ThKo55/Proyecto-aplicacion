@@ -18,7 +18,7 @@ namespace AorusMarket.Formularios
         private System.Windows.Forms.Label lblLogoTexto;
 
         // NUEVO: Agregado btnBackup a la lista
-        private CyberButton btnPuntoVenta, btnClientes, btnStock, btnProductos, btnCategorias, btnUsuarios, btnSucursales, btnDashboard, btnCerrarSesion, btnHistorial, btnAuditoria, btnBackup;
+        private CyberButton btnPuntoVenta, btnClientes, btnStock, btnProductos, btnCategorias, btnUsuarios, btnSucursales, btnDashboard, btnCerrarSesion, btnHistorial, btnAuditoria, btnBackup, btnReportes;
 
         private Form formularioActivo = null;
         private CyberButton botonActivo = null;
@@ -156,7 +156,11 @@ namespace AorusMarket.Formularios
             panelMenuLateral.Controls.Add(btnAuditoria);
             yPos += btnHeight;
 
-            // NUEVO: Instanciamos el botón de Backups y lo asociamos a tu FrmBackup
+            btnReportes = CrearBotonMenu("\"📊Reportes", yPos);
+            btnReportes.Click += (s, e) => { ResaltarBotonActivo(btnReportes); AbrirFormularioEnPanel(new FrmReportes()); };
+            panelMenuLateral.Controls.Add(btnReportes);
+            yPos += btnHeight;
+
             btnBackup = CrearBotonMenu("💾 Backups", yPos);
             btnBackup.Click += (s, e) => { ResaltarBotonActivo(btnBackup); AbrirFormularioEnPanel(new FrmBackup()); };
             panelMenuLateral.Controls.Add(btnBackup);
@@ -267,7 +271,7 @@ namespace AorusMarket.Formularios
 
         private void ModificarTextoBotones(bool soloIconos)
         {
-            // NUEVO: Agregado btnBackup al array de redimensionado
+           
             CyberButton[] todosLosBotones = {
                 btnPuntoVenta, btnClientes, btnStock, btnProductos,
                 btnCategorias, btnUsuarios, btnSucursales, btnHistorial,
@@ -295,7 +299,7 @@ namespace AorusMarket.Formularios
 
         private void ResaltarBotonActivo(CyberButton btnClickeado)
         {
-            // NUEVO: Agregado btnBackup al array de efectos visuales
+          
             CyberButton[] todosLosBotones = {
                 btnPuntoVenta, btnClientes, btnStock, btnProductos,
                 btnCategorias, btnUsuarios, btnSucursales, btnDashboard,
@@ -358,7 +362,7 @@ namespace AorusMarket.Formularios
 
         private void AplicarPermisosPorPerfil()
         {
-            // NUEVO: Agregado btnBackup al array de apagado inicial
+           
             CyberButton[] todosLosBotones = {
                 btnPuntoVenta, btnClientes, btnStock, btnProductos,
                 btnCategorias, btnUsuarios, btnSucursales, btnHistorial,
@@ -372,32 +376,33 @@ namespace AorusMarket.Formularios
 
             List<CyberButton> menuDelUsuario = new List<CyberButton>();
 
-            if (SesionActual.IdPerfil == 1) // 👑 ADMINISTRADOR
+            if (SesionActual.IdPerfil == 1) 
             {
                 menuDelUsuario.Add(btnDashboard);
                 menuDelUsuario.Add(btnUsuarios);
                 menuDelUsuario.Add(btnSucursales);
                 menuDelUsuario.Add(btnAuditoria);
-                menuDelUsuario.Add(btnBackup); // NUEVO: Se muestra la opción a los Admins
+                menuDelUsuario.Add(btnBackup); 
                 menuDelUsuario.Add(btnClientes);
                 menuDelUsuario.Add(btnHistorial);
                 menuDelUsuario.Add(btnStock);
                 menuDelUsuario.Add(btnProductos);
                 menuDelUsuario.Add(btnCategorias);
+                menuDelUsuario.Add(btnReportes);
 
                 ResaltarBotonActivo(btnDashboard);
                 AbrirFormularioEnPanel(new FrmDashboard());
             }
-            else if (SesionActual.IdPerfil == 2) // 🛒 CAJERO
+            else if (SesionActual.IdPerfil == 2) 
             {
                 menuDelUsuario.Add(btnPuntoVenta);
                 menuDelUsuario.Add(btnClientes);
-                menuDelUsuario.Add(btnHistorial);
+               
 
                 ResaltarBotonActivo(btnPuntoVenta);
                 AbrirFormularioEnPanel(new FrmPuntoVenta());
             }
-            else if (SesionActual.IdPerfil == 3) // 📦 GESTOR DE STOCK
+            else if (SesionActual.IdPerfil == 3) 
             {
                 menuDelUsuario.Add(btnStock);
                 menuDelUsuario.Add(btnProductos);
@@ -436,7 +441,11 @@ namespace AorusMarket.Formularios
                 login.Show();
             }
         }
+        private void btnReportes_funcion(object sender, EventArgs e)
+        {
 
+            AbrirFormularioEnPanel(new FrmReportes());
+        }
         private void ActivarDoubleBuffering(Control control)
         {
             PropertyInfo prop = typeof(Control).GetProperty("DoubleBuffered",

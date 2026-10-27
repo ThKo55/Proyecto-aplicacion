@@ -88,6 +88,7 @@
     <Compile Include="AccesoDatos\Conexion.cs" />
     <Compile Include="AccesoDatos\DashboardDatos.cs" />
     <Compile Include="AccesoDatos\ProductoDatos.cs" />
+    <Compile Include="AccesoDatos\ReporteDatos.cs" />
     <Compile Include="AccesoDatos\StockDatos.cs" />
     <Compile Include="AccesoDatos\SucursalDatos.cs" />
     <Compile Include="AccesoDatos\UsuarioDatos.cs" />
@@ -97,10 +98,17 @@
     <Compile Include="Entidades\Cliente.cs" />
     <Compile Include="Entidades\DashboardModelos.cs" />
     <Compile Include="Entidades\Producto.cs" />
+    <Compile Include="Entidades\ReportesDTO.cs" />
     <Compile Include="Entidades\StockModelos.cs" />
     <Compile Include="Entidades\Sucursal.cs" />
     <Compile Include="Entidades\Usuario.cs" />
     <Compile Include="Entidades\VentaModelos.cs" />
+    <Compile Include="Formularios\FrmReportes.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Formularios\FrmReportes.Designer.cs">
+      <DependentUpon>FrmReportes.cs</DependentUpon>
+    </Compile>
     <Compile Include="Formularios\FrmAuditoriaStock.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -178,6 +186,7 @@
     <Compile Include="Negocio\ClienteNegocio.cs" />
     <Compile Include="Negocio\DashboardNegocio.cs" />
     <Compile Include="Negocio\ProductoNegocio.cs" />
+    <Compile Include="Negocio\ReporteNegocio.cs" />
     <Compile Include="Negocio\StockNegocio.cs" />
     <Compile Include="Negocio\SucursalNegocio.cs" />
     <Compile Include="Negocio\UsuarioNegocio.cs" />
