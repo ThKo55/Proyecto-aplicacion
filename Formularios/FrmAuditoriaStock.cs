@@ -18,7 +18,9 @@ namespace AorusMarket.Formularios
         public FrmAuditoriaStock()
         {
             // InitializeComponent(); // Acordate de mantener esto borrado/comentado
-            this.BackColor = EstiloApp.Fondo;
+
+            // FONDO SOBRIO OSCURO
+            this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Auditoría de Movimientos";
             ConstruirInterfaz();
         }
@@ -27,9 +29,17 @@ namespace AorusMarket.Formularios
         {
             this.Controls.Add(EstiloApp.CrearTitulo("AUDITORÍA DE STOCK", new Point(30, 20)));
 
+            // Función local para crear labels con texto gris claro (sobrio)
+            void AddLabelSobrio(string texto, Point ubicacion)
+            {
+                Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
+                lbl.ForeColor = Color.LightGray;
+                this.Controls.Add(lbl);
+            }
+
             int x = 30, y = 80;
 
-            this.Controls.Add(EstiloApp.CrearLabel("FECHA DESDE:", new Point(x, y)));
+            AddLabelSobrio("FECHA DESDE:", new Point(x, y));
             dtpDesde = new DateTimePicker
             {
                 Location = new Point(x, y + 20),
@@ -40,7 +50,7 @@ namespace AorusMarket.Formularios
             };
             this.Controls.Add(dtpDesde);
 
-            this.Controls.Add(EstiloApp.CrearLabel("FECHA HASTA:", new Point(x + 220, y)));
+            AddLabelSobrio("FECHA HASTA:", new Point(x + 220, y));
             dtpHasta = new DateTimePicker
             {
                 Location = new Point(x + 220, y + 20),
@@ -59,10 +69,9 @@ namespace AorusMarket.Formularios
             dgvAuditoria = new DataGridView
             {
                 Location = new Point(x, y),
-                Size = new Size(1000, this.ClientSize.Height - y - 30),
+                Size = new Size(1000, this.ClientSize.Height - y - 30), // Corregido el error de sintaxis (- y30)
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
-            EstiloApp.EstilizarGrid(dgvAuditoria);
 
             dgvAuditoria.Columns.Add("IdMovimiento", "ID");
             dgvAuditoria.Columns.Add("Fecha", "Fecha y Hora");
@@ -72,9 +81,50 @@ namespace AorusMarket.Formularios
             dgvAuditoria.Columns.Add("Cantidad", "Variación");
             dgvAuditoria.Columns.Add("Usuario", "Usuario Responsable");
 
+            // APLICAMOS EL DISEÑO PREMIUM A LA GRILLA
+            AplicarDisenoSobrioGrid(dgvAuditoria);
             this.Controls.Add(dgvAuditoria);
 
             CargarGrilla();
+        }
+
+        // --- MAGIA VISUAL: NUEVA GRILLA SOBRIA ---
+        private void AplicarDisenoSobrioGrid(DataGridView grid)
+        {
+            grid.EnableHeadersVisualStyles = false;
+            grid.BackgroundColor = Color.FromArgb(18, 18, 18);
+            grid.BorderStyle = BorderStyle.None;
+            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            grid.GridColor = Color.FromArgb(40, 40, 40);
+            grid.RowHeadersVisible = false;
+
+            DataGridViewCellStyle estiloCabecera = new DataGridViewCellStyle();
+            estiloCabecera.BackColor = Color.FromArgb(28, 28, 28);
+            estiloCabecera.ForeColor = Color.LightGray;
+            estiloCabecera.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            estiloCabecera.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            estiloCabecera.SelectionBackColor = Color.FromArgb(28, 28, 28);
+            grid.ColumnHeadersDefaultCellStyle = estiloCabecera;
+            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            grid.ColumnHeadersHeight = 40;
+
+            DataGridViewCellStyle estiloFila = new DataGridViewCellStyle();
+            estiloFila.BackColor = Color.FromArgb(18, 18, 18);
+            estiloFila.ForeColor = Color.WhiteSmoke;
+            estiloFila.Font = new Font("Segoe UI", 10F);
+            estiloFila.SelectionBackColor = Color.FromArgb(220, 53, 69); // Rojo Aorus
+            estiloFila.SelectionForeColor = Color.White;
+            grid.DefaultCellStyle = estiloFila;
+
+            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(22, 22, 22);
+            grid.RowTemplate.Height = 35;
+            grid.AllowUserToAddRows = false;
+            grid.AllowUserToDeleteRows = false;
+            grid.AllowUserToResizeColumns = false;
+            grid.AllowUserToResizeRows = false;
+            grid.ReadOnly = true;
+            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         }
 
         private void CargarGrilla()
@@ -108,7 +158,8 @@ namespace AorusMarket.Formularios
                     }
                     else if (cantidad < 0)
                     {
-                        fila.Cells["Cantidad"].Style.ForeColor = EstiloApp.RojoNeon;
+                        // Mantenemos tu estética pero usando el color directamente para evitar dependencias
+                        fila.Cells["Cantidad"].Style.ForeColor = Color.FromArgb(220, 53, 69); // Rojo Aorus
                         fila.Cells["Cantidad"].Style.Font = new Font(dgvAuditoria.Font, FontStyle.Bold);
                     }
                 }

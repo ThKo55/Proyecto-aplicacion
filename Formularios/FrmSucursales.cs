@@ -2,9 +2,9 @@
 using System.Drawing;
 using System.Windows.Forms;
 using AorusMarket.Utilidades;
-using ReaLTaiizor.Controls; // IMPORTANTE: Mantenido para reconocer CyberTextBox
-using AorusMarket.Entidades; // Acceso a los moldes
-using AorusMarket.Negocio;   // Acceso a las validaciones y lógica
+using ReaLTaiizor.Controls;
+using AorusMarket.Entidades;
+using AorusMarket.Negocio;
 
 namespace AorusMarket.Formularios
 {
@@ -15,31 +15,41 @@ namespace AorusMarket.Formularios
         private CyberButton btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
         private int idSeleccionado = 0;
 
-        // Instanciamos el "cerebro" (capa de negocio)
         private SucursalNegocio _sucursalNegocio = new SucursalNegocio();
 
         public FrmSucursales()
         {
             InitializeComponent();
-            this.BackColor = EstiloApp.Fondo;
+
+            // FONDO SOBRIO OSCURO
+            this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Gestión de Sucursales";
-            ConstruirInterfaz(); // Interfaz visual original
+            ConstruirInterfaz();
         }
 
         private void ConstruirInterfaz()
         {
             this.Controls.Add(EstiloApp.CrearTitulo("SUCURSALES", new Point(30, 20)));
 
+            // Función local para crear labels con texto gris claro (sobrio)
+            void AddLabelSobrio(string texto, Point ubicacion)
+            {
+                Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
+                lbl.ForeColor = Color.LightGray;
+                this.Controls.Add(lbl);
+            }
+
             int x = 30, y = 90;
-            this.Controls.Add(EstiloApp.CrearLabel("NOMBRE", new Point(x, y)));
+
+            AddLabelSobrio("NOMBRE", new Point(x, y));
             txtNombre = EstiloApp.CrearTextBox(new Point(x, y + 20), 220);
             this.Controls.Add(txtNombre);
 
-            this.Controls.Add(EstiloApp.CrearLabel("DIRECCIÓN", new Point(x + 240, y)));
+            AddLabelSobrio("DIRECCIÓN", new Point(x + 240, y));
             txtDireccion = EstiloApp.CrearTextBox(new Point(x + 240, y + 20), 220);
             this.Controls.Add(txtDireccion);
 
-            this.Controls.Add(EstiloApp.CrearLabel("TELÉFONO", new Point(x + 480, y)));
+            AddLabelSobrio("TELÉFONO", new Point(x + 480, y));
             txtTelefono = EstiloApp.CrearTextBox(new Point(x + 480, y + 20), 220);
             this.Controls.Add(txtTelefono);
 
@@ -66,31 +76,74 @@ namespace AorusMarket.Formularios
                 Size = new Size(740, this.ClientSize.Height - y - 30),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
-            EstiloApp.EstilizarGrid(dgvSucursales);
+
             dgvSucursales.Columns.Add("IdSucursal", "Id");
             dgvSucursales.Columns.Add("Nombre", "Nombre");
             dgvSucursales.Columns.Add("Direccion", "Dirección");
             dgvSucursales.Columns.Add("Telefono", "Teléfono");
             dgvSucursales.Columns["IdSucursal"].Visible = false;
             dgvSucursales.SelectionChanged += DgvSucursales_SelectionChanged;
+
+            // APLICAMOS EL DISEÑO PREMIUM A LA GRILLA
+            AplicarDisenoSobrioGrid(dgvSucursales);
             this.Controls.Add(dgvSucursales);
 
-            // LLAMADO NUEVO: Trae los datos reales de la BD al abrir la ventana
             CargarGrilla();
         }
 
-        // METODO NUEVO: Consulta a través de la capa de Negocio y pinta la grilla
+        // --- MAGIA VISUAL: NUEVA GRILLA SOBRIA ---
+        private void AplicarDisenoSobrioGrid(DataGridView grid)
+        {
+            grid.EnableHeadersVisualStyles = false;
+            grid.BackgroundColor = Color.FromArgb(18, 18, 18);
+            grid.BorderStyle = BorderStyle.None;
+            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            grid.GridColor = Color.FromArgb(40, 40, 40);
+            grid.RowHeadersVisible = false;
+
+            DataGridViewCellStyle estiloCabecera = new DataGridViewCellStyle();
+            estiloCabecera.BackColor = Color.FromArgb(28, 28, 28);
+            estiloCabecera.ForeColor = Color.LightGray;
+            estiloCabecera.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            estiloCabecera.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            estiloCabecera.SelectionBackColor = Color.FromArgb(28, 28, 28);
+            grid.ColumnHeadersDefaultCellStyle = estiloCabecera;
+            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            grid.ColumnHeadersHeight = 40;
+
+            DataGridViewCellStyle estiloFila = new DataGridViewCellStyle();
+            estiloFila.BackColor = Color.FromArgb(18, 18, 18);
+            estiloFila.ForeColor = Color.WhiteSmoke;
+            estiloFila.Font = new Font("Segoe UI", 10F);
+            estiloFila.SelectionBackColor = Color.FromArgb(220, 53, 69); // Rojo Aorus
+            estiloFila.SelectionForeColor = Color.White;
+            grid.DefaultCellStyle = estiloFila;
+
+            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(22, 22, 22);
+            grid.RowTemplate.Height = 35;
+            grid.AllowUserToAddRows = false;
+            grid.AllowUserToDeleteRows = false;
+            grid.AllowUserToResizeColumns = false;
+            grid.AllowUserToResizeRows = false;
+            grid.ReadOnly = true;
+            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        }
+
         private void CargarGrilla()
         {
-            dgvSucursales.Rows.Clear(); // Limpia la tabla visual
-            var listaSucursales = _sucursalNegocio.Listar(); // Pide la data real a SQL
+            dgvSucursales.SelectionChanged -= DgvSucursales_SelectionChanged;
+
+            dgvSucursales.Rows.Clear();
+            var listaSucursales = _sucursalNegocio.Listar();
 
             foreach (var item in listaSucursales)
             {
-                // Llena las celdas en el mismo orden que agregamos las columnas arriba
                 dgvSucursales.Rows.Add(item.IdSucursal, item.Nombre, item.Direccion, item.Telefono);
             }
             dgvSucursales.ClearSelection();
+
+            dgvSucursales.SelectionChanged += DgvSucursales_SelectionChanged;
         }
 
         private void DgvSucursales_SelectionChanged(object sender, EventArgs e)
@@ -115,25 +168,22 @@ namespace AorusMarket.Formularios
 
         private void BtnGuardar_Click(object sender, EventArgs e)
         {
-            // 1. Armamos un "paquete" (Objeto Sucursal) con lo que tipeó el usuario
             Sucursal nuevaSucursal = new Sucursal()
             {
-                IdSucursal = idSeleccionado, // 0 = Crea uno nuevo / > 0 = Edita el seleccionado
+                IdSucursal = idSeleccionado,
                 Nombre = txtNombre.TextButton,
                 Direccion = txtDireccion.TextButton,
                 Telefono = txtTelefono.TextButton
             };
 
-            // 2. Se lo enviamos al "Cerebro" (Negocio) para que valide y guarde
             string mensaje;
             bool resultado = _sucursalNegocio.Guardar(nuevaSucursal, out mensaje);
 
-            // 3. Revisamos qué nos respondió la capa de negocio
             if (resultado)
             {
                 MessageBox.Show("Sucursal guardada correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LimpiarCampos();
-                CargarGrilla(); // Volvemos a pedir los datos a la BD
+                CargarGrilla();
             }
             else
             {
@@ -155,16 +205,14 @@ namespace AorusMarket.Formularios
 
             if (resp == DialogResult.Yes)
             {
-                // 1. Enviamos solo el ID al Negocio para procesar la baja lógica
                 string mensaje;
                 bool resultado = _sucursalNegocio.Eliminar(idSeleccionado, out mensaje);
 
-                // 2. Evaluamos la respuesta
                 if (resultado)
                 {
                     MessageBox.Show("Sucursal eliminada.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     LimpiarCampos();
-                    CargarGrilla(); // Actualiza la grilla
+                    CargarGrilla();
                 }
                 else
                 {

@@ -23,7 +23,9 @@ namespace AorusMarket.Formularios
         public FrmHistorialVentas()
         {
             //InitializeComponent();
-            this.BackColor = EstiloApp.Fondo;
+
+            // FONDO SOBRIO OSCURO
+            this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Historial de Ventas";
             ConstruirInterfaz();
         }
@@ -32,9 +34,17 @@ namespace AorusMarket.Formularios
         {
             this.Controls.Add(EstiloApp.CrearTitulo("HISTORIAL DE VENTAS", new Point(30, 20)));
 
+            // Función local para crear labels con texto gris claro (sobrio)
+            void AddLabelSobrio(string texto, Point ubicacion)
+            {
+                Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
+                lbl.ForeColor = Color.LightGray;
+                this.Controls.Add(lbl);
+            }
+
             int x = 30, y = 80;
 
-            this.Controls.Add(EstiloApp.CrearLabel("FECHA DESDE:", new Point(x, y)));
+            AddLabelSobrio("FECHA DESDE:", new Point(x, y));
             dtpDesde = new DateTimePicker
             {
                 Location = new Point(x, y + 20),
@@ -45,7 +55,7 @@ namespace AorusMarket.Formularios
             };
             this.Controls.Add(dtpDesde);
 
-            this.Controls.Add(EstiloApp.CrearLabel("FECHA HASTA:", new Point(x + 220, y)));
+            AddLabelSobrio("FECHA HASTA:", new Point(x + 220, y));
             dtpHasta = new DateTimePicker
             {
                 Location = new Point(x + 220, y + 20),
@@ -66,8 +76,7 @@ namespace AorusMarket.Formularios
 
             y += 60;
 
-            // CREAMOS EL DESPLEGABLE DE PRODUCTOS
-            this.Controls.Add(EstiloApp.CrearLabel("PRODUCTOS DE LA VENTA SELECCIONADA:", new Point(x, y)));
+            AddLabelSobrio("PRODUCTOS DE LA VENTA SELECCIONADA:", new Point(x, y));
             cmbProductosVendidos = new ComboBox
             {
                 Location = new Point(x, y + 20),
@@ -77,7 +86,6 @@ namespace AorusMarket.Formularios
             };
             this.Controls.Add(cmbProductosVendidos);
 
-            // NUEVO BOTÓN PARA DESCARGAR EL PDF (Al lado del desplegable)
             btnDescargarFactura = EstiloApp.CrearBoton("DESCARGAR PDF", new Point(x + 600, y + 15), 150, EstiloApp.Gris);
             btnDescargarFactura.Click += BtnDescargarFactura_Click;
             this.Controls.Add(btnDescargarFactura);
@@ -90,7 +98,6 @@ namespace AorusMarket.Formularios
                 Size = new Size(1000, this.ClientSize.Height - y - 30),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
-            EstiloApp.EstilizarGrid(dgvHistorial);
 
             dgvHistorial.Columns.Add("IdVenta", "N° Ticket");
             dgvHistorial.Columns.Add("Fecha", "Fecha");
@@ -103,9 +110,50 @@ namespace AorusMarket.Formularios
 
             dgvHistorial.SelectionChanged += DgvHistorial_SelectionChanged;
 
+            // APLICAMOS EL DISEÑO PREMIUM A LA GRILLA
+            AplicarDisenoSobrioGrid(dgvHistorial);
             this.Controls.Add(dgvHistorial);
 
             CargarGrilla();
+        }
+
+        // --- MAGIA VISUAL: NUEVA GRILLA SOBRIA ---
+        private void AplicarDisenoSobrioGrid(DataGridView grid)
+        {
+            grid.EnableHeadersVisualStyles = false;
+            grid.BackgroundColor = Color.FromArgb(18, 18, 18);
+            grid.BorderStyle = BorderStyle.None;
+            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            grid.GridColor = Color.FromArgb(40, 40, 40);
+            grid.RowHeadersVisible = false;
+
+            DataGridViewCellStyle estiloCabecera = new DataGridViewCellStyle();
+            estiloCabecera.BackColor = Color.FromArgb(28, 28, 28);
+            estiloCabecera.ForeColor = Color.LightGray;
+            estiloCabecera.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            estiloCabecera.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            estiloCabecera.SelectionBackColor = Color.FromArgb(28, 28, 28);
+            grid.ColumnHeadersDefaultCellStyle = estiloCabecera;
+            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            grid.ColumnHeadersHeight = 40;
+
+            DataGridViewCellStyle estiloFila = new DataGridViewCellStyle();
+            estiloFila.BackColor = Color.FromArgb(18, 18, 18);
+            estiloFila.ForeColor = Color.WhiteSmoke;
+            estiloFila.Font = new Font("Segoe UI", 10F);
+            estiloFila.SelectionBackColor = Color.FromArgb(220, 53, 69); // Rojo Aorus
+            estiloFila.SelectionForeColor = Color.White;
+            grid.DefaultCellStyle = estiloFila;
+
+            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(22, 22, 22);
+            grid.RowTemplate.Height = 35;
+            grid.AllowUserToAddRows = false;
+            grid.AllowUserToDeleteRows = false;
+            grid.AllowUserToResizeColumns = false;
+            grid.AllowUserToResizeRows = false;
+            grid.ReadOnly = true;
+            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         }
 
         private void CargarGrilla()
@@ -130,6 +178,7 @@ namespace AorusMarket.Formularios
             {
                 if (fila.Cells["Estado"].Value.ToString() == "Anulada")
                 {
+                    // Resalta en rojo sutil y tacha el texto en ventas anuladas, manteniendo armonía oscura
                     fila.DefaultCellStyle.ForeColor = Color.IndianRed;
                     fila.DefaultCellStyle.Font = new Font(dgvHistorial.Font, FontStyle.Strikeout);
                 }
@@ -184,10 +233,8 @@ namespace AorusMarket.Formularios
             decimal total = Convert.ToDecimal(fila.Cells["Total"].Value);
             string metodoPago = fila.Cells["MetodoPago"].Value.ToString();
 
-            // Buscamos los productos exactos desde la base de datos
             var detallesBD = _ventaNegocio.ObtenerDetallesDeVenta(idVentaSeleccionada);
 
-            // Generamos el PDF (le pasamos true al final para que lo abra ni bien lo guarda)
             Utilidades.GeneradorFactura.GenerarPDF(idVentaSeleccionada, fecha, cliente, cajero, total, metodoPago, detallesBD, true);
         }
 

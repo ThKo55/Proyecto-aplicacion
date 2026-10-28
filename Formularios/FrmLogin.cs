@@ -10,17 +10,17 @@ namespace AorusMarket.Formularios
 {
     public partial class FrmLogin : Form
     {
-        private readonly Color colorFondo = EstiloApp.Fondo;
-        private readonly Color colorRojoNeon = EstiloApp.RojoNeon;
-        private readonly Color colorRojoOscuro = EstiloApp.RojoOscuro;
-        private readonly Color colorGris = EstiloApp.Gris;
-        private readonly Color colorCampo = EstiloApp.FondoPanel;
+        // COLORES DARK PREMIUM
+        private readonly Color colorFondo = Color.FromArgb(18, 18, 18); // Gris casi negro
+        private readonly Color colorRojoNeon = Color.FromArgb(220, 53, 69); // Rojo Aorus
+        private readonly Color colorRojoOscuro = Color.FromArgb(176, 42, 55); // Rojo oscuro para hover
+        private readonly Color colorGris = Color.Gray; // Gris sutil para textos secundarios
+        private readonly Color colorCampo = Color.FromArgb(28, 28, 28); // Gris carbón para inputs
 
         private TextBox txtEmail;
         private TextBox txtPassword;
         private Label lblMensaje;
 
-        // CORRECCIÓN: Especificamos explícitamente que es un botón de Windows Forms
         private System.Windows.Forms.Button btnIngresar;
 
         private UsuarioNegocio _usuarioNegocio = new UsuarioNegocio();
@@ -62,7 +62,7 @@ namespace AorusMarket.Formularios
             {
                 Text = "MARKET",
                 Font = new Font("Arial Black", 26F, FontStyle.Bold),
-                ForeColor = Color.White,
+                ForeColor = Color.WhiteSmoke,
                 BackColor = Color.Transparent,
                 AutoSize = true
             };
@@ -89,7 +89,6 @@ namespace AorusMarket.Formularios
             lblSubtitulo.Location = new Point(
                 (anchoForm - TextRenderer.MeasureText(lblSubtitulo.Text, lblSubtitulo.Font).Width) / 2, 95);
 
-            // CORRECCIÓN: Panel específico de Windows Forms
             System.Windows.Forms.Panel lineaDivisoria = new System.Windows.Forms.Panel
             {
                 BackColor = colorRojoNeon,
@@ -101,7 +100,7 @@ namespace AorusMarket.Formularios
             {
                 Text = "EMAIL",
                 Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
-                ForeColor = colorRojoNeon,
+                ForeColor = colorGris, // Cambiado a gris para no saturar con tanto rojo
                 BackColor = Color.Transparent,
                 AutoSize = true,
                 Location = new Point(60, 175)
@@ -135,7 +134,7 @@ namespace AorusMarket.Formularios
             {
                 Text = "CONTRASEÑA",
                 Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
-                ForeColor = colorRojoNeon,
+                ForeColor = colorGris, // Cambiado a gris para no saturar
                 BackColor = Color.Transparent,
                 AutoSize = true,
                 Location = new Point(60, 255)
@@ -193,7 +192,7 @@ namespace AorusMarket.Formularios
             btnIngresar.FlatAppearance.MouseOverBackColor = colorRojoNeon;
             btnIngresar.FlatAppearance.MouseDownBackColor = colorRojoOscuro;
 
-            btnIngresar.MouseEnter += (s, e) => btnIngresar.ForeColor = Color.Black;
+            btnIngresar.MouseEnter += (s, e) => btnIngresar.ForeColor = Color.White; // Blanco resalta mejor sobre fondo rojo
             btnIngresar.MouseLeave += (s, e) => btnIngresar.ForeColor = colorRojoNeon;
 
             btnIngresar.Click += BtnIngresar_Click;
@@ -211,8 +210,9 @@ namespace AorusMarket.Formularios
                 BackColor = Color.Transparent,
                 AutoSize = true
             };
-            lblPie.Location = new Point(
-                (anchoForm - TextRenderer.MeasureText(lblPie.Text, lblPie.Font).Width) / 2, 500);
+
+            // CORREGIDO EL ERROR DE SINTAXIS ACÁ ABAJO
+            lblPie.Location = new Point((anchoForm - TextRenderer.MeasureText(lblPie.Text, lblPie.Font).Width) / 2, 500);
 
             this.Controls.Add(lblAorus);
             this.Controls.Add(lblMarket);

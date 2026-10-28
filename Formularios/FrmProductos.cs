@@ -3,8 +3,8 @@ using System.Drawing;
 using System.Windows.Forms;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
-using AorusMarket.Entidades; // Traemos los moldes
-using AorusMarket.Negocio;   // Traemos los cerebros
+using AorusMarket.Entidades;
+using AorusMarket.Negocio;
 
 namespace AorusMarket.Formularios
 {
@@ -16,35 +16,44 @@ namespace AorusMarket.Formularios
         private CyberButton btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
         private int idSeleccionado = 0;
 
-        // Instanciamos los negocios necesarios
         private ProductoNegocio _productoNegocio = new ProductoNegocio();
-        private CategoriaNegocio _categoriaNegocio = new CategoriaNegocio(); // Lo usamos para el ComboBox
+        private CategoriaNegocio _categoriaNegocio = new CategoriaNegocio();
 
         public FrmProductos()
         {
             InitializeComponent();
-            this.BackColor = EstiloApp.Fondo;
+
+            // FONDO SOBRIO OSCURO
+            this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Gestión de Productos";
-            ConstruirInterfaz(); // Interfaz visual original de tu compañero
+            ConstruirInterfaz();
         }
 
         private void ConstruirInterfaz()
         {
             this.Controls.Add(EstiloApp.CrearTitulo("PRODUCTOS", new Point(30, 20)));
 
+            // Función local para crear labels con texto gris claro (sobrio)
+            void AddLabelSobrio(string texto, Point ubicacion)
+            {
+                Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
+                lbl.ForeColor = Color.LightGray;
+                this.Controls.Add(lbl);
+            }
+
             int x = 30, y = 90;
-            this.Controls.Add(EstiloApp.CrearLabel("NOMBRE", new Point(x, y)));
+
+            AddLabelSobrio("NOMBRE", new Point(x, y));
             txtNombre = EstiloApp.CrearTextBox(new Point(x, y + 20), 250);
             this.Controls.Add(txtNombre);
 
-            this.Controls.Add(EstiloApp.CrearLabel("DESCRIPCIÓN", new Point(x + 270, y)));
+            AddLabelSobrio("DESCRIPCIÓN", new Point(x + 270, y));
             txtDescripcion = EstiloApp.CrearTextBox(new Point(x + 270, y + 20), 250);
             this.Controls.Add(txtDescripcion);
 
-            this.Controls.Add(EstiloApp.CrearLabel("CATEGORÍA", new Point(x + 540, y)));
+            AddLabelSobrio("CATEGORÍA", new Point(x + 540, y));
             cmbCategoria = EstiloApp.CrearComboBox(new Point(x + 540, y + 20), 250);
 
-            // LLAMADO NUEVO: Llenar el ComboBox con datos reales
             CargarComboCategorias();
 
             this.Controls.Add(cmbCategoria);
@@ -69,40 +78,80 @@ namespace AorusMarket.Formularios
             dgvProductos = new DataGridView
             {
                 Location = new Point(x, y),
-                Size = new Size(840, this.ClientSize.Height - y - 30),
+                Size = new Size(840, this.ClientSize.Height - y - 30), // Corregido el error de tipeo (- y30 a - y - 30)
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
-            EstiloApp.EstilizarGrid(dgvProductos);
+
             dgvProductos.Columns.Add("IdProducto", "Id");
             dgvProductos.Columns.Add("Nombre", "Nombre");
             dgvProductos.Columns.Add("Descripcion", "Descripción");
             dgvProductos.Columns.Add("Categoria", "Categoría");
 
-            // Columna oculta extra para poder seleccionar el combo al hacer clic en la grilla
             dgvProductos.Columns.Add("IdCategoria", "IdCategoria");
             dgvProductos.Columns["IdCategoria"].Visible = false;
             dgvProductos.Columns["IdProducto"].Visible = false;
 
             dgvProductos.SelectionChanged += DgvProductos_SelectionChanged;
+
+            // APLICAMOS EL DISEÑO PREMIUM A LA GRILLA
+            AplicarDisenoSobrioGrid(dgvProductos);
             this.Controls.Add(dgvProductos);
 
-            // LLAMADO NUEVO: Llenar la grilla con datos reales
             CargarGrilla();
         }
 
-        // MÉTODO NUEVO: Busca las categorías activas y llena el ComboBox
+        // --- MAGIA VISUAL: NUEVA GRILLA SOBRIA ---
+        private void AplicarDisenoSobrioGrid(DataGridView grid)
+        {
+            grid.EnableHeadersVisualStyles = false;
+            grid.BackgroundColor = Color.FromArgb(18, 18, 18);
+            grid.BorderStyle = BorderStyle.None;
+            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            grid.GridColor = Color.FromArgb(40, 40, 40);
+            grid.RowHeadersVisible = false;
+
+            DataGridViewCellStyle estiloCabecera = new DataGridViewCellStyle();
+            estiloCabecera.BackColor = Color.FromArgb(28, 28, 28);
+            estiloCabecera.ForeColor = Color.LightGray;
+            estiloCabecera.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            estiloCabecera.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            estiloCabecera.SelectionBackColor = Color.FromArgb(28, 28, 28);
+            grid.ColumnHeadersDefaultCellStyle = estiloCabecera;
+            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            grid.ColumnHeadersHeight = 40;
+
+            DataGridViewCellStyle estiloFila = new DataGridViewCellStyle();
+            estiloFila.BackColor = Color.FromArgb(18, 18, 18);
+            estiloFila.ForeColor = Color.WhiteSmoke;
+            estiloFila.Font = new Font("Segoe UI", 10F);
+            estiloFila.SelectionBackColor = Color.FromArgb(220, 53, 69); // Rojo Aorus
+            estiloFila.SelectionForeColor = Color.White;
+            grid.DefaultCellStyle = estiloFila;
+
+            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(22, 22, 22);
+            grid.RowTemplate.Height = 35;
+            grid.AllowUserToAddRows = false;
+            grid.AllowUserToDeleteRows = false;
+            grid.AllowUserToResizeColumns = false;
+            grid.AllowUserToResizeRows = false;
+            grid.ReadOnly = true;
+            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        }
+
         private void CargarComboCategorias()
         {
             var listaCategorias = _categoriaNegocio.Listar();
             cmbCategoria.DataSource = listaCategorias;
-            cmbCategoria.DisplayMember = "Nombre";      // Lo que ve el usuario
-            cmbCategoria.ValueMember = "IdCategoria";   // El ID real que guardaremos en la BD
-            cmbCategoria.SelectedIndex = -1;            // Arranca sin nada seleccionado
+            cmbCategoria.DisplayMember = "Nombre";
+            cmbCategoria.ValueMember = "IdCategoria";
+            cmbCategoria.SelectedIndex = -1;
         }
 
-        // MÉTODO NUEVO: Busca los productos en la BD y los pinta en la tabla
         private void CargarGrilla()
         {
+            dgvProductos.SelectionChanged -= DgvProductos_SelectionChanged;
+
             dgvProductos.Rows.Clear();
             var listaProductos = _productoNegocio.Listar();
 
@@ -111,6 +160,8 @@ namespace AorusMarket.Formularios
                 dgvProductos.Rows.Add(item.IdProducto, item.Nombre, item.Descripcion, item.NombreCategoria, item.IdCategoria);
             }
             dgvProductos.ClearSelection();
+
+            dgvProductos.SelectionChanged += DgvProductos_SelectionChanged;
         }
 
         private void DgvProductos_SelectionChanged(object sender, EventArgs e)
@@ -122,7 +173,6 @@ namespace AorusMarket.Formularios
             txtNombre.TextButton = fila.Cells["Nombre"].Value?.ToString();
             txtDescripcion.TextButton = fila.Cells["Descripcion"].Value?.ToString();
 
-            // Seleccionamos en el ComboBox la categoría correspondiente al producto
             cmbCategoria.SelectedValue = Convert.ToInt32(fila.Cells["IdCategoria"].Value ?? 0);
         }
 
@@ -137,25 +187,22 @@ namespace AorusMarket.Formularios
 
         private void BtnGuardar_Click(object sender, EventArgs e)
         {
-            // 1. Armamos el paquete con lo ingresado en el form
             Producto nuevoProducto = new Producto()
             {
-                IdProducto = idSeleccionado, // Si es 0 es nuevo registro
+                IdProducto = idSeleccionado,
                 Nombre = txtNombre.TextButton,
                 Descripcion = txtDescripcion.TextButton,
                 IdCategoria = cmbCategoria.SelectedValue != null ? Convert.ToInt32(cmbCategoria.SelectedValue) : 0
             };
 
-            // 2. Se lo enviamos al Cerebro
             string mensaje;
             bool resultado = _productoNegocio.Guardar(nuevoProducto, out mensaje);
 
-            // 3. Evaluamos
             if (resultado)
             {
                 MessageBox.Show("Producto guardado correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LimpiarCampos();
-                CargarGrilla(); // Refresca la tabla
+                CargarGrilla();
             }
             else
             {
@@ -177,11 +224,9 @@ namespace AorusMarket.Formularios
 
             if (resp == DialogResult.Yes)
             {
-                // 1. Enviar ID al cerebro
                 string mensaje;
                 bool resultado = _productoNegocio.Eliminar(idSeleccionado, out mensaje);
 
-                // 2. Evaluar
                 if (resultado)
                 {
                     MessageBox.Show("Producto eliminado.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);

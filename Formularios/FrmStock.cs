@@ -4,8 +4,8 @@ using System.Drawing;
 using System.Windows.Forms;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
-using AorusMarket.Entidades; // Importamos Entidades
-using AorusMarket.Negocio;   // Importamos Negocio
+using AorusMarket.Entidades;
+using AorusMarket.Negocio;
 
 namespace AorusMarket.Formularios
 {
@@ -17,20 +17,17 @@ namespace AorusMarket.Formularios
         private CyberButton btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
 
         private int idSeleccionado = 0;
-
-        // Instanciamos la capa de Negocio
         private StockNegocio _stockNegocio = new StockNegocio();
 
         public FrmStock()
         {
             InitializeComponent();
-            this.BackColor = EstiloApp.Fondo;
+
+            // FONDO SOBRIO OSCURO
+            this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Gestión de Stock por Sucursal";
 
-            // Construye toda la interfaz visual de tu compañero
             ConstruirInterfaz();
-
-            // Cargamos los datos reales de la base de datos al iniciar
             CargarCombos();
             CargarGrillaStock();
         }
@@ -39,20 +36,29 @@ namespace AorusMarket.Formularios
         {
             this.Controls.Add(EstiloApp.CrearTitulo("STOCK", new Point(30, 20)));
 
+            // Función local para labels sobrios
+            void AddLabelSobrio(string texto, Point ubicacion)
+            {
+                Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
+                lbl.ForeColor = Color.LightGray;
+                this.Controls.Add(lbl);
+            }
+
             int x = 30, y = 90;
-            this.Controls.Add(EstiloApp.CrearLabel("PRODUCTO", new Point(x, y)));
+
+            AddLabelSobrio("PRODUCTO", new Point(x, y));
             cmbProducto = EstiloApp.CrearComboBox(new Point(x, y + 20), 250);
             this.Controls.Add(cmbProducto);
 
-            this.Controls.Add(EstiloApp.CrearLabel("SUCURSAL", new Point(x + 270, y)));
+            AddLabelSobrio("SUCURSAL", new Point(x + 270, y));
             cmbSucursal = EstiloApp.CrearComboBox(new Point(x + 270, y + 20), 220);
             this.Controls.Add(cmbSucursal);
 
-            this.Controls.Add(EstiloApp.CrearLabel("CANTIDAD", new Point(x + 510, y)));
+            AddLabelSobrio("CANTIDAD", new Point(x + 510, y));
             txtCantidad = EstiloApp.CrearTextBox(new Point(x + 510, y + 20), 120);
             this.Controls.Add(txtCantidad);
 
-            this.Controls.Add(EstiloApp.CrearLabel("PRECIO", new Point(x + 650, y)));
+            AddLabelSobrio("PRECIO", new Point(x + 650, y));
             txtPrecio = EstiloApp.CrearTextBox(new Point(x + 650, y + 20), 120);
             this.Controls.Add(txtPrecio);
 
@@ -79,16 +85,14 @@ namespace AorusMarket.Formularios
                 Size = new Size(890, this.ClientSize.Height - y - 30),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
-            EstiloApp.EstilizarGrid(dgvStock);
 
-            // Agregamos las columnas necesarias (algunas ocultas para poder editar luego)
             dgvStock.Columns.Add("IdStock", "Id");
             dgvStock.Columns.Add("Producto", "Producto");
             dgvStock.Columns.Add("Sucursal", "Sucursal");
             dgvStock.Columns.Add("Cantidad", "Cantidad");
             dgvStock.Columns.Add("Precio", "Precio");
-            dgvStock.Columns.Add("IdProducto", "IdProducto"); // Oculta
-            dgvStock.Columns.Add("IdSucursal", "IdSucursal"); // Oculta
+            dgvStock.Columns.Add("IdProducto", "IdProducto");
+            dgvStock.Columns.Add("IdSucursal", "IdSucursal");
 
             dgvStock.Columns["IdStock"].Visible = false;
             dgvStock.Columns["IdProducto"].Visible = false;
@@ -97,21 +101,59 @@ namespace AorusMarket.Formularios
             dgvStock.CellFormatting += DgvStock_CellFormatting;
             dgvStock.SelectionChanged += DgvStock_SelectionChanged;
 
+            // APLICAMOS EL DISEÑO PREMIUM A LA GRILLA
+            AplicarDisenoSobrioGrid(dgvStock);
             this.Controls.Add(dgvStock);
         }
 
-        // METODO REFACTORIZADO: Delega la conexión a la capa de Negocio
+        // --- MAGIA VISUAL: NUEVA GRILLA SOBRIA ---
+        private void AplicarDisenoSobrioGrid(DataGridView grid)
+        {
+            grid.EnableHeadersVisualStyles = false;
+            grid.BackgroundColor = Color.FromArgb(18, 18, 18);
+            grid.BorderStyle = BorderStyle.None;
+            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            grid.GridColor = Color.FromArgb(40, 40, 40);
+            grid.RowHeadersVisible = false;
+
+            DataGridViewCellStyle estiloCabecera = new DataGridViewCellStyle();
+            estiloCabecera.BackColor = Color.FromArgb(28, 28, 28);
+            estiloCabecera.ForeColor = Color.LightGray;
+            estiloCabecera.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            estiloCabecera.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            estiloCabecera.SelectionBackColor = Color.FromArgb(28, 28, 28);
+            grid.ColumnHeadersDefaultCellStyle = estiloCabecera;
+            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            grid.ColumnHeadersHeight = 40;
+
+            DataGridViewCellStyle estiloFila = new DataGridViewCellStyle();
+            estiloFila.BackColor = Color.FromArgb(18, 18, 18);
+            estiloFila.ForeColor = Color.WhiteSmoke;
+            estiloFila.Font = new Font("Segoe UI", 10F);
+            estiloFila.SelectionBackColor = Color.FromArgb(220, 53, 69); // Rojo Aorus
+            estiloFila.SelectionForeColor = Color.White;
+            grid.DefaultCellStyle = estiloFila;
+
+            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(22, 22, 22);
+            grid.RowTemplate.Height = 35;
+            grid.AllowUserToAddRows = false;
+            grid.AllowUserToDeleteRows = false;
+            grid.AllowUserToResizeColumns = false;
+            grid.AllowUserToResizeRows = false;
+            grid.ReadOnly = true;
+            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        }
+
         private void CargarCombos()
         {
             try
             {
-                // Cargar Productos
                 cmbProducto.DataSource = _stockNegocio.ObtenerProductos();
                 cmbProducto.DisplayMember = "Nombre";
                 cmbProducto.ValueMember = "Id";
                 cmbProducto.SelectedIndex = -1;
 
-                // Cargar Sucursales
                 cmbSucursal.DataSource = _stockNegocio.ObtenerSucursales();
                 cmbSucursal.DisplayMember = "Nombre";
                 cmbSucursal.ValueMember = "Id";
@@ -123,11 +165,12 @@ namespace AorusMarket.Formularios
             }
         }
 
-        // METODO REFACTORIZADO: Pide la lista a Negocio y la pinta en pantalla
         private void CargarGrillaStock()
         {
             try
             {
+                dgvStock.SelectionChanged -= DgvStock_SelectionChanged;
+
                 dgvStock.Rows.Clear();
                 var listaStock = _stockNegocio.Listar();
 
@@ -144,6 +187,8 @@ namespace AorusMarket.Formularios
                     );
                 }
                 dgvStock.ClearSelection();
+
+                dgvStock.SelectionChanged += DgvStock_SelectionChanged;
             }
             catch (Exception ex)
             {
@@ -151,7 +196,6 @@ namespace AorusMarket.Formularios
             }
         }
 
-        // ESTILO VISUAL MANTENIDO INTACTO (Pinta de rojo si stock < 5)
         private void DgvStock_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dgvStock.Columns[e.ColumnIndex].Name == "Cantidad" && e.Value != null)
@@ -164,7 +208,6 @@ namespace AorusMarket.Formularios
             }
         }
 
-        // Se corrigió para que al hacer clic en la grilla, los datos suban a los textbox y combos
         private void DgvStock_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvStock.CurrentRow == null) return;
@@ -189,14 +232,12 @@ namespace AorusMarket.Formularios
 
         private void BtnGuardar_Click(object sender, EventArgs e)
         {
-            // Extraemos los valores como texto
             string strProd = cmbProducto.SelectedValue?.ToString();
             string strSuc = cmbSucursal.SelectedValue?.ToString();
             string strCant = txtCantidad.TextButton;
             string strPrec = txtPrecio.TextButton;
-            int idUsuarioLogueado = SesionActual.IdUsuario; // Para la tabla de auditoría (movimientos)
+            int idUsuarioLogueado = SesionActual.IdUsuario;
 
-            // Enviamos todo al Cerebro de Negocio para que valide e inserte
             string mensajeError;
             bool resultado = _stockNegocio.Guardar(strProd, strSuc, strCant, strPrec, idUsuarioLogueado, out mensajeError);
 
@@ -214,7 +255,6 @@ namespace AorusMarket.Formularios
 
         public bool HayStockSuficiente(int idProducto, int cantidadSolicitada)
         {
-            // Agregamos SesionActual.IdSucursal como segundo parámetro
             return _stockNegocio.HayStockSuficiente(idProducto, SesionActual.IdSucursal, cantidadSolicitada);
         }
 

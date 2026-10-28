@@ -3,8 +3,8 @@ using System.Drawing;
 using System.Windows.Forms;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
-using AorusMarket.Entidades; // Importamos Entidades
-using AorusMarket.Negocio;   // Importamos Negocio
+using AorusMarket.Entidades;
+using AorusMarket.Negocio;
 
 namespace AorusMarket.Formularios
 {
@@ -15,13 +15,14 @@ namespace AorusMarket.Formularios
         private CyberButton btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
         private int idSeleccionado = 0;
 
-        // Instanciamos la capa de negocio
         private CategoriaNegocio _categoriaNegocio = new CategoriaNegocio();
 
         public FrmCategorias()
         {
             InitializeComponent();
-            this.BackColor = EstiloApp.Fondo;
+
+            // FONDO SOBRIO OSCURO
+            this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Gestión de Categorías";
             ConstruirInterfaz();
         }
@@ -30,12 +31,21 @@ namespace AorusMarket.Formularios
         {
             this.Controls.Add(EstiloApp.CrearTitulo("CATEGORÍAS", new Point(30, 20)));
 
+            // Función local para crear labels con texto gris claro (sobrio)
+            void AddLabelSobrio(string texto, Point ubicacion)
+            {
+                Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
+                lbl.ForeColor = Color.LightGray;
+                this.Controls.Add(lbl);
+            }
+
             int x = 30, y = 90;
-            this.Controls.Add(EstiloApp.CrearLabel("NOMBRE", new Point(x, y)));
+
+            AddLabelSobrio("NOMBRE", new Point(x, y));
             txtNombre = EstiloApp.CrearTextBox(new Point(x, y + 20), 300);
             this.Controls.Add(txtNombre);
 
-            this.Controls.Add(EstiloApp.CrearLabel("DESCRIPCIÓN", new Point(x + 320, y)));
+            AddLabelSobrio("DESCRIPCIÓN", new Point(x + 320, y));
             txtDescripcion = EstiloApp.CrearTextBox(new Point(x + 320, y + 20), 300);
             this.Controls.Add(txtDescripcion);
 
@@ -59,27 +69,67 @@ namespace AorusMarket.Formularios
             dgvCategorias = new DataGridView
             {
                 Location = new Point(x, y),
-                Size = new Size(740, this.ClientSize.Height - y - 30),
+                Size = new Size(740, this.ClientSize.Height - y - 30), // Corregido el error de sintaxis (- y30)
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
-            EstiloApp.EstilizarGrid(dgvCategorias);
 
-            // Definimos las columnas
             dgvCategorias.Columns.Add("IdCategoria", "Id");
             dgvCategorias.Columns.Add("Nombre", "Nombre");
             dgvCategorias.Columns.Add("Descripcion", "Descripción");
             dgvCategorias.Columns["IdCategoria"].Visible = false;
 
             dgvCategorias.SelectionChanged += DgvCategorias_SelectionChanged;
+
+            // APLICAMOS EL DISEÑO PREMIUM A LA GRILLA
+            AplicarDisenoSobrioGrid(dgvCategorias);
             this.Controls.Add(dgvCategorias);
 
-            // Cargar los datos desde la BD al abrir el formulario
             CargarGrilla();
         }
 
-        // METODO NUEVO: Consulta a la Capa de Negocio y llena la tabla
+        // --- MAGIA VISUAL: NUEVA GRILLA SOBRIA ---
+        private void AplicarDisenoSobrioGrid(DataGridView grid)
+        {
+            grid.EnableHeadersVisualStyles = false;
+            grid.BackgroundColor = Color.FromArgb(18, 18, 18);
+            grid.BorderStyle = BorderStyle.None;
+            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            grid.GridColor = Color.FromArgb(40, 40, 40);
+            grid.RowHeadersVisible = false;
+
+            DataGridViewCellStyle estiloCabecera = new DataGridViewCellStyle();
+            estiloCabecera.BackColor = Color.FromArgb(28, 28, 28);
+            estiloCabecera.ForeColor = Color.LightGray;
+            estiloCabecera.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            estiloCabecera.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            estiloCabecera.SelectionBackColor = Color.FromArgb(28, 28, 28);
+            grid.ColumnHeadersDefaultCellStyle = estiloCabecera;
+            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            grid.ColumnHeadersHeight = 40;
+
+            DataGridViewCellStyle estiloFila = new DataGridViewCellStyle();
+            estiloFila.BackColor = Color.FromArgb(18, 18, 18);
+            estiloFila.ForeColor = Color.WhiteSmoke;
+            estiloFila.Font = new Font("Segoe UI", 10F);
+            estiloFila.SelectionBackColor = Color.FromArgb(220, 53, 69); // Rojo Aorus
+            estiloFila.SelectionForeColor = Color.White;
+            grid.DefaultCellStyle = estiloFila;
+
+            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(22, 22, 22);
+            grid.RowTemplate.Height = 35;
+            grid.AllowUserToAddRows = false;
+            grid.AllowUserToDeleteRows = false;
+            grid.AllowUserToResizeColumns = false;
+            grid.AllowUserToResizeRows = false;
+            grid.ReadOnly = true;
+            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        }
+
         private void CargarGrilla()
         {
+            dgvCategorias.SelectionChanged -= DgvCategorias_SelectionChanged;
+
             dgvCategorias.Rows.Clear();
             var listaCategorias = _categoriaNegocio.Listar();
 
@@ -88,15 +138,17 @@ namespace AorusMarket.Formularios
                 dgvCategorias.Rows.Add(item.IdCategoria, item.Nombre, item.Descripcion);
             }
             dgvCategorias.ClearSelection();
+
+            dgvCategorias.SelectionChanged += DgvCategorias_SelectionChanged;
         }
 
         private void DgvCategorias_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvCategorias.CurrentRow == null) return;
+
             var fila = dgvCategorias.CurrentRow;
             idSeleccionado = Convert.ToInt32(fila.Cells["IdCategoria"].Value ?? 0);
 
-            // CyberTextBox usa TextButton en lugar de Text
             txtNombre.TextButton = fila.Cells["Nombre"].Value?.ToString();
             txtDescripcion.TextButton = fila.Cells["Descripcion"].Value?.ToString();
         }
@@ -111,24 +163,21 @@ namespace AorusMarket.Formularios
 
         private void BtnGuardar_Click(object sender, EventArgs e)
         {
-            // 1. Armar el objeto Entidad con los datos del Formulario
             Categoria nuevaCategoria = new Categoria()
             {
-                IdCategoria = idSeleccionado, // Si es 0 es nuevo, si es > 0 es edición
+                IdCategoria = idSeleccionado,
                 Nombre = txtNombre.TextButton,
                 Descripcion = txtDescripcion.TextButton
             };
 
-            // 2. Mandar el objeto a la Capa de Negocio
             string mensaje;
             bool resultado = _categoriaNegocio.Guardar(nuevaCategoria, out mensaje);
 
-            // 3. Evaluar el resultado y refrescar la pantalla
             if (resultado)
             {
                 MessageBox.Show("Categoría guardada exitosamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LimpiarCampos();
-                CargarGrilla(); // Recarga la grilla para mostrar los cambios
+                CargarGrilla();
             }
             else
             {
@@ -140,8 +189,7 @@ namespace AorusMarket.Formularios
         {
             if (idSeleccionado == 0)
             {
-                MessageBox.Show("Seleccione una categoría de la tabla", "Aviso",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Seleccione una categoría de la tabla", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -150,16 +198,14 @@ namespace AorusMarket.Formularios
 
             if (resp == DialogResult.Yes)
             {
-                // 1. Enviar el ID a la capa de Negocio
                 string mensaje;
                 bool resultado = _categoriaNegocio.Eliminar(idSeleccionado, out mensaje);
 
-                // 2. Evaluar el resultado
                 if (resultado)
                 {
                     MessageBox.Show("Categoría eliminada exitosamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     LimpiarCampos();
-                    CargarGrilla(); // Recarga la grilla para que desaparezca la fila
+                    CargarGrilla();
                 }
                 else
                 {
