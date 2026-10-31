@@ -78,7 +78,7 @@ namespace AorusMarket.Formularios
             dgvProductos = new DataGridView
             {
                 Location = new Point(x, y),
-                Size = new Size(840, this.ClientSize.Height - y - 30), // Corregido el error de tipeo (- y30 a - y - 30)
+                Size = new Size(840, this.ClientSize.Height - y - 30), // Corregido el error de sintaxis acá
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
 
@@ -170,8 +170,10 @@ namespace AorusMarket.Formularios
             var fila = dgvProductos.CurrentRow;
 
             idSeleccionado = Convert.ToInt32(fila.Cells["IdProducto"].Value ?? 0);
-            txtNombre.TextButton = fila.Cells["Nombre"].Value?.ToString();
-            txtDescripcion.TextButton = fila.Cells["Descripcion"].Value?.ToString();
+
+            // CORRECCIÓN: Ahora leemos y escribimos en la propiedad .Text
+            txtNombre.Text = fila.Cells["Nombre"].Value?.ToString();
+            txtDescripcion.Text = fila.Cells["Descripcion"].Value?.ToString();
 
             cmbCategoria.SelectedValue = Convert.ToInt32(fila.Cells["IdCategoria"].Value ?? 0);
         }
@@ -179,8 +181,11 @@ namespace AorusMarket.Formularios
         private void LimpiarCampos()
         {
             idSeleccionado = 0;
-            txtNombre.TextButton = "";
-            txtDescripcion.TextButton = "";
+
+            // CORRECCIÓN: Limpiamos la propiedad .Text
+            txtNombre.Text = "";
+            txtDescripcion.Text = "";
+
             cmbCategoria.SelectedIndex = -1;
             dgvProductos.ClearSelection();
         }
@@ -190,8 +195,9 @@ namespace AorusMarket.Formularios
             Producto nuevoProducto = new Producto()
             {
                 IdProducto = idSeleccionado,
-                Nombre = txtNombre.TextButton,
-                Descripcion = txtDescripcion.TextButton,
+                // CORRECCIÓN: Leemos de la propiedad .Text para mandar a la base de datos
+                Nombre = txtNombre.Text,
+                Descripcion = txtDescripcion.Text,
                 IdCategoria = cmbCategoria.SelectedValue != null ? Convert.ToInt32(cmbCategoria.SelectedValue) : 0
             };
 

@@ -1,17 +1,17 @@
 ﻿using System;
 using System.Drawing;
-using System.Windows.Forms;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
 using AorusMarket.Entidades;
 using AorusMarket.Negocio;
+using WinForms = System.Windows.Forms;
 
 namespace AorusMarket.Formularios
 {
-    public partial class FrmSucursales : Form
+    public partial class FrmSucursales : WinForms.Form
     {
         private CyberTextBox txtNombre, txtDireccion, txtTelefono;
-        private DataGridView dgvSucursales;
+        private WinForms.DataGridView dgvSucursales;
         private CyberButton btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
         private int idSeleccionado = 0;
 
@@ -21,7 +21,6 @@ namespace AorusMarket.Formularios
         {
             InitializeComponent();
 
-            // FONDO SOBRIO OSCURO
             this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Gestión de Sucursales";
             ConstruirInterfaz();
@@ -31,10 +30,9 @@ namespace AorusMarket.Formularios
         {
             this.Controls.Add(EstiloApp.CrearTitulo("SUCURSALES", new Point(30, 20)));
 
-            // Función local para crear labels con texto gris claro (sobrio)
             void AddLabelSobrio(string texto, Point ubicacion)
             {
-                Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
+                WinForms.Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
                 lbl.ForeColor = Color.LightGray;
                 this.Controls.Add(lbl);
             }
@@ -70,11 +68,11 @@ namespace AorusMarket.Formularios
             this.Controls.Add(btnLimpiar);
 
             y += 60;
-            dgvSucursales = new DataGridView
+            dgvSucursales = new WinForms.DataGridView
             {
                 Location = new Point(x, y),
                 Size = new Size(740, this.ClientSize.Height - y - 30),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
+                Anchor = WinForms.AnchorStyles.Top | WinForms.AnchorStyles.Left | WinForms.AnchorStyles.Right | WinForms.AnchorStyles.Bottom
             };
 
             dgvSucursales.Columns.Add("IdSucursal", "Id");
@@ -84,38 +82,36 @@ namespace AorusMarket.Formularios
             dgvSucursales.Columns["IdSucursal"].Visible = false;
             dgvSucursales.SelectionChanged += DgvSucursales_SelectionChanged;
 
-            // APLICAMOS EL DISEÑO PREMIUM A LA GRILLA
             AplicarDisenoSobrioGrid(dgvSucursales);
             this.Controls.Add(dgvSucursales);
 
             CargarGrilla();
         }
 
-        // --- MAGIA VISUAL: NUEVA GRILLA SOBRIA ---
-        private void AplicarDisenoSobrioGrid(DataGridView grid)
+        private void AplicarDisenoSobrioGrid(WinForms.DataGridView grid)
         {
             grid.EnableHeadersVisualStyles = false;
             grid.BackgroundColor = Color.FromArgb(18, 18, 18);
-            grid.BorderStyle = BorderStyle.None;
-            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            grid.BorderStyle = WinForms.BorderStyle.None;
+            grid.CellBorderStyle = WinForms.DataGridViewCellBorderStyle.SingleHorizontal;
             grid.GridColor = Color.FromArgb(40, 40, 40);
             grid.RowHeadersVisible = false;
 
-            DataGridViewCellStyle estiloCabecera = new DataGridViewCellStyle();
+            WinForms.DataGridViewCellStyle estiloCabecera = new WinForms.DataGridViewCellStyle();
             estiloCabecera.BackColor = Color.FromArgb(28, 28, 28);
             estiloCabecera.ForeColor = Color.LightGray;
             estiloCabecera.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            estiloCabecera.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            estiloCabecera.Alignment = WinForms.DataGridViewContentAlignment.MiddleLeft;
             estiloCabecera.SelectionBackColor = Color.FromArgb(28, 28, 28);
             grid.ColumnHeadersDefaultCellStyle = estiloCabecera;
-            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            grid.ColumnHeadersHeightSizeMode = WinForms.DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
             grid.ColumnHeadersHeight = 40;
 
-            DataGridViewCellStyle estiloFila = new DataGridViewCellStyle();
+            WinForms.DataGridViewCellStyle estiloFila = new WinForms.DataGridViewCellStyle();
             estiloFila.BackColor = Color.FromArgb(18, 18, 18);
             estiloFila.ForeColor = Color.WhiteSmoke;
             estiloFila.Font = new Font("Segoe UI", 10F);
-            estiloFila.SelectionBackColor = Color.FromArgb(220, 53, 69); // Rojo Aorus
+            estiloFila.SelectionBackColor = Color.FromArgb(220, 53, 69);
             estiloFila.SelectionForeColor = Color.White;
             grid.DefaultCellStyle = estiloFila;
 
@@ -126,8 +122,8 @@ namespace AorusMarket.Formularios
             grid.AllowUserToResizeColumns = false;
             grid.AllowUserToResizeRows = false;
             grid.ReadOnly = true;
-            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            grid.SelectionMode = WinForms.DataGridViewSelectionMode.FullRowSelect;
+            grid.AutoSizeColumnsMode = WinForms.DataGridViewAutoSizeColumnsMode.Fill;
         }
 
         private void CargarGrilla()
@@ -152,28 +148,49 @@ namespace AorusMarket.Formularios
             var fila = dgvSucursales.CurrentRow;
 
             idSeleccionado = Convert.ToInt32(fila.Cells["IdSucursal"].Value ?? 0);
-            txtNombre.TextButton = fila.Cells["Nombre"].Value?.ToString();
-            txtDireccion.TextButton = fila.Cells["Direccion"].Value?.ToString();
-            txtTelefono.TextButton = fila.Cells["Telefono"].Value?.ToString();
+
+            string valNombre = fila.Cells["Nombre"].Value?.ToString() ?? "";
+            string valDireccion = fila.Cells["Direccion"].Value?.ToString() ?? "";
+            string valTelefono = fila.Cells["Telefono"].Value?.ToString() ?? "";
+
+            txtNombre.Text = valNombre;
+            txtNombre.TextButton = valNombre;
+
+            txtDireccion.Text = valDireccion;
+            txtDireccion.TextButton = valDireccion;
+
+            txtTelefono.Text = valTelefono;
+            txtTelefono.TextButton = valTelefono;
         }
 
         private void LimpiarCampos()
         {
             idSeleccionado = 0;
+
+            txtNombre.Text = "";
             txtNombre.TextButton = "";
+
+            txtDireccion.Text = "";
             txtDireccion.TextButton = "";
+
+            txtTelefono.Text = "";
             txtTelefono.TextButton = "";
+
             dgvSucursales.ClearSelection();
         }
 
         private void BtnGuardar_Click(object sender, EventArgs e)
         {
+            string nombreIngresado = string.IsNullOrWhiteSpace(txtNombre.Text) ? txtNombre.TextButton : txtNombre.Text;
+            string direccionIngresada = string.IsNullOrWhiteSpace(txtDireccion.Text) ? txtDireccion.TextButton : txtDireccion.Text;
+            string telefonoIngresado = string.IsNullOrWhiteSpace(txtTelefono.Text) ? txtTelefono.TextButton : txtTelefono.Text;
+
             Sucursal nuevaSucursal = new Sucursal()
             {
                 IdSucursal = idSeleccionado,
-                Nombre = txtNombre.TextButton,
-                Direccion = txtDireccion.TextButton,
-                Telefono = txtTelefono.TextButton
+                Nombre = nombreIngresado?.Trim(),
+                Direccion = direccionIngresada?.Trim(),
+                Telefono = telefonoIngresado?.Trim()
             };
 
             string mensaje;
@@ -181,13 +198,13 @@ namespace AorusMarket.Formularios
 
             if (resultado)
             {
-                MessageBox.Show("Sucursal guardada correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                WinForms.MessageBox.Show("Sucursal guardada correctamente.", "Éxito", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
                 LimpiarCampos();
                 CargarGrilla();
             }
             else
             {
-                MessageBox.Show(mensaje, "Error al guardar", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                WinForms.MessageBox.Show(mensaje, "Error al guardar", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
             }
         }
 
@@ -195,28 +212,28 @@ namespace AorusMarket.Formularios
         {
             if (idSeleccionado == 0)
             {
-                MessageBox.Show("Seleccione una sucursal de la tabla", "Aviso",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                WinForms.MessageBox.Show("Seleccione una sucursal de la tabla", "Aviso",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
                 return;
             }
 
-            var resp = MessageBox.Show("¿Seguro que desea eliminar esta sucursal?", "Confirmar Eliminación",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation);
+            var resp = WinForms.MessageBox.Show("¿Seguro que desea eliminar esta sucursal?", "Confirmar Eliminación",
+                WinForms.MessageBoxButtons.YesNo, WinForms.MessageBoxIcon.Exclamation);
 
-            if (resp == DialogResult.Yes)
+            if (resp == WinForms.DialogResult.Yes)
             {
                 string mensaje;
                 bool resultado = _sucursalNegocio.Eliminar(idSeleccionado, out mensaje);
 
                 if (resultado)
                 {
-                    MessageBox.Show("Sucursal eliminada.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    WinForms.MessageBox.Show("Sucursal eliminada.", "Éxito", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
                     LimpiarCampos();
                     CargarGrilla();
                 }
                 else
                 {
-                    MessageBox.Show(mensaje, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    WinForms.MessageBox.Show(mensaje, "Error", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
                 }
             }
         }

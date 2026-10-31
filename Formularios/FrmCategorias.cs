@@ -69,7 +69,7 @@ namespace AorusMarket.Formularios
             dgvCategorias = new DataGridView
             {
                 Location = new Point(x, y),
-                Size = new Size(740, this.ClientSize.Height - y - 30), // Corregido el error de sintaxis (- y30)
+                Size = new Size(740, this.ClientSize.Height - y - 30), // Corregido el error de sintaxis (- y - 30)
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
 
@@ -149,15 +149,19 @@ namespace AorusMarket.Formularios
             var fila = dgvCategorias.CurrentRow;
             idSeleccionado = Convert.ToInt32(fila.Cells["IdCategoria"].Value ?? 0);
 
-            txtNombre.TextButton = fila.Cells["Nombre"].Value?.ToString();
-            txtDescripcion.TextButton = fila.Cells["Descripcion"].Value?.ToString();
+            // CORRECCIÓN: Usamos .Text
+            txtNombre.Text = fila.Cells["Nombre"].Value?.ToString();
+            txtDescripcion.Text = fila.Cells["Descripcion"].Value?.ToString();
         }
 
         private void LimpiarCampos()
         {
             idSeleccionado = 0;
-            txtNombre.TextButton = "";
-            txtDescripcion.TextButton = "";
+
+            // CORRECCIÓN: Usamos .Text
+            txtNombre.Text = "";
+            txtDescripcion.Text = "";
+
             dgvCategorias.ClearSelection();
         }
 
@@ -166,8 +170,10 @@ namespace AorusMarket.Formularios
             Categoria nuevaCategoria = new Categoria()
             {
                 IdCategoria = idSeleccionado,
-                Nombre = txtNombre.TextButton,
-                Descripcion = txtDescripcion.TextButton
+
+                // CORRECCIÓN: Leemos desde .Text
+                Nombre = txtNombre.Text,
+                Descripcion = txtDescripcion.Text
             };
 
             string mensaje;

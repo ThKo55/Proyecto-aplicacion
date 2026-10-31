@@ -1,225 +1,316 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+using System.IO;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
-using AorusMarket.Entidades;
 using AorusMarket.Negocio;
+using WinForms = System.Windows.Forms;
 
 namespace AorusMarket.Formularios
 {
-    public partial class FrmBackup : Form
+    public partial class FrmBackup : WinForms.Form
     {
-        private DateTimePicker dtpFechaProgramada;
-        private CyberButton btnSolicitar, btnAprobar;
-        private DataGridView dgvPendientes;
+        private WinForms.ComboBox cmbDestino;
+        private CyberTextBox txtRutaDestino;
+        private CyberButton btnExaminar, btnCrearBackup, btnRestaurarBackup;
+        private WinForms.CheckBox chkAutomatico;
+        private WinForms.DateTimePicker dtpHoraAuto;
+        private WinForms.DataGridView dgvBackupsLocales;
+        private WinForms.Timer timerAuto;
+        private DateTime ultimaEjecucion = DateTime.MinValue;
 
-        // Instancias a la capa de Negocio
         private BackupNegocio _backupNegocio = new BackupNegocio();
-        private UsuarioNegocio _usuarioNegocio = new UsuarioNegocio(); // Para validar al aprobador
 
         public FrmBackup()
         {
             InitializeComponent();
-            this.BackColor = EstiloApp.Fondo;
-            this.Text = "Gestión de Backups";
 
+            this.BackColor = Color.FromArgb(18, 18, 18);
+            this.Text = "Gestión de Backups y Seguridad";
+            this.MinimumSize = new Size(950, 600);
             ConstruirInterfaz();
-            CargarPendientes();
+            ConfigurarTimer();
         }
 
         private void ConstruirInterfaz()
         {
-            this.Controls.Add(EstiloApp.CrearTitulo("SISTEMA DE BACKUP Y RESTORE", new Point(30, 20)));
+            this.Controls.Add(EstiloApp.CrearTitulo("RESPALDO Y RECUPERACIÓN DE DATOS", new Point(30, 20)));
 
-            // --- 1. SECCIÓN: SOLICITAR BACKUP ---
-            this.Controls.Add(EstiloApp.CrearLabel("NUEVA SOLICITUD DE BACKUP", new Point(30, 80)));
-
-            this.Controls.Add(EstiloApp.CrearLabel("Fecha y Hora Programada:", new Point(30, 110)));
-
-            dtpFechaProgramada = new DateTimePicker
+            void AddLabelSobrio(string texto, Point ubicacion)
             {
-                Location = new Point(220, 105),
-                Size = new Size(250, 30),
-                Font = new Font("Segoe UI", 11F),
-                Format = DateTimePickerFormat.Custom,
-                CustomFormat = "dd/MM/yyyy HH:mm", // Permite elegir fecha y hora
-                MinDate = DateTime.Now // No permite fechas en el pasado
-            };
-            this.Controls.Add(dtpFechaProgramada);
+                WinForms.Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
+                lbl.ForeColor = Color.LightGray;
+                this.Controls.Add(lbl);
+            }
 
-            btnSolicitar = EstiloApp.CrearBoton("SOLICITAR BACKUP", new Point(490, 100), 200, EstiloApp.Verde);
-            btnSolicitar.Click += BtnSolicitar_Click;
-            this.Controls.Add(btnSolicitar);
+            int margenX = 30;
+            int y = 75;
 
-            // --- 2. SECCIÓN: HISTORIAL DE PENDIENTES ---
-            this.Controls.Add(EstiloApp.CrearLabel("SOLICITUDES PENDIENTES DE APROBACIÓN", new Point(30, 170)));
-
-            dgvPendientes = new DataGridView
+            // FILA 1: DESTINO, RUTA Y BOTÓN EXPLORAR (Adaptable al ancho)
+            AddLabelSobrio("DESTINO:", new Point(margenX, y));
+            cmbDestino = new WinForms.ComboBox
             {
-                Location = new Point(30, 200),
-                Size = new Size(800, 200),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                ReadOnly = true,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                AllowUserToAddRows = false
+                Location = new Point(margenX, y + 22),
+                Size = new Size(200, 28),
+                Font = new Font("Segoe UI", 10F),
+                DropDownStyle = WinForms.ComboBoxStyle.DropDownList
             };
-            EstiloApp.EstilizarGrid(dgvPendientes);
-            this.Controls.Add(dgvPendientes);
+            cmbDestino.Items.AddRange(new object[] { "Carpeta Interna / PC", "Google Drive (Nube)", "Servidor / Red Local (NAS)" });
+            cmbDestino.SelectedIndex = 0;
+            this.Controls.Add(cmbDestino);
 
-            // --- 3. SECCIÓN: APROBAR ---
-            btnAprobar = EstiloApp.CrearBoton("APROBAR Y EJECUTAR BACKUP", new Point(30, 420), 300, EstiloApp.RojoNeon);
-            btnAprobar.Click += BtnAprobar_Click;
-            this.Controls.Add(btnAprobar);
+            int xRuta = margenX + 220;
+            AddLabelSobrio("RUTA DE ALMACENAMIENTO:", new Point(xRuta, y));
+
+            // Ancho responsivo para la caja de texto
+            int anchoRuta = Math.Max(260, this.ClientSize.Width - xRuta - 160);
+            txtRutaDestino = EstiloApp.CrearTextBox(new Point(xRuta, y + 20), anchoRuta);
+            txtRutaDestino.Anchor = WinForms.AnchorStyles.Top | WinForms.AnchorStyles.Left | WinForms.AnchorStyles.Right;
+            txtRutaDestino.Text = @"C:\AorusMarket\Backups\";
+            txtRutaDestino.TextButton = @"C:\AorusMarket\Backups\";
+            this.Controls.Add(txtRutaDestino);
+
+            btnExaminar = EstiloApp.CrearBoton("EXPLORAR", new Point(this.ClientSize.Width - margenX - 110, y + 19), 110, EstiloApp.Gris);
+            btnExaminar.Anchor = WinForms.AnchorStyles.Top | WinForms.AnchorStyles.Right;
+            btnExaminar.Click += BtnExaminar_Click;
+            this.Controls.Add(btnExaminar);
+
+            y += 65;
+
+            // FILA 2: AUTOMATIZACIÓN Y ACCIÓN INMEDIATA
+            chkAutomatico = new WinForms.CheckBox
+            {
+                Text = "Activar Respaldo Automático Diario a las:",
+                ForeColor = Color.WhiteSmoke,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                Location = new Point(margenX, y + 8),
+                AutoSize = true,
+                Checked = false
+            };
+            this.Controls.Add(chkAutomatico);
+
+            dtpHoraAuto = new WinForms.DateTimePicker
+            {
+                Format = WinForms.DateTimePickerFormat.Time,
+                ShowUpDown = true,
+                Location = new Point(margenX + 320, y + 6),
+                Size = new Size(90, 26),
+                Value = DateTime.Today.AddHours(1)
+            };
+            this.Controls.Add(dtpHoraAuto);
+
+            btnCrearBackup = EstiloApp.CrearBoton("GENERAR BACKUP AHORA", new Point(margenX + 430, y), 220, EstiloApp.Verde);
+            btnCrearBackup.Click += BtnCrearBackup_Click;
+            this.Controls.Add(btnCrearBackup);
+
+            y += 60;
+
+            // FILA 3: HISTORIAL DE BACKUPS (GRILLA RESPONSIVA)
+            AddLabelSobrio("HISTORIAL DE RESPALDOS DISPONIBLES (Conserva los últimos 5)", new Point(margenX, y));
+            y += 25;
+
+            // Cálculo dinámico para la grilla: reserva 70px abajo para el botón de restaurar
+            int anchoGrilla = this.ClientSize.Width - (margenX * 2);
+            int altoGrilla = Math.Max(180, this.ClientSize.Height - y - 75);
+
+            dgvBackupsLocales = new WinForms.DataGridView
+            {
+                Location = new Point(margenX, y),
+                Size = new Size(anchoGrilla, altoGrilla),
+                Anchor = WinForms.AnchorStyles.Top | WinForms.AnchorStyles.Left | WinForms.AnchorStyles.Right | WinForms.AnchorStyles.Bottom
+            };
+
+            dgvBackupsLocales.Columns.Add("Archivo", "Nombre del Archivo");
+            dgvBackupsLocales.Columns.Add("Ruta", "Ruta Completa");
+            dgvBackupsLocales.Columns.Add("Fecha", "Fecha de Creación");
+            dgvBackupsLocales.Columns["Ruta"].Visible = false;
+
+            AplicarDisenoSobrioGrid(dgvBackupsLocales);
+            this.Controls.Add(dgvBackupsLocales);
+
+            // FILA 4: BOTÓN INFERIOR ANCLADO
+            btnRestaurarBackup = EstiloApp.CrearBoton(
+                "RESTAURAR SISTEMA (CONTROL CRUZADO)",
+                new Point(margenX, this.ClientSize.Height - 50),
+                340,
+                EstiloApp.RojoNeon
+            );
+            btnRestaurarBackup.Anchor = WinForms.AnchorStyles.Bottom | WinForms.AnchorStyles.Left;
+            btnRestaurarBackup.Click += BtnRestaurarBackup_Click;
+            this.Controls.Add(btnRestaurarBackup);
+
+            CargarListaBackupsLocales();
         }
 
-        private void CargarPendientes()
+        private void ConfigurarTimer()
         {
-            try
-            {
-                // Llamamos al SP_ListarBackupsPendientes que creamos en la base de datos
-                DataTable tabla = _backupNegocio.ListarPendientes();
-                dgvPendientes.DataSource = tabla;
+            timerAuto = new WinForms.Timer();
+            timerAuto.Interval = 30000;
+            timerAuto.Tick += TimerAuto_Tick;
+            timerAuto.Start();
+        }
 
-                // Ocultamos el ID para que quede más limpio
-                if (dgvPendientes.Columns.Contains("Id"))
-                    dgvPendientes.Columns["Id"].Visible = false;
-            }
-            catch (Exception ex)
+        private void TimerAuto_Tick(object sender, EventArgs e)
+        {
+            if (!chkAutomatico.Checked) return;
+
+            DateTime ahora = DateTime.Now;
+            TimeSpan horaProg = dtpHoraAuto.Value.TimeOfDay;
+
+            if (ahora.Hour == horaProg.Hours && ahora.Minute == horaProg.Minutes && ultimaEjecucion.Date != ahora.Date)
             {
-                MessageBox.Show("Error al cargar pendientes: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ultimaEjecucion = ahora.Date;
+                EjecutarProcesoBackup(false);
             }
         }
 
-        private void BtnSolicitar_Click(object sender, EventArgs e)
+        private void AplicarDisenoSobrioGrid(WinForms.DataGridView grid)
         {
-            try
+            grid.EnableHeadersVisualStyles = false;
+            grid.BackgroundColor = Color.FromArgb(18, 18, 18);
+            grid.BorderStyle = WinForms.BorderStyle.None;
+            grid.CellBorderStyle = WinForms.DataGridViewCellBorderStyle.SingleHorizontal;
+            grid.GridColor = Color.FromArgb(40, 40, 40);
+            grid.RowHeadersVisible = false;
+
+            WinForms.DataGridViewCellStyle estiloCabecera = new WinForms.DataGridViewCellStyle();
+            estiloCabecera.BackColor = Color.FromArgb(28, 28, 28);
+            estiloCabecera.ForeColor = Color.LightGray;
+            estiloCabecera.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            estiloCabecera.Alignment = WinForms.DataGridViewContentAlignment.MiddleLeft;
+            estiloCabecera.SelectionBackColor = Color.FromArgb(28, 28, 28);
+            grid.ColumnHeadersDefaultCellStyle = estiloCabecera;
+            grid.ColumnHeadersHeightSizeMode = WinForms.DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            grid.ColumnHeadersHeight = 40;
+
+            WinForms.DataGridViewCellStyle estiloFila = new WinForms.DataGridViewCellStyle();
+            estiloFila.BackColor = Color.FromArgb(18, 18, 18);
+            estiloFila.ForeColor = Color.WhiteSmoke;
+            estiloFila.Font = new Font("Segoe UI", 10F);
+            estiloFila.SelectionBackColor = Color.FromArgb(220, 53, 69);
+            estiloFila.SelectionForeColor = Color.White;
+            grid.DefaultCellStyle = estiloFila;
+
+            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(22, 22, 22);
+            grid.RowTemplate.Height = 35;
+            grid.AllowUserToAddRows = false;
+            grid.AllowUserToDeleteRows = false;
+            grid.AllowUserToResizeColumns = false;
+            grid.AllowUserToResizeRows = false;
+            grid.ReadOnly = true;
+            grid.SelectionMode = WinForms.DataGridViewSelectionMode.FullRowSelect;
+            grid.AutoSizeColumnsMode = WinForms.DataGridViewAutoSizeColumnsMode.Fill;
+        }
+
+        private void BtnExaminar_Click(object sender, EventArgs e)
+        {
+            using (WinForms.FolderBrowserDialog fbd = new WinForms.FolderBrowserDialog())
             {
-                // Validación básica de roles (Opcional: Solo Admins o Gerentes pueden pedir)
-                if (SesionActual.IdPerfil == 2) // Asumiendo que 2 es Cajero
+                if (fbd.ShowDialog() == WinForms.DialogResult.OK)
                 {
-                    MessageBox.Show("Los cajeros no tienen permiso para solicitar Backups.", "Acceso Denegado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtRutaDestino.Text = fbd.SelectedPath;
+                    txtRutaDestino.TextButton = fbd.SelectedPath;
+                    CargarListaBackupsLocales();
+                }
+            }
+        }
+
+        private void CargarListaBackupsLocales()
+        {
+            dgvBackupsLocales.Rows.Clear();
+            string ruta = string.IsNullOrWhiteSpace(txtRutaDestino.Text) ? txtRutaDestino.TextButton : txtRutaDestino.Text;
+
+            if (Directory.Exists(ruta))
+            {
+                DirectoryInfo dir = new DirectoryInfo(ruta);
+                foreach (FileInfo archivo in dir.GetFiles("*.bak"))
+                {
+                    dgvBackupsLocales.Rows.Add(archivo.Name, archivo.FullName, archivo.CreationTime.ToString("dd/MM/yyyy HH:mm:ss"));
+                }
+            }
+            dgvBackupsLocales.ClearSelection();
+        }
+
+        private void BtnCrearBackup_Click(object sender, EventArgs e)
+        {
+            EjecutarProcesoBackup(true);
+        }
+
+        private void EjecutarProcesoBackup(bool mostrarMensajes)
+        {
+            string ruta = string.IsNullOrWhiteSpace(txtRutaDestino.Text) ? txtRutaDestino.TextButton : txtRutaDestino.Text;
+
+            if (!Directory.Exists(ruta))
+            {
+                try { Directory.CreateDirectory(ruta); }
+                catch
+                {
+                    if (mostrarMensajes)
+                        WinForms.MessageBox.Show("La ruta no es válida o no tiene permisos.", "Error", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
                     return;
                 }
-
-                BackupSolicitud nuevaSolicitud = new BackupSolicitud
-                {
-                    SolicitanteId = SesionActual.IdUsuario,
-                    FechaProgramada = dtpFechaProgramada.Value
-                };
-
-                bool exito = _backupNegocio.Solicitar(nuevaSolicitud);
-
-                if (exito)
-                {
-                    MessageBox.Show("Solicitud de Backup registrada con éxito. Esperando aprobación cruzada.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    CargarPendientes(); // Refrescar la grilla
-                }
             }
-            catch (Exception ex)
+
+            string nombreArchivo = $"AorusMarket_{DateTime.Now:yyyyMMdd_HHmmss}.bak";
+            string rutaCompleta = Path.Combine(ruta, nombreArchivo);
+
+            string mensaje;
+            bool exito = _backupNegocio.GenerarRespaldo(rutaCompleta, cmbDestino.SelectedItem.ToString(), out mensaje);
+
+            if (exito)
             {
-                MessageBox.Show(ex.Message, "Error al Solicitar", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                CargarListaBackupsLocales();
+                if (mostrarMensajes)
+                    WinForms.MessageBox.Show($"Respaldo generado con éxito en:\n{rutaCompleta}", "Éxito", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
+            }
+            else
+            {
+                if (mostrarMensajes)
+                    WinForms.MessageBox.Show("Error al generar el backup: " + mensaje, "Error", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
             }
         }
 
-        private void BtnAprobar_Click(object sender, EventArgs e)
+        private void BtnRestaurarBackup_Click(object sender, EventArgs e)
         {
-            if (dgvPendientes.CurrentRow == null)
+            if (dgvBackupsLocales.CurrentRow == null)
             {
-                MessageBox.Show("Seleccione una solicitud pendiente de la lista.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                WinForms.MessageBox.Show("Seleccione un archivo de respaldo de la tabla para restaurar.", "Aviso", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
                 return;
             }
 
-            // Extraemos los datos de la fila seleccionada
-            int idSolicitud = Convert.ToInt32(dgvPendientes.CurrentRow.Cells["Id"].Value);
-            string nombreSolicitante = dgvPendientes.CurrentRow.Cells["Solicitante"].Value.ToString();
+            string archivoSeleccionado = dgvBackupsLocales.CurrentRow.Cells["Ruta"].Value.ToString();
 
-            // 1. Mostrar advertencia
-            DialogResult diag = MessageBox.Show($"¿Desea aprobar la solicitud de backup de {nombreSolicitante}?\n\nSe requerirán las credenciales de un administrador distinto al solicitante.", "Autorización Requerida", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            WinForms.DialogResult alertaCritica = WinForms.MessageBox.Show(
+                "¡ATENCIÓN ACCIÓN CRÍTICA!\n\n" +
+                "Restaurar la base de datos sobrescribirá toda la información actual por el estado del archivo seleccionado.\n\n" +
+                "¿Confirma que posee autorización gerencial para ejecutar esta restauración?",
+                "Control Cruzado de Seguridad",
+                WinForms.MessageBoxButtons.YesNo,
+                WinForms.MessageBoxIcon.Stop);
 
-            if (diag == DialogResult.No) return;
+            if (alertaCritica == WinForms.DialogResult.No) return;
 
-            // 2. Pedir credenciales cruzadas mediante un formulario emergente temporal
-            Usuario aprobador = PedirCredencialesAprobador();
+            WinForms.DialogResult confirmacionFinal = WinForms.MessageBox.Show(
+                "Esta acción es irreversible y reiniciará el sistema.\n\n¿Está absolutamente seguro?",
+                "Última Advertencia",
+                WinForms.MessageBoxButtons.YesNo,
+                WinForms.MessageBoxIcon.Warning);
 
-            if (aprobador == null)
+            if (confirmacionFinal == WinForms.DialogResult.Yes)
             {
-                MessageBox.Show("Aprobación cancelada o credenciales incorrectas.", "Cancelado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+                string mensaje;
+                bool restaurado = _backupNegocio.RestaurarBaseDatos(archivoSeleccionado, out mensaje);
 
-            // 3. Mandamos a ejecutar
-            try
-            {
-                // Ruta para el contenedor de Docker
-                string rutaArchivo = $"/var/opt/mssql/data/AorusMarket_Backup_{DateTime.Now:yyyyMMdd_HHmmss}.bak";
-
-                // El negocio validará que el SolicitanteId != AprobadorId
-                bool exito = _backupNegocio.Aprobar(idSolicitud, SesionActual.IdUsuario, aprobador.IdUsuario, rutaArchivo);
-
-                if (exito)
+                if (restaurado)
                 {
-                    MessageBox.Show($"¡Backup aprobado por {aprobador.Nombre} y ejecutado correctamente!\nGuardado en: {rutaArchivo}", "Backup Completado", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    CargarPendientes(); // Refrescar grilla
+                    WinForms.MessageBox.Show("Sistema restaurado con éxito. La aplicación se reiniciará.", "Éxito", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
+                    WinForms.Application.Restart();
+                }
+                else
+                {
+                    WinForms.MessageBox.Show("Error en la restauración: " + mensaje, "Error Crítico", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
                 }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error en la ejecución: " + ex.Message, "Error de Backup", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // Método auxiliar que crea una ventanita para pedir el Usuario y Contraseña
-        private Usuario PedirCredencialesAprobador()
-        {
-            Usuario aprobador = null;
-
-            using (Form frmLogin = new Form())
-            {
-                frmLogin.Width = 350;
-                frmLogin.Height = 250;
-                frmLogin.Text = "Credenciales Cruzadas";
-                frmLogin.StartPosition = FormStartPosition.CenterParent;
-                frmLogin.FormBorderStyle = FormBorderStyle.FixedDialog;
-                frmLogin.MaximizeBox = false;
-                frmLogin.MinimizeBox = false;
-                frmLogin.BackColor = Color.White;
-
-                Label lblCorreo = new Label { Text = "Correo del Aprobador:", Left = 20, Top = 20, Width = 200 };
-                TextBox txtCorreo = new TextBox { Left = 20, Top = 45, Width = 290 };
-
-                Label lblClave = new Label { Text = "Contraseña:", Left = 20, Top = 80, Width = 200 };
-                TextBox txtClave = new TextBox { Left = 20, Top = 105, Width = 290, PasswordChar = '*' };
-
-                System.Windows.Forms.Button btnConfirmar = new System.Windows.Forms.Button { Text = "Validar", Left = 120, Top = 150, Width = 100, DialogResult = DialogResult.OK, BackColor = Color.LightGreen };
-
-                frmLogin.Controls.Add(lblCorreo);
-                frmLogin.Controls.Add(txtCorreo);
-                frmLogin.Controls.Add(lblClave);
-                frmLogin.Controls.Add(txtClave);
-                frmLogin.Controls.Add(btnConfirmar);
-                frmLogin.AcceptButton = btnConfirmar;
-
-                if (frmLogin.ShowDialog() == DialogResult.OK)
-                {
-                    string mensajeLogin = "";
-                    // Agregamos el parámetro "out mensajeLogin" que exigía tu arquitectura
-                    aprobador = _usuarioNegocio.Login(txtCorreo.Text, txtClave.Text, out mensajeLogin);
-
-                    if (aprobador == null)
-                    {
-                        MessageBox.Show(mensajeLogin, "Credenciales Incorrectas", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
-            }
-
-            return aprobador;
         }
     }
 }
