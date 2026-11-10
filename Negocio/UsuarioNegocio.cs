@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using AorusMarket.AccesoDatos;
 using AorusMarket.Entidades;
 using AorusMarket.Utilidades;
+using BCrypt.Net; // Importamos la librería para hashear
 
 namespace AorusMarket.Negocio
 {
@@ -81,10 +82,22 @@ namespace AorusMarket.Negocio
                 if (string.IsNullOrWhiteSpace(obj.Password) || obj.Password.Length < 4)
                 { mensaje = "La Contraseña es obligatoria para nuevos usuarios (mínimo 4 caracteres)."; return false; }
 
+                // Hasheamos la contraseña antes de insertar
+                obj.Password = BCrypt.Net.BCrypt.HashPassword(obj.Password);
                 return _usuarioDatos.Insertar(obj);
             }
             else
             {
+                if (!string.IsNullOrWhiteSpace(obj.Password))
+                {
+                    if (obj.Password.Length < 4)
+                    {
+                        mensaje = "La nueva contraseña debe tener al menos 4 caracteres.";
+                        return false;
+                    }
+                    // Si completó el campo al editar, la hasheamos; si lo dejó vacío, Editar no lo toma.
+                    obj.Password = BCrypt.Net.BCrypt.HashPassword(obj.Password);
+                }
                 return _usuarioDatos.Editar(obj);
             }
         }

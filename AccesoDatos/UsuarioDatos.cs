@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Windows.Forms;
 using AorusMarket.Entidades;
+using BCrypt.Net; // Importamos la librería de encriptación
 
 namespace AorusMarket.AccesoDatos
 {
@@ -14,17 +15,17 @@ namespace AorusMarket.AccesoDatos
             Usuario obj = null;
             using (SqlConnection oConexion = Conexion.ObtenerConexion())
             {
+                // Quitamos "u.password = @pass" del WHERE para validarlo desde C# con BCrypt
                 string query = @"
-                    SELECT u.id_usuario, u.nombre, u.apellido, u.email, u.id_perfil, u.id_sucursal,
+                    SELECT u.id_usuario, u.nombre, u.apellido, u.email, u.password, u.id_perfil, u.id_sucursal,
                            ISNULL(p.nombre, '') AS NombrePerfil, ISNULL(s.nombre, '') AS NombreSucursal
                     FROM usuario u
                     LEFT JOIN perfil p ON u.id_perfil = p.id_perfil
                     LEFT JOIN sucursal s ON u.id_sucursal = s.id_sucursal
-                    WHERE u.email = @email AND u.password = @pass AND u.activo = 1";
+                    WHERE u.email = @email AND u.activo = 1";
 
                 SqlCommand cmd = new SqlCommand(query, oConexion);
                 cmd.Parameters.AddWithValue("@email", email);
-                cmd.Parameters.AddWithValue("@pass", password);
                 try
                 {
                     oConexion.Open();
@@ -32,17 +33,34 @@ namespace AorusMarket.AccesoDatos
                     {
                         if (dr.Read())
                         {
-                            obj = new Usuario()
+                            string passGuardada = dr["password"].ToString();
+                            bool passwordValida = false;
+
+                            // Verificamos si la contraseña está encriptada con BCrypt ($2a$, $2b$, $2y$)
+                            if (passGuardada.StartsWith("$2"))
                             {
-                                IdUsuario = Convert.ToInt32(dr["id_usuario"]),
-                                Nombre = dr["nombre"].ToString(),
-                                Apellido = dr["apellido"].ToString(),
-                                Email = dr["email"].ToString(),
-                                IdPerfil = Convert.ToInt32(dr["id_perfil"]),
-                                IdSucursal = Convert.ToInt32(dr["id_sucursal"]),
-                                NombrePerfil = dr["NombrePerfil"].ToString(),
-                                NombreSucursal = dr["NombreSucursal"].ToString()
-                            };
+                                passwordValida = BCrypt.Net.BCrypt.Verify(password, passGuardada);
+                            }
+                            else
+                            {
+                                // Fallback para usuarios viejos con texto plano (ej: '1234')
+                                passwordValida = (password == passGuardada);
+                            }
+
+                            if (passwordValida)
+                            {
+                                obj = new Usuario()
+                                {
+                                    IdUsuario = Convert.ToInt32(dr["id_usuario"]),
+                                    Nombre = dr["nombre"].ToString(),
+                                    Apellido = dr["apellido"].ToString(),
+                                    Email = dr["email"].ToString(),
+                                    IdPerfil = Convert.ToInt32(dr["id_perfil"]),
+                                    IdSucursal = Convert.ToInt32(dr["id_sucursal"]),
+                                    NombrePerfil = dr["NombrePerfil"].ToString(),
+                                    NombreSucursal = dr["NombreSucursal"].ToString()
+                                };
+                            }
                         }
                     }
                 }
@@ -89,7 +107,7 @@ namespace AorusMarket.AccesoDatos
                             lista.Add(new ComboUsuario() { Id = Convert.ToInt32(dr["id_sucursal"]), Nombre = dr["nombre"].ToString() });
                     }
                 }
-                catch { }
+                catch {}
             }
             return lista;
         }
