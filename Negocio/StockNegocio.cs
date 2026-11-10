@@ -14,7 +14,7 @@ namespace AorusMarket.Negocio
 
         public List<StockSucursal> Listar() => _stockDatos.Listar();
 
-        public bool Guardar(string strProd, string strSuc, string strCant, string strPrec, int idUsuario, out string mensaje)
+        public bool Guardar(string strProd, string strSuc, string strCant, string strPrec, string strMinimo, int idUsuario, out string mensaje)
         {
             mensaje = string.Empty;
 
@@ -24,22 +24,21 @@ namespace AorusMarket.Negocio
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(strCant) || string.IsNullOrWhiteSpace(strPrec))
+            if (string.IsNullOrWhiteSpace(strCant) || string.IsNullOrWhiteSpace(strPrec) || string.IsNullOrWhiteSpace(strMinimo))
             {
-                mensaje = "Debe completar la Cantidad y el Precio.";
+                mensaje = "Debe completar la Cantidad, el Precio y el Stock Mínimo.";
                 return false;
             }
 
-            if (!int.TryParse(strCant, out int cantidad) || !decimal.TryParse(strPrec, out decimal precio))
+            if (!int.TryParse(strCant, out int cantidad) || !decimal.TryParse(strPrec, out decimal precio) || !int.TryParse(strMinimo, out int stockMinimo))
             {
-                mensaje = "Cantidad y Precio deben ser valores numéricos válidos.";
+                mensaje = "Cantidad, Precio y Stock Mínimo deben ser valores numéricos válidos.";
                 return false;
             }
 
-            // VALIDACIONES DE NEGOCIO (No permitir stock negativo ni precios 0 o menores)
-            if (cantidad < 0)
+            if (cantidad < 0 || stockMinimo < 0)
             {
-                mensaje = "La cantidad no puede ser menor a 0.";
+                mensaje = "Las cantidades no pueden ser menores a 0.";
                 return false;
             }
 
@@ -54,7 +53,8 @@ namespace AorusMarket.Negocio
                 IdProducto = Convert.ToInt32(strProd),
                 IdSucursal = Convert.ToInt32(strSuc),
                 Cantidad = cantidad,
-                Precio = precio
+                Precio = precio,
+                StockMinimo = stockMinimo
             };
 
             bool resultado = _stockDatos.Guardar(obj, idUsuario);
@@ -86,10 +86,7 @@ namespace AorusMarket.Negocio
         public bool StockEsCritico(int idProducto, int idSucursal)
         {
             Producto p = _stockDatos.ObtenerProductoPorSucursal(idProducto, idSucursal);
-            if (p != null && p.StockActual <= p.StockMinimo)
-            {
-                return true;
-            }
+            if (p != null && p.StockActual <= p.StockMinimo) return true;
             return false;
         }
     }

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Data;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Linq;
@@ -13,7 +12,7 @@ namespace AorusMarket.Formularios
     public partial class FrmStock : Form
     {
         private ComboBox cmbProducto, cmbSucursal;
-        private CyberTextBox txtCantidad, txtPrecio, txtBuscar;
+        private CyberTextBox txtCantidad, txtPrecio, txtStockMinimo, txtBuscar;
         private DataGridView dgvStock;
         private CyberButton btnGuardar, btnEliminar, btnLimpiar, btnBuscar;
 
@@ -42,7 +41,6 @@ namespace AorusMarket.Formularios
                 this.Controls.Add(lbl);
             }
 
-            // BUSCADOR ANCLADO A LA DERECHA
             AddLabelSobrio("BUSCAR PRODUCTO:", new Point(this.ClientSize.Width - 340, 20));
             txtBuscar = EstiloApp.CrearTextBox(new Point(this.ClientSize.Width - 340, 40), 200);
             txtBuscar.Anchor = AnchorStyles.Top | AnchorStyles.Right;
@@ -57,20 +55,24 @@ namespace AorusMarket.Formularios
             int x = 30, y = 90;
 
             AddLabelSobrio("PRODUCTO", new Point(x, y));
-            cmbProducto = EstiloApp.CrearComboBox(new Point(x, y + 20), 250);
+            cmbProducto = EstiloApp.CrearComboBox(new Point(x, y + 20), 220);
             this.Controls.Add(cmbProducto);
 
-            AddLabelSobrio("SUCURSAL", new Point(x + 270, y));
-            cmbSucursal = EstiloApp.CrearComboBox(new Point(x + 270, y + 20), 220);
+            AddLabelSobrio("SUCURSAL", new Point(x + 240, y));
+            cmbSucursal = EstiloApp.CrearComboBox(new Point(x + 240, y + 20), 200);
             this.Controls.Add(cmbSucursal);
 
-            AddLabelSobrio("CANTIDAD", new Point(x + 510, y));
-            txtCantidad = EstiloApp.CrearTextBox(new Point(x + 510, y + 20), 120);
+            AddLabelSobrio("CANTIDAD", new Point(x + 460, y));
+            txtCantidad = EstiloApp.CrearTextBox(new Point(x + 460, y + 20), 100);
             this.Controls.Add(txtCantidad);
 
-            AddLabelSobrio("PRECIO", new Point(x + 650, y));
-            txtPrecio = EstiloApp.CrearTextBox(new Point(x + 650, y + 20), 120);
+            AddLabelSobrio("PRECIO", new Point(x + 580, y));
+            txtPrecio = EstiloApp.CrearTextBox(new Point(x + 580, y + 20), 100);
             this.Controls.Add(txtPrecio);
+
+            AddLabelSobrio("STOCK MÍNIMO", new Point(x + 700, y));
+            txtStockMinimo = EstiloApp.CrearTextBox(new Point(x + 700, y + 20), 120);
+            this.Controls.Add(txtStockMinimo);
 
             y += 60;
             btnGuardar = EstiloApp.CrearBoton("GUARDAR", new Point(x, y), 150, EstiloApp.Verde);
@@ -98,6 +100,7 @@ namespace AorusMarket.Formularios
             dgvStock.Columns.Add("Sucursal", "Sucursal");
             dgvStock.Columns.Add("Cantidad", "Cantidad");
             dgvStock.Columns.Add("Precio", "Precio");
+            dgvStock.Columns.Add("StockMinimo", "Stock Mín.");
             dgvStock.Columns.Add("IdProducto", "IdProducto");
             dgvStock.Columns.Add("IdSucursal", "IdSucursal");
 
@@ -131,18 +134,12 @@ namespace AorusMarket.Formularios
             dgvStock.Rows.Clear();
 
             var listaStock = _stockNegocio.Listar();
-
             if (!string.IsNullOrEmpty(filtro))
-            {
                 listaStock = listaStock.Where(s => s.Producto.ToLower().Contains(filtro.ToLower())).ToList();
-            }
 
             foreach (var item in listaStock)
             {
-                dgvStock.Rows.Add(
-                    item.IdStock, item.Producto, item.Sucursal, item.Cantidad,
-                    item.Precio, item.IdProducto, item.IdSucursal
-                );
+                dgvStock.Rows.Add(item.IdStock, item.Producto, item.Sucursal, item.Cantidad, item.Precio, item.StockMinimo, item.IdProducto, item.IdSucursal);
             }
             dgvStock.ClearSelection();
             dgvStock.SelectionChanged += DgvStock_SelectionChanged;
@@ -157,7 +154,10 @@ namespace AorusMarket.Formularios
         {
             if (dgvStock.Columns[e.ColumnIndex].Name == "Cantidad" && e.Value != null)
             {
-                if (int.TryParse(e.Value.ToString(), out int cantidad) && cantidad < 5)
+                int cantActual = Convert.ToInt32(e.Value);
+                int cantMinima = Convert.ToInt32(dgvStock.Rows[e.RowIndex].Cells["StockMinimo"].Value ?? 0);
+
+                if (cantActual <= cantMinima)
                 {
                     dgvStock.Rows[e.RowIndex].DefaultCellStyle.BackColor = EstiloApp.RojoOscuro;
                     dgvStock.Rows[e.RowIndex].DefaultCellStyle.ForeColor = EstiloApp.Blanco;
@@ -176,6 +176,7 @@ namespace AorusMarket.Formularios
 
             EstiloApp.EscribirTexto(txtCantidad, fila.Cells["Cantidad"].Value?.ToString());
             EstiloApp.EscribirTexto(txtPrecio, fila.Cells["Precio"].Value?.ToString());
+            EstiloApp.EscribirTexto(txtStockMinimo, fila.Cells["StockMinimo"].Value?.ToString());
         }
 
         private void LimpiarCampos()
@@ -185,6 +186,7 @@ namespace AorusMarket.Formularios
             cmbSucursal.SelectedIndex = -1;
             EstiloApp.EscribirTexto(txtCantidad, "");
             EstiloApp.EscribirTexto(txtPrecio, "");
+            EstiloApp.EscribirTexto(txtStockMinimo, "");
             EstiloApp.EscribirTexto(txtBuscar, "");
             dgvStock.ClearSelection();
             CargarGrillaStock();
@@ -196,12 +198,9 @@ namespace AorusMarket.Formularios
             string strSuc = cmbSucursal.SelectedValue?.ToString();
             string strCant = EstiloApp.LeerTexto(txtCantidad);
             string strPrec = EstiloApp.LeerTexto(txtPrecio);
-            int idUsuarioLogueado = SesionActual.IdUsuario;
+            string strMinimo = EstiloApp.LeerTexto(txtStockMinimo);
 
-            string mensajeError;
-            bool resultado = _stockNegocio.Guardar(strProd, strSuc, strCant, strPrec, idUsuarioLogueado, out mensajeError);
-
-            if (resultado)
+            if (_stockNegocio.Guardar(strProd, strSuc, strCant, strPrec, strMinimo, SesionActual.IdUsuario, out string mensajeError))
             {
                 MessageBox.Show("¡Stock guardado con éxito en la base de datos!", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LimpiarCampos();
@@ -214,16 +213,11 @@ namespace AorusMarket.Formularios
 
         private void BtnEliminar_Click(object sender, EventArgs e)
         {
-            if (idSeleccionado == 0)
-            {
-                MessageBox.Show("Seleccione un registro de la tabla para eliminar", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            if (idSeleccionado == 0) return;
 
             if (MessageBox.Show("¿Seguro que desea eliminar este registro de stock?", "Confirmar Eliminación", MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation) == DialogResult.Yes)
             {
-                string mensaje;
-                if (_stockNegocio.Eliminar(idSeleccionado, out mensaje))
+                if (_stockNegocio.Eliminar(idSeleccionado, out string mensaje))
                 {
                     MessageBox.Show("Registro eliminado correctamente", "AorusMarket", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     LimpiarCampos();
