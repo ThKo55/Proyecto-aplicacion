@@ -1,41 +1,44 @@
 ﻿using System;
 using System.Collections.Generic;
-using AorusMarket.AccesoDatos; // Importa los Datos
-using AorusMarket.Entidades;   // Importa las Entidades
+using System.Linq;
+using AorusMarket.AccesoDatos;
+using AorusMarket.Entidades;
 
 namespace AorusMarket.Negocio
 {
     public class CategoriaNegocio
     {
-        // Instanciamos la capa de datos
         private CategoriaDatos _categoriaDatos = new CategoriaDatos();
 
-        // Pide la lista de categorías a la BD
         public List<Categoria> Listar()
         {
             return _categoriaDatos.Listar();
         }
 
-        // Valida y decide si debe INSERTAR o EDITAR
         public bool Guardar(Categoria obj, out string mensaje)
         {
             mensaje = string.Empty;
 
-            // 1. Validaciones de Reglas de Negocio
             if (string.IsNullOrWhiteSpace(obj.Nombre))
             {
                 mensaje = "El nombre de la categoría no puede estar vacío.";
                 return false;
             }
 
-            // 2. Si el ID es 0, es un registro nuevo (INSERTAR)
+            // Validación de duplicados
+            var listaExistente = _categoriaDatos.Listar();
+            if (listaExistente.Any(c => c.Nombre.Trim().ToLower() == obj.Nombre.Trim().ToLower() && c.IdCategoria != obj.IdCategoria))
+            {
+                mensaje = "Ya existe una categoría registrada con ese nombre.";
+                return false;
+            }
+
             if (obj.IdCategoria == 0)
             {
                 bool resultado = _categoriaDatos.Insertar(obj);
                 if (!resultado) mensaje = "No se pudo insertar la categoría.";
                 return resultado;
             }
-            // 3. Si el ID es mayor a 0, es una modificación (EDITAR)
             else
             {
                 bool resultado = _categoriaDatos.Editar(obj);
@@ -44,7 +47,6 @@ namespace AorusMarket.Negocio
             }
         }
 
-        // Solicita la eliminación lógica
         public bool Eliminar(int id, out string mensaje)
         {
             mensaje = string.Empty;

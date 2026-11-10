@@ -40,7 +40,7 @@ namespace AorusMarket.Formularios
         {
             this.Text = "AorusMarket - Sistema de Gestión";
             this.WindowState = FormWindowState.Maximized;
-            this.BackColor = Color.FromArgb(18, 18, 18); // Fondo oscuro sobrio
+            this.BackColor = Color.FromArgb(18, 18, 18);
         }
 
         private void ConstruirInterfazModerno()
@@ -49,7 +49,7 @@ namespace AorusMarket.Formularios
             {
                 Dock = DockStyle.Left,
                 Width = 250,
-                BackColor = Color.FromArgb(28, 28, 28) // Gris carbón para diferenciar el menú
+                BackColor = Color.FromArgb(28, 28, 28)
             };
 
             panelLogo = new System.Windows.Forms.Panel { Dock = DockStyle.Top, Height = 90, BackColor = Color.FromArgb(28, 28, 28) };
@@ -74,7 +74,7 @@ namespace AorusMarket.Formularios
             {
                 Text = "AORUS",
                 Font = new Font("Segoe UI", 16F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(220, 53, 69), // Rojo Aorus
+                ForeColor = Color.FromArgb(220, 53, 69),
                 AutoSize = true,
                 Location = new Point(60, 20)
             };
@@ -83,7 +83,7 @@ namespace AorusMarket.Formularios
             {
                 Text = SesionActual.NombrePerfil,
                 Font = new Font("Segoe UI", 9F, FontStyle.Regular),
-                ForeColor = Color.Gray, // Gris sutil para no robar atención
+                ForeColor = Color.Gray,
                 AutoSize = true,
                 Location = new Point(65, 55)
             };
@@ -96,7 +96,7 @@ namespace AorusMarket.Formularios
             pnlIndicador = new System.Windows.Forms.Panel
             {
                 Size = new Size(4, 42),
-                BackColor = Color.FromArgb(220, 53, 69), // Indicador rojo brillante
+                BackColor = Color.FromArgb(220, 53, 69),
                 Left = 0,
                 Visible = false
             };
@@ -105,7 +105,7 @@ namespace AorusMarket.Formularios
             panelContenedor = new System.Windows.Forms.Panel
             {
                 Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(18, 18, 18) // Fondo área de trabajo
+                BackColor = Color.FromArgb(18, 18, 18)
             };
 
             this.Controls.Add(panelContenedor);
@@ -139,7 +139,6 @@ namespace AorusMarket.Formularios
             btnUsuarios = CrearBotonMenu("👤 Usuarios", yPos);
             btnUsuarios.Click += (s, e) => { ResaltarBotonActivo(btnUsuarios); AbrirFormularioEnPanel(new FrmUsuarios()); };
             yPos += btnHeight;
-
 
             btnSucursales = CrearBotonMenu("🏢 Sucursales", yPos);
             btnSucursales.Click += (s, e) => { ResaltarBotonActivo(btnSucursales); AbrirFormularioEnPanel(new FrmSucursales()); };
@@ -214,7 +213,7 @@ namespace AorusMarket.Formularios
             {
                 if (botonActivo != btn)
                 {
-                    btn.ColorBackground = Color.FromArgb(40, 40, 40); // Gris más claro al pasar el mouse
+                    btn.ColorBackground = Color.FromArgb(40, 40, 40);
                     btn.ColorBackground_Pen = Color.FromArgb(40, 40, 40);
                     btn.ForeColor = Color.White;
                 }
@@ -270,10 +269,11 @@ namespace AorusMarket.Formularios
 
         private void ModificarTextoBotones(bool soloIconos)
         {
+            // CORRECCIÓN: Agregado btnReportes al array para que colapse correctamente
             CyberButton[] todosLosBotones = {
                 btnPuntoVenta, btnClientes, btnStock, btnProductos,
                 btnCategorias, btnUsuarios, btnSucursales, btnHistorial,
-                btnAuditoria, btnBackup, btnDashboard, btnCerrarSesion
+                btnAuditoria, btnBackup, btnDashboard, btnCerrarSesion, btnReportes
             };
 
             foreach (var b in todosLosBotones)
@@ -317,9 +317,9 @@ namespace AorusMarket.Formularios
 
             if (btnClickeado != null)
             {
-                btnClickeado.ColorBackground = Color.FromArgb(40, 40, 40); // Fondo oscuro mate
+                btnClickeado.ColorBackground = Color.FromArgb(40, 40, 40);
                 btnClickeado.ColorBackground_Pen = Color.FromArgb(40, 40, 40);
-                btnClickeado.ForeColor = Color.FromArgb(220, 53, 69); // El texto se vuelve rojo Aorus
+                btnClickeado.ForeColor = Color.FromArgb(220, 53, 69);
 
                 botonActivo = btnClickeado;
                 pnlIndicador.Top = btnClickeado.Top;
@@ -349,7 +349,7 @@ namespace AorusMarket.Formularios
             formHijo.TopLevel = false;
             formHijo.FormBorderStyle = FormBorderStyle.None;
             formHijo.Dock = DockStyle.Fill;
-            formHijo.BackColor = Color.FromArgb(18, 18, 18); // Fondo sincronizado con el área de trabajo
+            formHijo.BackColor = Color.FromArgb(18, 18, 18);
 
             panelContenedor.Controls.Add(formHijo);
             panelContenedor.Tag = formHijo;
@@ -393,6 +393,7 @@ namespace AorusMarket.Formularios
             {
                 menuDelUsuario.Add(btnPuntoVenta);
                 menuDelUsuario.Add(btnClientes);
+                menuDelUsuario.Add(btnHistorial); // CORRECCIÓN: El cajero ahora puede ver su historial de ventas
 
                 ResaltarBotonActivo(btnPuntoVenta);
                 AbrirFormularioEnPanel(new FrmPuntoVenta());
@@ -435,11 +436,6 @@ namespace AorusMarket.Formularios
                 FrmLogin login = new FrmLogin();
                 login.Show();
             }
-        }
-
-        private void btnReportes_funcion(object sender, EventArgs e)
-        {
-            AbrirFormularioEnPanel(new FrmReportes());
         }
 
         private void ActivarDoubleBuffering(Control control)

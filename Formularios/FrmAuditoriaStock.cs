@@ -17,9 +17,7 @@ namespace AorusMarket.Formularios
 
         public FrmAuditoriaStock()
         {
-            // InitializeComponent(); // Acordate de mantener esto borrado/comentado
-
-            // FONDO SOBRIO OSCURO
+            this.ClientSize = new Size(1100, 700);
             this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Auditoría de Movimientos";
             ConstruirInterfaz();
@@ -29,11 +27,9 @@ namespace AorusMarket.Formularios
         {
             this.Controls.Add(EstiloApp.CrearTitulo("AUDITORÍA DE STOCK", new Point(30, 20)));
 
-            // Función local para crear labels con texto gris claro (sobrio)
             void AddLabelSobrio(string texto, Point ubicacion)
             {
                 Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
-                lbl.ForeColor = Color.LightGray;
                 this.Controls.Add(lbl);
             }
 
@@ -46,7 +42,7 @@ namespace AorusMarket.Formularios
                 Size = new Size(180, 28),
                 Format = DateTimePickerFormat.Short,
                 Font = new Font("Segoe UI", 10F),
-                Value = DateTime.Now.AddDays(-30) // Por defecto muestra el último mes
+                Value = DateTime.Now.AddDays(-30)
             };
             this.Controls.Add(dtpDesde);
 
@@ -69,7 +65,7 @@ namespace AorusMarket.Formularios
             dgvAuditoria = new DataGridView
             {
                 Location = new Point(x, y),
-                Size = new Size(1000, this.ClientSize.Height - y - 30), // Corregido el error de sintaxis (- y30)
+                Size = new Size(this.ClientSize.Width - 60, this.ClientSize.Height - y - 30),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
 
@@ -81,54 +77,20 @@ namespace AorusMarket.Formularios
             dgvAuditoria.Columns.Add("Cantidad", "Variación");
             dgvAuditoria.Columns.Add("Usuario", "Usuario Responsable");
 
-            // APLICAMOS EL DISEÑO PREMIUM A LA GRILLA
-            AplicarDisenoSobrioGrid(dgvAuditoria);
+            EstiloApp.EstilizarGrid(dgvAuditoria);
             this.Controls.Add(dgvAuditoria);
 
             CargarGrilla();
         }
 
-        // --- MAGIA VISUAL: NUEVA GRILLA SOBRIA ---
-        private void AplicarDisenoSobrioGrid(DataGridView grid)
-        {
-            grid.EnableHeadersVisualStyles = false;
-            grid.BackgroundColor = Color.FromArgb(18, 18, 18);
-            grid.BorderStyle = BorderStyle.None;
-            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            grid.GridColor = Color.FromArgb(40, 40, 40);
-            grid.RowHeadersVisible = false;
-
-            DataGridViewCellStyle estiloCabecera = new DataGridViewCellStyle();
-            estiloCabecera.BackColor = Color.FromArgb(28, 28, 28);
-            estiloCabecera.ForeColor = Color.LightGray;
-            estiloCabecera.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            estiloCabecera.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            estiloCabecera.SelectionBackColor = Color.FromArgb(28, 28, 28);
-            grid.ColumnHeadersDefaultCellStyle = estiloCabecera;
-            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            grid.ColumnHeadersHeight = 40;
-
-            DataGridViewCellStyle estiloFila = new DataGridViewCellStyle();
-            estiloFila.BackColor = Color.FromArgb(18, 18, 18);
-            estiloFila.ForeColor = Color.WhiteSmoke;
-            estiloFila.Font = new Font("Segoe UI", 10F);
-            estiloFila.SelectionBackColor = Color.FromArgb(220, 53, 69); // Rojo Aorus
-            estiloFila.SelectionForeColor = Color.White;
-            grid.DefaultCellStyle = estiloFila;
-
-            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(22, 22, 22);
-            grid.RowTemplate.Height = 35;
-            grid.AllowUserToAddRows = false;
-            grid.AllowUserToDeleteRows = false;
-            grid.AllowUserToResizeColumns = false;
-            grid.AllowUserToResizeRows = false;
-            grid.ReadOnly = true;
-            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-        }
-
         private void CargarGrilla()
         {
+            if (dtpDesde.Value.Date > dtpHasta.Value.Date)
+            {
+                MessageBox.Show("La fecha 'Desde' no puede ser mayor que 'Hasta'.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             dgvAuditoria.Rows.Clear();
             var lista = _stockNegocio.ListarAuditoria(dtpDesde.Value, dtpHasta.Value);
 
@@ -145,7 +107,6 @@ namespace AorusMarket.Formularios
                 );
             }
 
-            // Pintar de Verde los Ingresos positivos y de Rojo las salidas/ventas negativas
             foreach (DataGridViewRow fila in dgvAuditoria.Rows)
             {
                 if (int.TryParse(fila.Cells["Cantidad"].Value?.ToString(), out int cantidad))
@@ -154,17 +115,15 @@ namespace AorusMarket.Formularios
                     {
                         fila.Cells["Cantidad"].Style.ForeColor = Color.MediumSeaGreen;
                         fila.Cells["Cantidad"].Style.Font = new Font(dgvAuditoria.Font, FontStyle.Bold);
-                        fila.Cells["Cantidad"].Value = "+" + cantidad; // Agregar el símbolo +
+                        fila.Cells["Cantidad"].Value = "+" + cantidad;
                     }
                     else if (cantidad < 0)
                     {
-                        // Mantenemos tu estética pero usando el color directamente para evitar dependencias
-                        fila.Cells["Cantidad"].Style.ForeColor = Color.FromArgb(220, 53, 69); // Rojo Aorus
+                        fila.Cells["Cantidad"].Style.ForeColor = EstiloApp.RojoNeon;
                         fila.Cells["Cantidad"].Style.Font = new Font(dgvAuditoria.Font, FontStyle.Bold);
                     }
                 }
             }
-
             dgvAuditoria.ClearSelection();
         }
 

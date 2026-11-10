@@ -13,7 +13,7 @@ namespace AorusMarket.Formularios
         private CyberTextBox txtDni, txtCuil, txtNombre, txtApellido, txtEmail, txtTelefono, txtCalle, txtAltura, txtBuscarDni;
         private DateTimePicker dtFechaNacimiento;
         private DataGridView dgvClientes;
-        private CyberButton btnNuevo, btnGuardar, btnEliminar, btnBuscar;
+        private CyberButton btnGuardar, btnEliminar, btnBuscar, btnLimpiar;
 
         private int idSeleccionado = 0;
         private int idDireccionSeleccionada = 0;
@@ -22,8 +22,7 @@ namespace AorusMarket.Formularios
         public FrmClientes()
         {
             InitializeComponent();
-
-            // FONDO SOBRIO OSCURO
+            this.ClientSize = new Size(1100, 700);
             this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Gestión de Clientes";
             ConstruirInterfaz();
@@ -33,25 +32,26 @@ namespace AorusMarket.Formularios
         {
             this.Controls.Add(EstiloApp.CrearTitulo("CLIENTES", new Point(30, 20)));
 
-            // Función local para crear labels con texto gris claro (sobrio)
             void AddLabelSobrio(string texto, Point ubicacion)
             {
                 Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
-                lbl.ForeColor = Color.LightGray;
                 this.Controls.Add(lbl);
             }
 
-            AddLabelSobrio("BUSCAR POR DNI:", new Point(600, 20));
-            txtBuscarDni = EstiloApp.CrearTextBox(new Point(600, 40), 200);
+            // BUSCADOR ANCLADO A LA DERECHA
+            AddLabelSobrio("BUSCAR POR DNI:", new Point(this.ClientSize.Width - 340, 20));
+            txtBuscarDni = EstiloApp.CrearTextBox(new Point(this.ClientSize.Width - 340, 40), 200);
+            txtBuscarDni.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            txtBuscarDni.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) CargarGrilla(EstiloApp.LeerTexto(txtBuscarDni)); };
             this.Controls.Add(txtBuscarDni);
 
-            btnBuscar = EstiloApp.CrearBoton("BUSCAR", new Point(810, 30), 100, EstiloApp.Verde);
-            btnBuscar.Click += (s, e) => CargarGrilla(txtBuscarDni.TextButton);
+            btnBuscar = EstiloApp.CrearBoton("BUSCAR", new Point(this.ClientSize.Width - 130, 30), 100, EstiloApp.Verde);
+            btnBuscar.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnBuscar.Click += (s, e) => CargarGrilla(EstiloApp.LeerTexto(txtBuscarDni));
             this.Controls.Add(btnBuscar);
 
             int x = 30, y = 80;
 
-            // FILA 1
             AddLabelSobrio("DNI", new Point(x, y));
             txtDni = EstiloApp.CrearTextBox(new Point(x, y + 20), 150);
             this.Controls.Add(txtDni);
@@ -65,7 +65,6 @@ namespace AorusMarket.Formularios
             this.Controls.Add(txtApellido);
 
             y += 60;
-            // FILA 2
             AddLabelSobrio("EMAIL", new Point(x, y));
             txtEmail = EstiloApp.CrearTextBox(new Point(x, y + 20), 220);
             this.Controls.Add(txtEmail);
@@ -79,7 +78,6 @@ namespace AorusMarket.Formularios
             this.Controls.Add(dtFechaNacimiento);
 
             y += 60;
-            // FILA 3
             AddLabelSobrio("CALLE", new Point(x, y));
             txtCalle = EstiloApp.CrearTextBox(new Point(x, y + 20), 220);
             this.Controls.Add(txtCalle);
@@ -93,29 +91,23 @@ namespace AorusMarket.Formularios
             this.Controls.Add(txtCuil);
 
             y += 60;
-            // BOTONES
-            btnNuevo = EstiloApp.CrearBoton("NUEVO", new Point(x, y + 10), 120, EstiloApp.Gris);
-            btnGuardar = EstiloApp.CrearBoton("GUARDAR", new Point(x + 130, y + 10), 120, EstiloApp.Verde);
-            btnEliminar = EstiloApp.CrearBoton("ELIMINAR", new Point(x + 260, y + 10), 120, EstiloApp.RojoNeon);
+            btnGuardar = EstiloApp.CrearBoton("GUARDAR", new Point(x, y + 10), 120, EstiloApp.Verde);
+            btnEliminar = EstiloApp.CrearBoton("ELIMINAR", new Point(x + 130, y + 10), 120, EstiloApp.RojoNeon);
+            btnLimpiar = EstiloApp.CrearBoton("NUEVO / LIMPIAR", new Point(x + 260, y + 10), 140, EstiloApp.Gris);
 
-            btnNuevo.Click += (s, e) => LimpiarCampos();
+            btnLimpiar.Click += (s, e) => LimpiarCampos();
             btnGuardar.Click += BtnGuardar_Click;
             btnEliminar.Click += BtnEliminar_Click;
 
-            this.Controls.Add(btnNuevo);
             this.Controls.Add(btnGuardar);
             this.Controls.Add(btnEliminar);
-
-            CyberButton btnLimpiar = EstiloApp.CrearBoton("LIMPIAR", new Point(x + 390, y + 10), 120, EstiloApp.Gris);
-            btnLimpiar.Click += (s, e) => LimpiarCampos();
             this.Controls.Add(btnLimpiar);
 
             y += 60;
-            // GRILLA
             dgvClientes = new DataGridView
             {
                 Location = new Point(x, y),
-                Size = new Size(1000, this.ClientSize.Height - y - 30), // Corregido el error de tipeo en el size
+                Size = new Size(this.ClientSize.Width - 60, this.ClientSize.Height - y - 30),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
 
@@ -136,57 +128,17 @@ namespace AorusMarket.Formularios
 
             dgvClientes.SelectionChanged += DgvClientes_SelectionChanged;
 
-            // APLICAMOS EL DISEÑO PREMIUM A LA GRILLA
-            AplicarDisenoSobrioGrid(dgvClientes);
+            EstiloApp.EstilizarGrid(dgvClientes);
             this.Controls.Add(dgvClientes);
 
             CargarGrilla();
         }
 
-        // --- MAGIA VISUAL: NUEVA GRILLA SOBRIA ---
-        private void AplicarDisenoSobrioGrid(DataGridView grid)
-        {
-            grid.EnableHeadersVisualStyles = false;
-            grid.BackgroundColor = Color.FromArgb(18, 18, 18);
-            grid.BorderStyle = BorderStyle.None;
-            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            grid.GridColor = Color.FromArgb(40, 40, 40);
-            grid.RowHeadersVisible = false;
-
-            DataGridViewCellStyle estiloCabecera = new DataGridViewCellStyle();
-            estiloCabecera.BackColor = Color.FromArgb(28, 28, 28);
-            estiloCabecera.ForeColor = Color.LightGray;
-            estiloCabecera.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            estiloCabecera.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            estiloCabecera.SelectionBackColor = Color.FromArgb(28, 28, 28);
-            grid.ColumnHeadersDefaultCellStyle = estiloCabecera;
-            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            grid.ColumnHeadersHeight = 40;
-
-            DataGridViewCellStyle estiloFila = new DataGridViewCellStyle();
-            estiloFila.BackColor = Color.FromArgb(18, 18, 18);
-            estiloFila.ForeColor = Color.WhiteSmoke;
-            estiloFila.Font = new Font("Segoe UI", 10F);
-            estiloFila.SelectionBackColor = Color.FromArgb(220, 53, 69); // Rojo Aorus
-            estiloFila.SelectionForeColor = Color.White;
-            grid.DefaultCellStyle = estiloFila;
-
-            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(22, 22, 22);
-            grid.RowTemplate.Height = 35;
-            grid.AllowUserToAddRows = false;
-            grid.AllowUserToDeleteRows = false;
-            grid.AllowUserToResizeColumns = false;
-            grid.AllowUserToResizeRows = false;
-            grid.ReadOnly = true;
-            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-        }
-
         private void CargarGrilla(string filtro = "")
         {
             dgvClientes.SelectionChanged -= DgvClientes_SelectionChanged;
-
             dgvClientes.Rows.Clear();
+
             var lista = _clienteNegocio.Listar(filtro);
             foreach (var item in lista)
             {
@@ -204,14 +156,15 @@ namespace AorusMarket.Formularios
             var fila = dgvClientes.CurrentRow;
             idSeleccionado = Convert.ToInt32(fila.Cells["IdCliente"].Value ?? 0);
             idDireccionSeleccionada = Convert.ToInt32(fila.Cells["IdDireccion"].Value ?? 0);
-            txtDni.TextButton = fila.Cells["Dni"].Value?.ToString();
-            txtNombre.TextButton = fila.Cells["Nombre"].Value?.ToString();
-            txtApellido.TextButton = fila.Cells["Apellido"].Value?.ToString();
-            txtEmail.TextButton = fila.Cells["Email"].Value?.ToString();
-            txtTelefono.TextButton = fila.Cells["Telefono"].Value?.ToString();
-            txtCalle.TextButton = fila.Cells["Calle"].Value?.ToString();
-            txtAltura.TextButton = fila.Cells["Altura"].Value?.ToString();
-            txtCuil.TextButton = fila.Cells["CuilCuit"].Value?.ToString();
+
+            EstiloApp.EscribirTexto(txtDni, fila.Cells["Dni"].Value?.ToString());
+            EstiloApp.EscribirTexto(txtNombre, fila.Cells["Nombre"].Value?.ToString());
+            EstiloApp.EscribirTexto(txtApellido, fila.Cells["Apellido"].Value?.ToString());
+            EstiloApp.EscribirTexto(txtEmail, fila.Cells["Email"].Value?.ToString());
+            EstiloApp.EscribirTexto(txtTelefono, fila.Cells["Telefono"].Value?.ToString());
+            EstiloApp.EscribirTexto(txtCalle, fila.Cells["Calle"].Value?.ToString());
+            EstiloApp.EscribirTexto(txtAltura, fila.Cells["Altura"].Value?.ToString());
+            EstiloApp.EscribirTexto(txtCuil, fila.Cells["CuilCuit"].Value?.ToString());
 
             if (DateTime.TryParse(fila.Cells["FechaNacimiento"].Value?.ToString(), out DateTime fechaNac))
                 dtFechaNacimiento.Value = fechaNac;
@@ -223,15 +176,15 @@ namespace AorusMarket.Formularios
         {
             idSeleccionado = 0;
             idDireccionSeleccionada = 0;
-            txtDni.TextButton = "";
-            txtNombre.TextButton = "";
-            txtApellido.TextButton = "";
-            txtEmail.TextButton = "";
-            txtTelefono.TextButton = "";
-            txtCalle.TextButton = "";
-            txtAltura.TextButton = "";
-            txtCuil.TextButton = "";
-            txtBuscarDni.TextButton = "";
+            EstiloApp.EscribirTexto(txtDni, "");
+            EstiloApp.EscribirTexto(txtNombre, "");
+            EstiloApp.EscribirTexto(txtApellido, "");
+            EstiloApp.EscribirTexto(txtEmail, "");
+            EstiloApp.EscribirTexto(txtTelefono, "");
+            EstiloApp.EscribirTexto(txtCalle, "");
+            EstiloApp.EscribirTexto(txtAltura, "");
+            EstiloApp.EscribirTexto(txtCuil, "");
+            EstiloApp.EscribirTexto(txtBuscarDni, "");
             dtFechaNacimiento.Value = DateTime.Now;
             dgvClientes.ClearSelection();
             CargarGrilla();
@@ -243,14 +196,14 @@ namespace AorusMarket.Formularios
             {
                 IdCliente = idSeleccionado,
                 IdDireccion = idDireccionSeleccionada,
-                Dni = txtDni.TextButton,
-                CuilCuit = txtCuil.TextButton,
-                Nombre = txtNombre.TextButton,
-                Apellido = txtApellido.TextButton,
-                Email = txtEmail.TextButton,
-                Telefono = txtTelefono.TextButton,
-                Calle = txtCalle.TextButton,
-                Altura = txtAltura.TextButton,
+                Dni = EstiloApp.LeerTexto(txtDni),
+                CuilCuit = EstiloApp.LeerTexto(txtCuil),
+                Nombre = EstiloApp.LeerTexto(txtNombre),
+                Apellido = EstiloApp.LeerTexto(txtApellido),
+                Email = EstiloApp.LeerTexto(txtEmail),
+                Telefono = EstiloApp.LeerTexto(txtTelefono),
+                Calle = EstiloApp.LeerTexto(txtCalle),
+                Altura = EstiloApp.LeerTexto(txtAltura),
                 FechaNacimiento = dtFechaNacimiento.Value.Date
             };
 

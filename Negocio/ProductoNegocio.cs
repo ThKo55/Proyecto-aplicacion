@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using AorusMarket.AccesoDatos;
 using AorusMarket.Entidades;
 
@@ -9,18 +10,15 @@ namespace AorusMarket.Negocio
     {
         private ProductoDatos _productoDatos = new ProductoDatos();
 
-        // Solicita el listado a la capa de datos
         public List<Producto> Listar()
         {
             return _productoDatos.Listar();
         }
 
-        // Aplica reglas de negocio y decide si debe INSERTAR o EDITAR
         public bool Guardar(Producto obj, out string mensaje)
         {
             mensaje = string.Empty;
 
-            // 1. Validaciones
             if (string.IsNullOrWhiteSpace(obj.Nombre))
             {
                 mensaje = "El nombre del producto es obligatorio.";
@@ -32,14 +30,20 @@ namespace AorusMarket.Negocio
                 return false;
             }
 
-            // 2. Si el ID es 0, lo insertamos
+            // Validación de duplicados
+            var listaExistente = _productoDatos.Listar();
+            if (listaExistente.Any(p => p.Nombre.Trim().ToLower() == obj.Nombre.Trim().ToLower() && p.IdProducto != obj.IdProducto))
+            {
+                mensaje = "Ya existe un producto registrado con ese nombre.";
+                return false;
+            }
+
             if (obj.IdProducto == 0)
             {
                 bool resultado = _productoDatos.Insertar(obj);
                 if (!resultado) mensaje = "No se pudo insertar el producto.";
                 return resultado;
             }
-            // 3. Si el ID es mayor a 0, lo editamos
             else
             {
                 bool resultado = _productoDatos.Editar(obj);
@@ -48,7 +52,6 @@ namespace AorusMarket.Negocio
             }
         }
 
-        // Solicita la eliminación lógica
         public bool Eliminar(int id, out string mensaje)
         {
             mensaje = string.Empty;

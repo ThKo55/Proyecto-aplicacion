@@ -36,6 +36,19 @@ namespace AorusMarket.Negocio
                 return false;
             }
 
+            // VALIDACIONES DE NEGOCIO (No permitir stock negativo ni precios 0 o menores)
+            if (cantidad < 0)
+            {
+                mensaje = "La cantidad no puede ser menor a 0.";
+                return false;
+            }
+
+            if (precio <= 0)
+            {
+                mensaje = "El precio debe ser mayor a $0.00.";
+                return false;
+            }
+
             StockSucursal obj = new StockSucursal()
             {
                 IdProducto = Convert.ToInt32(strProd),
@@ -58,35 +71,26 @@ namespace AorusMarket.Negocio
             return resultado;
         }
 
-        // NUEVO MÉTODO
         public List<MovimientoStock> ListarAuditoria(DateTime desde, DateTime hasta)
         {
+            if (desde.Date > hasta.Date) return new List<MovimientoStock>();
             return _stockDatos.ListarMovimientos(desde, hasta);
         }
 
-        // ESTA LÍNEA ES CLAVE: Instancia la capa de datos. Resuelve el error "El nombre 'datos' no existe"
-        private StockDatos datos = new StockDatos();
-
-        // Le agregamos el parámetro idSucursal
         public bool HayStockSuficiente(int idProducto, int idSucursal, int cantidadSolicitada)
         {
-            int stockActual = datos.ObtenerStock(idProducto, idSucursal);
+            int stockActual = _stockDatos.ObtenerStock(idProducto, idSucursal);
             return stockActual >= cantidadSolicitada;
         }
 
-        public bool StockEsCritico(int idProducto)
+        public bool StockEsCritico(int idProducto, int idSucursal)
         {
-            // Llama al método que acabamos de crear en StockDatos
-            Producto p = datos.ObtenerProducto(idProducto);
-
-            // Si el stock actual bajó del límite, devuelve true (es crítico)
+            Producto p = _stockDatos.ObtenerProductoPorSucursal(idProducto, idSucursal);
             if (p != null && p.StockActual <= p.StockMinimo)
             {
                 return true;
             }
             return false;
         }
-
-
     }
 }

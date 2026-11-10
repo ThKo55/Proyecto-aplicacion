@@ -18,7 +18,6 @@ namespace AorusMarket.Formularios
         private Label lblTotal;
         private CyberButton btnAgregar, btnQuitar, btnConfirmar, btnCancelar;
 
-        // Instancias a la capa de Negocio
         private StockNegocio _stockNegocio = new StockNegocio();
         private VentaNegocio _ventaNegocio = new VentaNegocio();
 
@@ -28,11 +27,8 @@ namespace AorusMarket.Formularios
         {
             InitializeComponent();
 
-            // LA SOLUCIÓN: Establecemos un tamaño base amplio antes de construir la interfaz
-            // para que los Anclajes (Anchors) no empujen el panel derecho fuera de la pantalla.
+            // CORRECCIÓN: Evita el desborde al maximizar
             this.ClientSize = new Size(1150, 700);
-
-            // FONDO SOBRIO OSCURO
             this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Punto de Venta";
             ConstruirInterfaz();
@@ -42,7 +38,6 @@ namespace AorusMarket.Formularios
         {
             this.Controls.Add(EstiloApp.CrearTitulo("PUNTO DE VENTA", new Point(30, 20)));
 
-            // Función local para crear labels con texto gris claro (sobrio)
             void AddLabelSobrio(string texto, Point ubicacion)
             {
                 Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
@@ -50,14 +45,15 @@ namespace AorusMarket.Formularios
                 this.Controls.Add(lbl);
             }
 
-            // ==========================================
-            // PANEL IZQUIERDO: BÚSQUEDA Y RESULTADOS
-            // ==========================================
             int leftX = 30;
 
             AddLabelSobrio("BUSCAR PRODUCTO (nombre)", new Point(leftX, 70));
 
             txtBuscar = EstiloApp.CrearTextBox(new Point(leftX, 90), 200);
+
+            // CORRECCIÓN: Búsqueda ágil con tecla ENTER
+            txtBuscar.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) BtnBuscar_Click(s, e); };
+
             this.Controls.Add(txtBuscar);
 
             CyberButton btnBuscar = EstiloApp.CrearBoton("BUSCAR", new Point(leftX + 210, 89), 100, EstiloApp.Gris);
@@ -71,7 +67,7 @@ namespace AorusMarket.Formularios
             dgvBusqueda = new DataGridView
             {
                 Location = new Point(leftX, 140),
-                Size = new Size(470, 500),
+                Size = new Size(470, this.ClientSize.Height - 170),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Bottom
             };
 
@@ -87,25 +83,23 @@ namespace AorusMarket.Formularios
             foreach (DataGridViewColumn c in dgvBusqueda.Columns)
                 if (c.Name != "Cantidad") c.ReadOnly = true;
 
-            AplicarDisenoSobrioGrid(dgvBusqueda);
+            EstiloApp.EstilizarGrid(dgvBusqueda);
             this.Controls.Add(dgvBusqueda);
 
-            // ==========================================
-            // PANEL DERECHO: CARRITO Y CHECKOUT
-            // ==========================================
             int rightX = 530;
+            int rightWidth = this.ClientSize.Width - rightX - 30;
 
             AddLabelSobrio("CARRITO DE VENTA", new Point(rightX, 70));
 
-            btnQuitar = EstiloApp.CrearBoton("QUITAR ITEM", new Point(rightX + 360, 65), 150, EstiloApp.RojoNeon);
+            btnQuitar = EstiloApp.CrearBoton("QUITAR ITEM", new Point(this.ClientSize.Width - 180, 65), 150, EstiloApp.RojoNeon);
             btnQuitar.Click += BtnQuitar_Click;
             btnQuitar.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             this.Controls.Add(btnQuitar);
 
             dgvCarrito = new DataGridView
             {
-                Location = new Point(rightX, 100),
-                Size = new Size(510, 350),
+                Location = new Point(rightX, 110),
+                Size = new Size(rightWidth, this.ClientSize.Height - 310),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
 
@@ -116,26 +110,24 @@ namespace AorusMarket.Formularios
             dgvCarrito.Columns.Add("Subtotal", "Subtotal");
             dgvCarrito.Columns["IdProducto"].Visible = false;
 
-            AplicarDisenoSobrioGrid(dgvCarrito);
+            EstiloApp.EstilizarGrid(dgvCarrito);
             this.Controls.Add(dgvCarrito);
 
-            // --- SECCIÓN INFERIOR DERECHA (CHECKOUT) ---
-            int checkoutY = 470; // Empieza justo debajo de la grilla del carrito
+            int checkoutY = this.ClientSize.Height - 170;
 
             AddLabelSobrio("CLIENTE (opcional)", new Point(rightX, checkoutY));
             cmbCliente = EstiloApp.CrearComboBox(new Point(rightX, checkoutY + 20), 240);
             CargarComboClientes();
-            cmbCliente.Anchor = AnchorStyles.Bottom | AnchorStyles.Left; // Se ancla a la izquierda
+            cmbCliente.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             this.Controls.Add(cmbCliente);
 
             Label lblMetodo = EstiloApp.CrearLabel("MÉTODO DE PAGO", new Point(rightX + 260, checkoutY));
-            lblMetodo.ForeColor = Color.LightGray;
-            lblMetodo.Anchor = AnchorStyles.Bottom | AnchorStyles.Right; // Se ancla a la derecha
+            lblMetodo.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             this.Controls.Add(lblMetodo);
 
             cmbMetodoPago = EstiloApp.CrearComboBox(new Point(rightX + 260, checkoutY + 20), 250);
             cmbMetodoPago.Items.AddRange(new object[] { "Efectivo", "Débito", "Crédito", "Transferencia" });
-            cmbMetodoPago.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            cmbMetodoPago.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             this.Controls.Add(cmbMetodoPago);
 
             lblTotal = new Label
@@ -150,58 +142,16 @@ namespace AorusMarket.Formularios
             };
             this.Controls.Add(lblTotal);
 
-            btnConfirmar = EstiloApp.CrearBoton("CONFIRMAR VENTA", new Point(rightX, checkoutY + 130), 250, EstiloApp.Verde);
+            btnConfirmar = EstiloApp.CrearBoton("CONFIRMAR VENTA", new Point(rightX, checkoutY + 120), 250, EstiloApp.Verde);
             btnConfirmar.Click += BtnConfirmar_Click;
             btnConfirmar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             this.Controls.Add(btnConfirmar);
 
-            btnCancelar = EstiloApp.CrearBoton("CANCELAR", new Point(rightX + 270, checkoutY + 130), 240, EstiloApp.Gris);
+            btnCancelar = EstiloApp.CrearBoton("CANCELAR", new Point(rightX + 270, checkoutY + 120), 240, EstiloApp.Gris);
             btnCancelar.Click += (s, e) => LimpiarVenta();
-            btnCancelar.Anchor = AnchorStyles.Bottom | AnchorStyles.Right; // Mantiene el formato si la pantalla se estira
+            btnCancelar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             this.Controls.Add(btnCancelar);
         }
-
-        // --- MAGIA VISUAL: NUEVA GRILLA SOBRIA ---
-        private void AplicarDisenoSobrioGrid(DataGridView grid)
-        {
-            grid.EnableHeadersVisualStyles = false;
-            grid.BackgroundColor = Color.FromArgb(18, 18, 18);
-            grid.BorderStyle = BorderStyle.None;
-            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            grid.GridColor = Color.FromArgb(40, 40, 40);
-            grid.RowHeadersVisible = false;
-
-            DataGridViewCellStyle estiloCabecera = new DataGridViewCellStyle();
-            estiloCabecera.BackColor = Color.FromArgb(28, 28, 28);
-            estiloCabecera.ForeColor = Color.LightGray;
-            estiloCabecera.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            estiloCabecera.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            estiloCabecera.SelectionBackColor = Color.FromArgb(28, 28, 28);
-            grid.ColumnHeadersDefaultCellStyle = estiloCabecera;
-            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            grid.ColumnHeadersHeight = 40;
-
-            DataGridViewCellStyle estiloFila = new DataGridViewCellStyle();
-            estiloFila.BackColor = Color.FromArgb(18, 18, 18);
-            estiloFila.ForeColor = Color.WhiteSmoke;
-            estiloFila.Font = new Font("Segoe UI", 10F);
-            estiloFila.SelectionBackColor = Color.FromArgb(220, 53, 69);
-            estiloFila.SelectionForeColor = Color.White;
-            grid.DefaultCellStyle = estiloFila;
-
-            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(22, 22, 22);
-            grid.RowTemplate.Height = 35;
-            grid.AllowUserToAddRows = false;
-            grid.AllowUserToDeleteRows = false;
-            grid.AllowUserToResizeColumns = false;
-            grid.AllowUserToResizeRows = false;
-            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-        }
-
-        // =========================================================================
-        // LÓGICA Y EVENTOS INTACTOS (Tus reglas de negocio se mantienen 100% igual)
-        // =========================================================================
 
         private void CargarComboClientes()
         {
@@ -268,7 +218,7 @@ namespace AorusMarket.Formularios
 
             if (cantidadTotalDeseada > stockDispGrilla)
             {
-                MessageBox.Show($"No hay stock suficiente.\nTienes {stockDispGrilla} disponibles y estás intentando vender un total de {cantidadTotalDeseada} (incluyendo los que ya pusiste en el carrito).", "Stock Insuficiente", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show($"No hay stock suficiente.\nTienes {stockDispGrilla} disponibles y estás intentando vender un total de {cantidadTotalDeseada}.", "Stock Insuficiente", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -280,14 +230,30 @@ namespace AorusMarket.Formularios
 
             string nombre = fila.Cells["Producto"].Value.ToString();
             decimal precio = Convert.ToDecimal(fila.Cells["Precio"].Value);
-            decimal subtotal = precio * cantIngresada;
+            decimal subtotalAgregar = precio * cantIngresada;
 
-            dgvCarrito.Rows.Add(idProd, nombre, cantIngresada, precio, subtotal);
+            // CORRECCIÓN: En lugar de crear otra fila, actualizamos la cantidad si el producto ya está en el carrito
+            bool existe = false;
+            foreach (DataGridViewRow row in dgvCarrito.Rows)
+            {
+                if (Convert.ToInt32(row.Cells["IdProducto"].Value) == idProd)
+                {
+                    row.Cells["Cantidad"].Value = cantidadTotalDeseada;
+                    row.Cells["Subtotal"].Value = cantidadTotalDeseada * precio;
+                    existe = true;
+                    break;
+                }
+            }
+
+            if (!existe)
+            {
+                dgvCarrito.Rows.Add(idProd, nombre, cantIngresada, precio, subtotalAgregar);
+            }
 
             fila.Cells["Cantidad"].Value = "";
             RecalcularTotal();
 
-            if (_stockNegocio.StockEsCritico(idProd))
+            if (_stockNegocio.StockEsCritico(idProd, SesionActual.IdSucursal))
             {
                 MessageBox.Show("¡ALERTA! El stock de este producto ha llegado a su nivel mínimo. Considere reponer.", "Stock Bajo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
@@ -335,10 +301,7 @@ namespace AorusMarket.Formularios
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
 
-            if (dialogo == DialogResult.No)
-            {
-                return;
-            }
+            if (dialogo == DialogResult.No) return;
 
             if (totalAcumulado > 50000)
             {
@@ -393,9 +356,11 @@ namespace AorusMarket.Formularios
                     }
 
                     string nombreCliente = cmbCliente.Text.Contains("-") ? cmbCliente.Text.Split('-')[1].Trim() : "Consumidor Final";
-                    string nombreCajero = "Cajero " + SesionActual.IdUsuario.ToString();
 
-                    GeneradorFactura.GenerarPDF(0, DateTime.Now.ToString("dd/MM/yyyy HH:mm"), nombreCliente, nombreCajero, nuevaVenta.Total, nuevaVenta.MetodoPago, detallesPdf, true);
+                    // CORRECCIÓN: El ticket ahora lleva el Nombre Real del cajero y el Nro de Ticket correcto
+                    string nombreCajero = SesionActual.NombreCompleto;
+
+                    GeneradorFactura.GenerarPDF(nuevaVenta.IdVenta, DateTime.Now.ToString("dd/MM/yyyy HH:mm"), nombreCliente, nombreCajero, nuevaVenta.Total, nuevaVenta.MetodoPago, detallesPdf, true);
                 }
 
                 LimpiarVenta();
@@ -412,7 +377,7 @@ namespace AorusMarket.Formularios
             dgvBusqueda.Rows.Clear();
             cmbCliente.SelectedIndex = 0;
             cmbMetodoPago.SelectedIndex = -1;
-            txtBuscar.TextButton = "";
+            EstiloApp.EscribirTexto(txtBuscar, "");
             RecalcularTotal();
         }
     }

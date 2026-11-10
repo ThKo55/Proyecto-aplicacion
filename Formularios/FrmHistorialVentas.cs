@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
-using System.Collections.Generic;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
-using AorusMarket.Entidades;
 using AorusMarket.Negocio;
 
 namespace AorusMarket.Formularios
@@ -22,9 +20,8 @@ namespace AorusMarket.Formularios
 
         public FrmHistorialVentas()
         {
-            //InitializeComponent();
-
-            // FONDO SOBRIO OSCURO
+            // CORRECCIÓN: Evita el desborde al maximizar
+            this.ClientSize = new Size(1100, 700);
             this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Historial de Ventas";
             ConstruirInterfaz();
@@ -34,11 +31,9 @@ namespace AorusMarket.Formularios
         {
             this.Controls.Add(EstiloApp.CrearTitulo("HISTORIAL DE VENTAS", new Point(30, 20)));
 
-            // Función local para crear labels con texto gris claro (sobrio)
             void AddLabelSobrio(string texto, Point ubicacion)
             {
                 Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
-                lbl.ForeColor = Color.LightGray;
                 this.Controls.Add(lbl);
             }
 
@@ -72,6 +67,8 @@ namespace AorusMarket.Formularios
 
             btnAnular = EstiloApp.CrearBoton("ANULAR VENTA", new Point(x + 580, y + 10), 160, EstiloApp.RojoNeon);
             btnAnular.Click += BtnAnular_Click;
+            // CORRECCIÓN: Oculta el botón Anular si no es Admin (Perfil 1)
+            btnAnular.Visible = (SesionActual.IdPerfil == 1);
             this.Controls.Add(btnAnular);
 
             y += 60;
@@ -95,7 +92,7 @@ namespace AorusMarket.Formularios
             dgvHistorial = new DataGridView
             {
                 Location = new Point(x, y),
-                Size = new Size(1000, this.ClientSize.Height - y - 30),
+                Size = new Size(this.ClientSize.Width - 60, this.ClientSize.Height - y - 30),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
 
@@ -110,60 +107,25 @@ namespace AorusMarket.Formularios
 
             dgvHistorial.SelectionChanged += DgvHistorial_SelectionChanged;
 
-            // APLICAMOS EL DISEÑO PREMIUM A LA GRILLA
-            AplicarDisenoSobrioGrid(dgvHistorial);
+            EstiloApp.EstilizarGrid(dgvHistorial);
             this.Controls.Add(dgvHistorial);
 
             CargarGrilla();
         }
 
-        // --- MAGIA VISUAL: NUEVA GRILLA SOBRIA ---
-        private void AplicarDisenoSobrioGrid(DataGridView grid)
-        {
-            grid.EnableHeadersVisualStyles = false;
-            grid.BackgroundColor = Color.FromArgb(18, 18, 18);
-            grid.BorderStyle = BorderStyle.None;
-            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            grid.GridColor = Color.FromArgb(40, 40, 40);
-            grid.RowHeadersVisible = false;
-
-            DataGridViewCellStyle estiloCabecera = new DataGridViewCellStyle();
-            estiloCabecera.BackColor = Color.FromArgb(28, 28, 28);
-            estiloCabecera.ForeColor = Color.LightGray;
-            estiloCabecera.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            estiloCabecera.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            estiloCabecera.SelectionBackColor = Color.FromArgb(28, 28, 28);
-            grid.ColumnHeadersDefaultCellStyle = estiloCabecera;
-            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            grid.ColumnHeadersHeight = 40;
-
-            DataGridViewCellStyle estiloFila = new DataGridViewCellStyle();
-            estiloFila.BackColor = Color.FromArgb(18, 18, 18);
-            estiloFila.ForeColor = Color.WhiteSmoke;
-            estiloFila.Font = new Font("Segoe UI", 10F);
-            estiloFila.SelectionBackColor = Color.FromArgb(220, 53, 69); // Rojo Aorus
-            estiloFila.SelectionForeColor = Color.White;
-            grid.DefaultCellStyle = estiloFila;
-
-            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(22, 22, 22);
-            grid.RowTemplate.Height = 35;
-            grid.AllowUserToAddRows = false;
-            grid.AllowUserToDeleteRows = false;
-            grid.AllowUserToResizeColumns = false;
-            grid.AllowUserToResizeRows = false;
-            grid.ReadOnly = true;
-            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-        }
-
         private void CargarGrilla()
         {
+            if (dtpDesde.Value.Date > dtpHasta.Value.Date)
+            {
+                MessageBox.Show("La fecha 'Desde' no puede ser mayor que 'Hasta'.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             dgvHistorial.SelectionChanged -= DgvHistorial_SelectionChanged;
             dgvHistorial.Rows.Clear();
             cmbProductosVendidos.Items.Clear();
 
             int idUsuarioFiltro = Utilidades.SesionActual.IdPerfil == 1 ? 0 : Utilidades.SesionActual.IdUsuario;
-
             var lista = _ventaNegocio.ListarHistorial(dtpDesde.Value, dtpHasta.Value, idUsuarioFiltro);
 
             foreach (var item in lista)
@@ -178,7 +140,6 @@ namespace AorusMarket.Formularios
             {
                 if (fila.Cells["Estado"].Value.ToString() == "Anulada")
                 {
-                    // Resalta en rojo sutil y tacha el texto en ventas anuladas, manteniendo armonía oscura
                     fila.DefaultCellStyle.ForeColor = Color.IndianRed;
                     fila.DefaultCellStyle.Font = new Font(dgvHistorial.Font, FontStyle.Strikeout);
                 }

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
-using System.Windows.Forms; // AGREGADO PARA ALERTAS DE ERROR
+using System.Windows.Forms;
 using AorusMarket.Entidades;
 
 namespace AorusMarket.AccesoDatos
@@ -14,12 +14,42 @@ namespace AorusMarket.AccesoDatos
             Usuario obj = null;
             using (SqlConnection oConexion = Conexion.ObtenerConexion())
             {
-                string query = "SELECT id_usuario, nombre, apellido, email, id_perfil, id_sucursal FROM usuario WHERE email = @email AND password = @pass AND activo = 1";
+                string query = @"
+                    SELECT u.id_usuario, u.nombre, u.apellido, u.email, u.id_perfil, u.id_sucursal,
+                           ISNULL(p.nombre, '') AS NombrePerfil, ISNULL(s.nombre, '') AS NombreSucursal
+                    FROM usuario u
+                    LEFT JOIN perfil p ON u.id_perfil = p.id_perfil
+                    LEFT JOIN sucursal s ON u.id_sucursal = s.id_sucursal
+                    WHERE u.email = @email AND u.password = @pass AND u.activo = 1";
+
                 SqlCommand cmd = new SqlCommand(query, oConexion);
                 cmd.Parameters.AddWithValue("@email", email);
                 cmd.Parameters.AddWithValue("@pass", password);
-                try { oConexion.Open(); using (SqlDataReader dr = cmd.ExecuteReader()) { if (dr.Read()) { obj = new Usuario() { IdUsuario = Convert.ToInt32(dr["id_usuario"]), Nombre = dr["nombre"].ToString(), Apellido = dr["apellido"].ToString(), Email = dr["email"].ToString(), IdPerfil = Convert.ToInt32(dr["id_perfil"]), IdSucursal = Convert.ToInt32(dr["id_sucursal"]) }; } } }
-                catch (Exception ex) { MessageBox.Show("Error en Autenticar: " + ex.Message); }
+                try
+                {
+                    oConexion.Open();
+                    using (SqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        if (dr.Read())
+                        {
+                            obj = new Usuario()
+                            {
+                                IdUsuario = Convert.ToInt32(dr["id_usuario"]),
+                                Nombre = dr["nombre"].ToString(),
+                                Apellido = dr["apellido"].ToString(),
+                                Email = dr["email"].ToString(),
+                                IdPerfil = Convert.ToInt32(dr["id_perfil"]),
+                                IdSucursal = Convert.ToInt32(dr["id_sucursal"]),
+                                NombrePerfil = dr["NombrePerfil"].ToString(),
+                                NombreSucursal = dr["NombreSucursal"].ToString()
+                            };
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error en Autenticar: " + ex.Message);
+                }
             }
             return obj;
         }
@@ -30,7 +60,15 @@ namespace AorusMarket.AccesoDatos
             using (SqlConnection oConexion = Conexion.ObtenerConexion())
             {
                 SqlCommand cmd = new SqlCommand("SELECT id_perfil, nombre FROM perfil", oConexion);
-                try { oConexion.Open(); using (SqlDataReader dr = cmd.ExecuteReader()) { while (dr.Read()) lista.Add(new ComboUsuario() { Id = Convert.ToInt32(dr["id_perfil"]), Nombre = dr["nombre"].ToString() }); } }
+                try
+                {
+                    oConexion.Open();
+                    using (SqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                            lista.Add(new ComboUsuario() { Id = Convert.ToInt32(dr["id_perfil"]), Nombre = dr["nombre"].ToString() });
+                    }
+                }
                 catch { }
             }
             return lista;
@@ -42,7 +80,15 @@ namespace AorusMarket.AccesoDatos
             using (SqlConnection oConexion = Conexion.ObtenerConexion())
             {
                 SqlCommand cmd = new SqlCommand("SELECT id_sucursal, nombre FROM sucursal WHERE activo = 1", oConexion);
-                try { oConexion.Open(); using (SqlDataReader dr = cmd.ExecuteReader()) { while (dr.Read()) lista.Add(new ComboUsuario() { Id = Convert.ToInt32(dr["id_sucursal"]), Nombre = dr["nombre"].ToString() }); } }
+                try
+                {
+                    oConexion.Open();
+                    using (SqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                            lista.Add(new ComboUsuario() { Id = Convert.ToInt32(dr["id_sucursal"]), Nombre = dr["nombre"].ToString() });
+                    }
+                }
                 catch { }
             }
             return lista;

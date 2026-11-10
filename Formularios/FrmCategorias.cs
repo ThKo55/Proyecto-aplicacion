@@ -12,7 +12,7 @@ namespace AorusMarket.Formularios
     {
         private CyberTextBox txtNombre, txtDescripcion;
         private DataGridView dgvCategorias;
-        private CyberButton btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
+        private CyberButton btnGuardar, btnEliminar, btnLimpiar;
         private int idSeleccionado = 0;
 
         private CategoriaNegocio _categoriaNegocio = new CategoriaNegocio();
@@ -20,8 +20,7 @@ namespace AorusMarket.Formularios
         public FrmCategorias()
         {
             InitializeComponent();
-
-            // FONDO SOBRIO OSCURO
+            this.ClientSize = new Size(1100, 700);
             this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Gestión de Categorías";
             ConstruirInterfaz();
@@ -31,11 +30,9 @@ namespace AorusMarket.Formularios
         {
             this.Controls.Add(EstiloApp.CrearTitulo("CATEGORÍAS", new Point(30, 20)));
 
-            // Función local para crear labels con texto gris claro (sobrio)
             void AddLabelSobrio(string texto, Point ubicacion)
             {
                 Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
-                lbl.ForeColor = Color.LightGray;
                 this.Controls.Add(lbl);
             }
 
@@ -50,17 +47,14 @@ namespace AorusMarket.Formularios
             this.Controls.Add(txtDescripcion);
 
             y += 60;
-            btnNuevo = EstiloApp.CrearBoton("NUEVO", new Point(x, y), 150, EstiloApp.Gris);
-            btnGuardar = EstiloApp.CrearBoton("GUARDAR", new Point(x + 160, y), 150, EstiloApp.Verde);
-            btnEliminar = EstiloApp.CrearBoton("ELIMINAR", new Point(x + 320, y), 150, EstiloApp.RojoNeon);
-            btnLimpiar = EstiloApp.CrearBoton("LIMPIAR", new Point(x + 480, y), 150, EstiloApp.Gris);
+            btnGuardar = EstiloApp.CrearBoton("GUARDAR", new Point(x, y), 150, EstiloApp.Verde);
+            btnEliminar = EstiloApp.CrearBoton("ELIMINAR", new Point(x + 160, y), 150, EstiloApp.RojoNeon);
+            btnLimpiar = EstiloApp.CrearBoton("NUEVO / LIMPIAR", new Point(x + 320, y), 150, EstiloApp.Gris);
 
-            btnNuevo.Click += (s, e) => LimpiarCampos();
             btnLimpiar.Click += (s, e) => LimpiarCampos();
             btnGuardar.Click += BtnGuardar_Click;
             btnEliminar.Click += BtnEliminar_Click;
 
-            this.Controls.Add(btnNuevo);
             this.Controls.Add(btnGuardar);
             this.Controls.Add(btnEliminar);
             this.Controls.Add(btnLimpiar);
@@ -69,7 +63,7 @@ namespace AorusMarket.Formularios
             dgvCategorias = new DataGridView
             {
                 Location = new Point(x, y),
-                Size = new Size(740, this.ClientSize.Height - y - 30), // Corregido el error de sintaxis (- y - 30)
+                Size = new Size(this.ClientSize.Width - 60, this.ClientSize.Height - y - 30),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
 
@@ -80,50 +74,10 @@ namespace AorusMarket.Formularios
 
             dgvCategorias.SelectionChanged += DgvCategorias_SelectionChanged;
 
-            // APLICAMOS EL DISEÑO PREMIUM A LA GRILLA
-            AplicarDisenoSobrioGrid(dgvCategorias);
+            EstiloApp.EstilizarGrid(dgvCategorias);
             this.Controls.Add(dgvCategorias);
 
             CargarGrilla();
-        }
-
-        // --- MAGIA VISUAL: NUEVA GRILLA SOBRIA ---
-        private void AplicarDisenoSobrioGrid(DataGridView grid)
-        {
-            grid.EnableHeadersVisualStyles = false;
-            grid.BackgroundColor = Color.FromArgb(18, 18, 18);
-            grid.BorderStyle = BorderStyle.None;
-            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            grid.GridColor = Color.FromArgb(40, 40, 40);
-            grid.RowHeadersVisible = false;
-
-            DataGridViewCellStyle estiloCabecera = new DataGridViewCellStyle();
-            estiloCabecera.BackColor = Color.FromArgb(28, 28, 28);
-            estiloCabecera.ForeColor = Color.LightGray;
-            estiloCabecera.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            estiloCabecera.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            estiloCabecera.SelectionBackColor = Color.FromArgb(28, 28, 28);
-            grid.ColumnHeadersDefaultCellStyle = estiloCabecera;
-            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            grid.ColumnHeadersHeight = 40;
-
-            DataGridViewCellStyle estiloFila = new DataGridViewCellStyle();
-            estiloFila.BackColor = Color.FromArgb(18, 18, 18);
-            estiloFila.ForeColor = Color.WhiteSmoke;
-            estiloFila.Font = new Font("Segoe UI", 10F);
-            estiloFila.SelectionBackColor = Color.FromArgb(220, 53, 69); // Rojo Aorus
-            estiloFila.SelectionForeColor = Color.White;
-            grid.DefaultCellStyle = estiloFila;
-
-            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(22, 22, 22);
-            grid.RowTemplate.Height = 35;
-            grid.AllowUserToAddRows = false;
-            grid.AllowUserToDeleteRows = false;
-            grid.AllowUserToResizeColumns = false;
-            grid.AllowUserToResizeRows = false;
-            grid.ReadOnly = true;
-            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         }
 
         private void CargarGrilla()
@@ -149,19 +103,16 @@ namespace AorusMarket.Formularios
             var fila = dgvCategorias.CurrentRow;
             idSeleccionado = Convert.ToInt32(fila.Cells["IdCategoria"].Value ?? 0);
 
-            // CORRECCIÓN: Usamos .Text
-            txtNombre.Text = fila.Cells["Nombre"].Value?.ToString();
-            txtDescripcion.Text = fila.Cells["Descripcion"].Value?.ToString();
+            // CORRECCIÓN: Evita el bug del texto en el CyberTextBox
+            EstiloApp.EscribirTexto(txtNombre, fila.Cells["Nombre"].Value?.ToString());
+            EstiloApp.EscribirTexto(txtDescripcion, fila.Cells["Descripcion"].Value?.ToString());
         }
 
         private void LimpiarCampos()
         {
             idSeleccionado = 0;
-
-            // CORRECCIÓN: Usamos .Text
-            txtNombre.Text = "";
-            txtDescripcion.Text = "";
-
+            EstiloApp.EscribirTexto(txtNombre, "");
+            EstiloApp.EscribirTexto(txtDescripcion, "");
             dgvCategorias.ClearSelection();
         }
 
@@ -170,10 +121,8 @@ namespace AorusMarket.Formularios
             Categoria nuevaCategoria = new Categoria()
             {
                 IdCategoria = idSeleccionado,
-
-                // CORRECCIÓN: Leemos desde .Text
-                Nombre = txtNombre.Text,
-                Descripcion = txtDescripcion.Text
+                Nombre = EstiloApp.LeerTexto(txtNombre),
+                Descripcion = EstiloApp.LeerTexto(txtDescripcion)
             };
 
             string mensaje;

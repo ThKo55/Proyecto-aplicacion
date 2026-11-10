@@ -48,7 +48,8 @@ namespace AorusMarket.AccesoDatos
                            ss.cantidad, ss.precio, ss.id_producto, ss.id_sucursal
                     FROM stock_sucursal ss
                     INNER JOIN producto p ON ss.id_producto = p.id_producto
-                    INNER JOIN sucursal s ON ss.id_sucursal = s.id_sucursal";
+                    INNER JOIN sucursal s ON ss.id_sucursal = s.id_sucursal
+                    WHERE p.activo = 1 AND s.activo = 1";
 
                 SqlCommand cmd = new SqlCommand(query, oConexion);
                 try
@@ -165,29 +166,31 @@ namespace AorusMarket.AccesoDatos
             bool respuesta = false;
             using (SqlConnection oConexion = Conexion.ObtenerConexion())
             {
+                oConexion.Open();
+                SqlTransaction tx = oConexion.BeginTransaction();
                 try
                 {
-                    oConexion.Open();
                     string queryMov = "DELETE FROM movimiento_stock WHERE id_stock_sucursal = @id";
-                    SqlCommand cmdMov = new SqlCommand(queryMov, oConexion);
+                    SqlCommand cmdMov = new SqlCommand(queryMov, oConexion, tx);
                     cmdMov.Parameters.AddWithValue("@id", idStock);
                     cmdMov.ExecuteNonQuery();
 
                     string query = "DELETE FROM stock_sucursal WHERE id_stock_sucursal = @id";
-                    SqlCommand cmd = new SqlCommand(query, oConexion);
+                    SqlCommand cmd = new SqlCommand(query, oConexion, tx);
                     cmd.Parameters.AddWithValue("@id", idStock);
 
                     respuesta = cmd.ExecuteNonQuery() > 0;
+                    tx.Commit();
                 }
                 catch (Exception ex)
                 {
+                    tx.Rollback();
                     Console.WriteLine("Error al eliminar stock: " + ex.Message);
                 }
             }
             return respuesta;
         }
 
-        // NUEVO MÉTODO: Trae el historial de movimientos de stock
         public List<MovimientoStock> ListarMovimientos(DateTime desde, DateTime hasta)
         {
             List<MovimientoStock> lista = new List<MovimientoStock>();
@@ -236,62 +239,63 @@ namespace AorusMarket.AccesoDatos
             return lista;
         }
 
-
-
         public int ObtenerStock(int idProducto, int idSucursal)
         {
             int cantidad = 0;
             using (SqlConnection conexion = Conexion.ObtenerConexion())
             {
-                // Ahora filtramos estrictamente por la sucursal actual
                 string query = "SELECT ISNULL(cantidad, 0) FROM stock_sucursal WHERE id_producto = @idProducto AND id_sucursal = @idSucursal";
                 SqlCommand cmd = new SqlCommand(query, conexion);
                 cmd.Parameters.AddWithValue("@idProducto", idProducto);
-                cmd.Parameters.AddWithValue("@idSucursal", idSucursal); // Parámetro nuevo
+                cmd.Parameters.AddWithValue("@idSucursal", idSucursal);
 
-                conexion.Open();
-                object result = cmd.ExecuteScalar();
-                if (result != null)
+                try
                 {
-                    cantidad = Convert.ToInt32(result);
+                    conexion.Open();
+                    object result = cmd.ExecuteScalar();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        cantidad = Convert.ToInt32(result);
+                    }
                 }
+                catch { }
             }
             return cantidad;
         }
 
-
-
-        // 2. Método que trae el Producto con su StockActual y StockMinimo cruzando tablas
-        public Producto ObtenerProducto(int idProducto)
+        public Producto ObtenerProductoPorSucursal(int idProducto, int idSucursal)
         {
-            Producto p = new Producto();
+            Producto p = null;
             using (SqlConnection conexion = Conexion.ObtenerConexion())
             {
                 string query = @"
-                    SELECT p.id_producto, s.cantidad AS StockActual, s.stock_minimo AS StockMinimo
-                    FROM producto p
-                    INNER JOIN stock_sucursal s ON p.id_producto = s.id_producto
-                    WHERE p.id_producto = @idProducto";
+                    SELECT id_producto, ISNULL(cantidad, 0) AS StockActual
+                    FROM stock_sucursal
+                    WHERE id_producto = @idProducto AND id_sucursal = @idSucursal";
 
                 SqlCommand cmd = new SqlCommand(query, conexion);
                 cmd.Parameters.AddWithValue("@idProducto", idProducto);
+                cmd.Parameters.AddWithValue("@idSucursal", idSucursal);
 
-                conexion.Open();
-                using (SqlDataReader dr = cmd.ExecuteReader())
+                try
                 {
-                    if (dr.Read())
+                    conexion.Open();
+                    using (SqlDataReader dr = cmd.ExecuteReader())
                     {
-                        // Asegúrate de que las propiedades de Producto.cs coincidan con estos nombres
-                        p.StockActual = Convert.ToInt32(dr["StockActual"]);
-                        p.StockMinimo = Convert.ToInt32(dr["StockMinimo"]);
+                        if (dr.Read())
+                        {
+                            p = new Producto()
+                            {
+                                IdProducto = Convert.ToInt32(dr["id_producto"]),
+                                StockActual = Convert.ToInt32(dr["StockActual"]),
+                                StockMinimo = 5 // Umbral mínimo estándar alineado con FrmStock
+                            };
+                        }
                     }
                 }
+                catch { }
             }
             return p;
         }
-
-
-
-
     }
 }

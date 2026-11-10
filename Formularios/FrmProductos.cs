@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Linq;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
 using AorusMarket.Entidades;
@@ -10,10 +11,10 @@ namespace AorusMarket.Formularios
 {
     public partial class FrmProductos : Form
     {
-        private CyberTextBox txtNombre, txtDescripcion;
+        private CyberTextBox txtNombre, txtDescripcion, txtBuscar;
         private ComboBox cmbCategoria;
         private DataGridView dgvProductos;
-        private CyberButton btnNuevo, btnGuardar, btnEliminar, btnLimpiar;
+        private CyberButton btnGuardar, btnEliminar, btnLimpiar, btnBuscar;
         private int idSeleccionado = 0;
 
         private ProductoNegocio _productoNegocio = new ProductoNegocio();
@@ -22,8 +23,7 @@ namespace AorusMarket.Formularios
         public FrmProductos()
         {
             InitializeComponent();
-
-            // FONDO SOBRIO OSCURO
+            this.ClientSize = new Size(1100, 700);
             this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Gestión de Productos";
             ConstruirInterfaz();
@@ -33,13 +33,21 @@ namespace AorusMarket.Formularios
         {
             this.Controls.Add(EstiloApp.CrearTitulo("PRODUCTOS", new Point(30, 20)));
 
-            // Función local para crear labels con texto gris claro (sobrio)
             void AddLabelSobrio(string texto, Point ubicacion)
             {
                 Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
-                lbl.ForeColor = Color.LightGray;
                 this.Controls.Add(lbl);
             }
+
+            // NUEVO BUSCADOR DE PRODUCTOS
+            AddLabelSobrio("BUSCAR POR NOMBRE:", new Point(600, 20));
+            txtBuscar = EstiloApp.CrearTextBox(new Point(600, 40), 200);
+            txtBuscar.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) BtnBuscar_Click(s, e); };
+            this.Controls.Add(txtBuscar);
+
+            btnBuscar = EstiloApp.CrearBoton("BUSCAR", new Point(810, 30), 100, EstiloApp.Gris);
+            btnBuscar.Click += BtnBuscar_Click;
+            this.Controls.Add(btnBuscar);
 
             int x = 30, y = 90;
 
@@ -53,23 +61,18 @@ namespace AorusMarket.Formularios
 
             AddLabelSobrio("CATEGORÍA", new Point(x + 540, y));
             cmbCategoria = EstiloApp.CrearComboBox(new Point(x + 540, y + 20), 250);
-
             CargarComboCategorias();
-
             this.Controls.Add(cmbCategoria);
 
             y += 60;
-            btnNuevo = EstiloApp.CrearBoton("NUEVO", new Point(x, y), 150, EstiloApp.Gris);
-            btnGuardar = EstiloApp.CrearBoton("GUARDAR", new Point(x + 160, y), 150, EstiloApp.Verde);
-            btnEliminar = EstiloApp.CrearBoton("ELIMINAR", new Point(x + 320, y), 150, EstiloApp.RojoNeon);
-            btnLimpiar = EstiloApp.CrearBoton("LIMPIAR", new Point(x + 480, y), 150, EstiloApp.Gris);
+            btnGuardar = EstiloApp.CrearBoton("GUARDAR", new Point(x, y), 150, EstiloApp.Verde);
+            btnEliminar = EstiloApp.CrearBoton("ELIMINAR", new Point(x + 160, y), 150, EstiloApp.RojoNeon);
+            btnLimpiar = EstiloApp.CrearBoton("NUEVO / LIMPIAR", new Point(x + 320, y), 150, EstiloApp.Gris);
 
-            btnNuevo.Click += (s, e) => LimpiarCampos();
             btnLimpiar.Click += (s, e) => LimpiarCampos();
             btnGuardar.Click += BtnGuardar_Click;
             btnEliminar.Click += BtnEliminar_Click;
 
-            this.Controls.Add(btnNuevo);
             this.Controls.Add(btnGuardar);
             this.Controls.Add(btnEliminar);
             this.Controls.Add(btnLimpiar);
@@ -78,7 +81,7 @@ namespace AorusMarket.Formularios
             dgvProductos = new DataGridView
             {
                 Location = new Point(x, y),
-                Size = new Size(840, this.ClientSize.Height - y - 30), // Corregido el error de sintaxis acá
+                Size = new Size(this.ClientSize.Width - 60, this.ClientSize.Height - y - 30),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
 
@@ -86,57 +89,17 @@ namespace AorusMarket.Formularios
             dgvProductos.Columns.Add("Nombre", "Nombre");
             dgvProductos.Columns.Add("Descripcion", "Descripción");
             dgvProductos.Columns.Add("Categoria", "Categoría");
-
             dgvProductos.Columns.Add("IdCategoria", "IdCategoria");
+
             dgvProductos.Columns["IdCategoria"].Visible = false;
             dgvProductos.Columns["IdProducto"].Visible = false;
 
             dgvProductos.SelectionChanged += DgvProductos_SelectionChanged;
 
-            // APLICAMOS EL DISEÑO PREMIUM A LA GRILLA
-            AplicarDisenoSobrioGrid(dgvProductos);
+            EstiloApp.EstilizarGrid(dgvProductos);
             this.Controls.Add(dgvProductos);
 
             CargarGrilla();
-        }
-
-        // --- MAGIA VISUAL: NUEVA GRILLA SOBRIA ---
-        private void AplicarDisenoSobrioGrid(DataGridView grid)
-        {
-            grid.EnableHeadersVisualStyles = false;
-            grid.BackgroundColor = Color.FromArgb(18, 18, 18);
-            grid.BorderStyle = BorderStyle.None;
-            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            grid.GridColor = Color.FromArgb(40, 40, 40);
-            grid.RowHeadersVisible = false;
-
-            DataGridViewCellStyle estiloCabecera = new DataGridViewCellStyle();
-            estiloCabecera.BackColor = Color.FromArgb(28, 28, 28);
-            estiloCabecera.ForeColor = Color.LightGray;
-            estiloCabecera.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            estiloCabecera.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            estiloCabecera.SelectionBackColor = Color.FromArgb(28, 28, 28);
-            grid.ColumnHeadersDefaultCellStyle = estiloCabecera;
-            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            grid.ColumnHeadersHeight = 40;
-
-            DataGridViewCellStyle estiloFila = new DataGridViewCellStyle();
-            estiloFila.BackColor = Color.FromArgb(18, 18, 18);
-            estiloFila.ForeColor = Color.WhiteSmoke;
-            estiloFila.Font = new Font("Segoe UI", 10F);
-            estiloFila.SelectionBackColor = Color.FromArgb(220, 53, 69); // Rojo Aorus
-            estiloFila.SelectionForeColor = Color.White;
-            grid.DefaultCellStyle = estiloFila;
-
-            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(22, 22, 22);
-            grid.RowTemplate.Height = 35;
-            grid.AllowUserToAddRows = false;
-            grid.AllowUserToDeleteRows = false;
-            grid.AllowUserToResizeColumns = false;
-            grid.AllowUserToResizeRows = false;
-            grid.ReadOnly = true;
-            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         }
 
         private void CargarComboCategorias()
@@ -148,12 +111,17 @@ namespace AorusMarket.Formularios
             cmbCategoria.SelectedIndex = -1;
         }
 
-        private void CargarGrilla()
+        private void CargarGrilla(string filtro = "")
         {
             dgvProductos.SelectionChanged -= DgvProductos_SelectionChanged;
 
             dgvProductos.Rows.Clear();
             var listaProductos = _productoNegocio.Listar();
+
+            if (!string.IsNullOrEmpty(filtro))
+            {
+                listaProductos = listaProductos.Where(p => p.Nombre.ToLower().Contains(filtro.ToLower())).ToList();
+            }
 
             foreach (var item in listaProductos)
             {
@@ -164,6 +132,12 @@ namespace AorusMarket.Formularios
             dgvProductos.SelectionChanged += DgvProductos_SelectionChanged;
         }
 
+        private void BtnBuscar_Click(object sender, EventArgs e)
+        {
+            string filtro = EstiloApp.LeerTexto(txtBuscar);
+            CargarGrilla(filtro);
+        }
+
         private void DgvProductos_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvProductos.CurrentRow == null) return;
@@ -171,9 +145,8 @@ namespace AorusMarket.Formularios
 
             idSeleccionado = Convert.ToInt32(fila.Cells["IdProducto"].Value ?? 0);
 
-            // CORRECCIÓN: Ahora leemos y escribimos en la propiedad .Text
-            txtNombre.Text = fila.Cells["Nombre"].Value?.ToString();
-            txtDescripcion.Text = fila.Cells["Descripcion"].Value?.ToString();
+            EstiloApp.EscribirTexto(txtNombre, fila.Cells["Nombre"].Value?.ToString());
+            EstiloApp.EscribirTexto(txtDescripcion, fila.Cells["Descripcion"].Value?.ToString());
 
             cmbCategoria.SelectedValue = Convert.ToInt32(fila.Cells["IdCategoria"].Value ?? 0);
         }
@@ -181,13 +154,12 @@ namespace AorusMarket.Formularios
         private void LimpiarCampos()
         {
             idSeleccionado = 0;
-
-            // CORRECCIÓN: Limpiamos la propiedad .Text
-            txtNombre.Text = "";
-            txtDescripcion.Text = "";
-
+            EstiloApp.EscribirTexto(txtNombre, "");
+            EstiloApp.EscribirTexto(txtDescripcion, "");
+            EstiloApp.EscribirTexto(txtBuscar, "");
             cmbCategoria.SelectedIndex = -1;
             dgvProductos.ClearSelection();
+            CargarGrilla();
         }
 
         private void BtnGuardar_Click(object sender, EventArgs e)
@@ -195,9 +167,8 @@ namespace AorusMarket.Formularios
             Producto nuevoProducto = new Producto()
             {
                 IdProducto = idSeleccionado,
-                // CORRECCIÓN: Leemos de la propiedad .Text para mandar a la base de datos
-                Nombre = txtNombre.Text,
-                Descripcion = txtDescripcion.Text,
+                Nombre = EstiloApp.LeerTexto(txtNombre),
+                Descripcion = EstiloApp.LeerTexto(txtDescripcion),
                 IdCategoria = cmbCategoria.SelectedValue != null ? Convert.ToInt32(cmbCategoria.SelectedValue) : 0
             };
 
@@ -208,7 +179,6 @@ namespace AorusMarket.Formularios
             {
                 MessageBox.Show("Producto guardado correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LimpiarCampos();
-                CargarGrilla();
             }
             else
             {
@@ -237,7 +207,6 @@ namespace AorusMarket.Formularios
                 {
                     MessageBox.Show("Producto eliminado.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     LimpiarCampos();
-                    CargarGrilla();
                 }
                 else
                 {

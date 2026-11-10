@@ -23,8 +23,7 @@ namespace AorusMarket.Formularios
         public FrmReportes()
         {
             InitializeComponent();
-
-            // FONDO SOBRIO OSCURO
+            this.ClientSize = new Size(1100, 700);
             this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Módulo de Reportes";
             ConstruirInterfaz();
@@ -34,17 +33,14 @@ namespace AorusMarket.Formularios
         {
             this.Controls.Add(EstiloApp.CrearTitulo("MÓDULO DE REPORTES Y ESTADÍSTICAS", new Point(30, 20)));
 
-            // Función local para crear labels con texto gris claro (sobrio)
             void AddLabelSobrio(string texto, Point ubicacion)
             {
                 Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
-                lbl.ForeColor = Color.LightGray;
                 this.Controls.Add(lbl);
             }
 
             int x = 30, y = 80;
 
-            // 1. Selector de Tipo de Reporte
             AddLabelSobrio("SELECCIONE EL REPORTE A VISUALIZAR:", new Point(x, y));
             cmbTipoReporte = new ComboBox
             {
@@ -63,7 +59,6 @@ namespace AorusMarket.Formularios
             cmbTipoReporte.SelectedIndex = 0;
             this.Controls.Add(cmbTipoReporte);
 
-            // 2. Filtros de Fecha
             AddLabelSobrio("DESDE:", new Point(x + 380, y));
             dtpDesde = new DateTimePicker
             {
@@ -86,19 +81,16 @@ namespace AorusMarket.Formularios
             };
             this.Controls.Add(dtpHasta);
 
-            // 3. Botón Generar Reporte (Tabla)
             btnGenerar = EstiloApp.CrearBoton("GENERAR TABLA", new Point(x + 690, y + 10), 160, EstiloApp.Verde);
             btnGenerar.Click += BtnGenerar_Click;
             this.Controls.Add(btnGenerar);
 
-            // 4. Botón Generar Gráfico en PDF
             btnGenerarGrafico = EstiloApp.CrearBoton("DESCARGAR GRÁFICO", new Point(x + 860, y + 10), 180, EstiloApp.Gris);
             btnGenerarGrafico.Click += BtnGenerarGrafico_Click;
             this.Controls.Add(btnGenerarGrafico);
 
             y += 70;
 
-            // 5. Grilla Dinámica
             dgvReporte = new DataGridView
             {
                 Location = new Point(x, y),
@@ -107,54 +99,20 @@ namespace AorusMarket.Formularios
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
             };
 
-            // APLICAMOS EL DISEÑO PREMIUM A LA GRILLA
-            AplicarDisenoSobrioGrid(dgvReporte);
+            EstiloApp.EstilizarGrid(dgvReporte);
             this.Controls.Add(dgvReporte);
-        }
-
-        // --- MAGIA VISUAL: NUEVA GRILLA SOBRIA ---
-        private void AplicarDisenoSobrioGrid(DataGridView grid)
-        {
-            grid.EnableHeadersVisualStyles = false;
-            grid.BackgroundColor = Color.FromArgb(18, 18, 18);
-            grid.BorderStyle = BorderStyle.None;
-            grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            grid.GridColor = Color.FromArgb(40, 40, 40);
-            grid.RowHeadersVisible = false;
-
-            DataGridViewCellStyle estiloCabecera = new DataGridViewCellStyle();
-            estiloCabecera.BackColor = Color.FromArgb(28, 28, 28);
-            estiloCabecera.ForeColor = Color.LightGray;
-            estiloCabecera.Font = new System.Drawing.Font("Segoe UI", 10F, FontStyle.Bold);
-            estiloCabecera.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            estiloCabecera.SelectionBackColor = Color.FromArgb(28, 28, 28);
-            grid.ColumnHeadersDefaultCellStyle = estiloCabecera;
-            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            grid.ColumnHeadersHeight = 40;
-
-            DataGridViewCellStyle estiloFila = new DataGridViewCellStyle();
-            estiloFila.BackColor = Color.FromArgb(18, 18, 18);
-            estiloFila.ForeColor = Color.WhiteSmoke;
-            estiloFila.Font = new System.Drawing.Font("Segoe UI", 10F);
-            estiloFila.SelectionBackColor = Color.FromArgb(220, 53, 69); // Rojo Aorus
-            estiloFila.SelectionForeColor = Color.White;
-            grid.DefaultCellStyle = estiloFila;
-
-            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(22, 22, 22);
-            grid.RowTemplate.Height = 35;
-            grid.AllowUserToAddRows = false;
-            grid.AllowUserToDeleteRows = false;
-            grid.AllowUserToResizeColumns = false;
-            grid.AllowUserToResizeRows = false;
-            grid.ReadOnly = true;
-            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         }
 
         private void BtnGenerar_Click(object sender, EventArgs e)
         {
             DateTime desde = dtpDesde.Value;
             DateTime hasta = dtpHasta.Value;
+
+            if (desde.Date > hasta.Date)
+            {
+                MessageBox.Show("La fecha 'Desde' no puede ser mayor que 'Hasta'.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
             dgvReporte.DataSource = null;
             dgvReporte.Columns.Clear();
@@ -213,7 +171,7 @@ namespace AorusMarket.Formularios
                 {
                     Chart graficoTemp = new Chart();
                     graficoTemp.Size = new Size(900, 500);
-                    graficoTemp.BackColor = Color.White; // Se mantiene blanco para que el PDF imprimible quede bien
+                    graficoTemp.BackColor = Color.White;
 
                     ChartArea area = new ChartArea();
                     area.AxisX.MajorGrid.LineColor = Color.LightGray;

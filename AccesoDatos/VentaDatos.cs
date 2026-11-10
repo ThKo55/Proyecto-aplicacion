@@ -8,7 +8,6 @@ namespace AorusMarket.AccesoDatos
 {
     public class VentaDatos
     {
-        // 1. Buscador de productos para el POS
         public List<BusquedaProducto> BuscarProducto(string texto, int idSucursal)
         {
             List<BusquedaProducto> lista = new List<BusquedaProducto>();
@@ -49,7 +48,6 @@ namespace AorusMarket.AccesoDatos
             return lista;
         }
 
-        // 2. Transacción de Venta
         public bool ConfirmarVenta(Venta objVenta)
         {
             bool respuesta = false;
@@ -72,6 +70,7 @@ namespace AorusMarket.AccesoDatos
                     cmdVenta.Parameters.AddWithValue("@sucursal", objVenta.IdSucursal);
 
                     int idVentaGenerado = Convert.ToInt32(cmdVenta.ExecuteScalar());
+                    objVenta.IdVenta = idVentaGenerado;
 
                     foreach (var item in objVenta.Detalles)
                     {
@@ -87,13 +86,15 @@ namespace AorusMarket.AccesoDatos
                         string queryStock = @"
                             UPDATE stock_sucursal SET cantidad = cantidad - @cant 
                             OUTPUT INSERTED.id_stock_sucursal
-                            WHERE id_producto = @idProd AND id_sucursal = @sucursal";
+                            WHERE id_producto = @idProd AND id_sucursal = @sucursal AND cantidad >= @cant";
                         SqlCommand cmdStock = new SqlCommand(queryStock, oConexion, transaccion);
                         cmdStock.Parameters.AddWithValue("@cant", item.Cantidad);
                         cmdStock.Parameters.AddWithValue("@idProd", item.IdProducto);
                         cmdStock.Parameters.AddWithValue("@sucursal", objVenta.IdSucursal);
 
-                        int idStockSucursal = Convert.ToInt32(cmdStock.ExecuteScalar());
+                        object resStock = cmdStock.ExecuteScalar();
+                        if (resStock == null) throw new Exception("Stock insuficiente durante la confirmación.");
+                        int idStockSucursal = Convert.ToInt32(resStock);
 
                         string queryAuditoria = "INSERT INTO movimiento_stock (id_stock_sucursal, cantidad_variacion, tipo_movimiento, id_usuario) VALUES (@idStock, @variacion, 'Venta', @usuario)";
                         SqlCommand cmdAuditoria = new SqlCommand(queryAuditoria, oConexion, transaccion);
@@ -116,7 +117,6 @@ namespace AorusMarket.AccesoDatos
             return respuesta;
         }
 
-        // 3. Traer Historial con filtros de Fecha y USUARIO (Vendedor)
         public List<VentaHistorial> ListarHistorial(DateTime fechaDesde, DateTime fechaHasta, int idUsuarioFiltro)
         {
             List<VentaHistorial> lista = new List<VentaHistorial>();
@@ -134,7 +134,6 @@ namespace AorusMarket.AccesoDatos
                     INNER JOIN usuario u ON v.id_usuario = u.id_usuario
                     WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta ";
 
-                // Si es mayor a 0, filtramos estrictamente por el cajero que inició sesión
                 if (idUsuarioFiltro > 0)
                 {
                     query += " AND v.id_usuario = @idUsr";
@@ -173,7 +172,6 @@ namespace AorusMarket.AccesoDatos
             return lista;
         }
 
-        // 4. NUEVO: Traer los productos vendidos de una venta seleccionada
         public List<DetalleHistorial> ObtenerDetallesDeVenta(int idVenta)
         {
             List<DetalleHistorial> lista = new List<DetalleHistorial>();
@@ -210,7 +208,6 @@ namespace AorusMarket.AccesoDatos
             return lista;
         }
 
-        // 5. Transacción de Anulación (Queda igual, funciona perfecto)
         public bool AnularVenta(int idVenta, int idUsuarioAuditoria)
         {
             bool respuesta = false;
