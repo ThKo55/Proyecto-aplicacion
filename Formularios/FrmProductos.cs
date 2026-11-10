@@ -11,7 +11,7 @@ namespace AorusMarket.Formularios
 {
     public partial class FrmProductos : Form
     {
-        private CyberTextBox txtNombre, txtDescripcion, txtBuscar;
+        private CyberTextBox txtCodigoBarras, txtNombre, txtMarca, txtDescripcion, txtUnidadMedida, txtBuscar;
         private ComboBox cmbCategoria;
         private DataGridView dgvProductos;
         private CyberButton btnGuardar, btnEliminar, btnLimpiar, btnBuscar;
@@ -39,7 +39,6 @@ namespace AorusMarket.Formularios
                 this.Controls.Add(lbl);
             }
 
-            // NUEVO BUSCADOR DE PRODUCTOS
             AddLabelSobrio("BUSCAR POR NOMBRE:", new Point(600, 20));
             txtBuscar = EstiloApp.CrearTextBox(new Point(600, 40), 200);
             txtBuscar.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) BtnBuscar_Click(s, e); };
@@ -51,18 +50,31 @@ namespace AorusMarket.Formularios
 
             int x = 30, y = 90;
 
-            AddLabelSobrio("NOMBRE", new Point(x, y));
-            txtNombre = EstiloApp.CrearTextBox(new Point(x, y + 20), 250);
+            AddLabelSobrio("CÓD. BARRAS", new Point(x, y));
+            txtCodigoBarras = EstiloApp.CrearTextBox(new Point(x, y + 20), 150);
+            this.Controls.Add(txtCodigoBarras);
+
+            AddLabelSobrio("NOMBRE", new Point(x + 170, y));
+            txtNombre = EstiloApp.CrearTextBox(new Point(x + 170, y + 20), 220);
             this.Controls.Add(txtNombre);
 
-            AddLabelSobrio("DESCRIPCIÓN", new Point(x + 270, y));
-            txtDescripcion = EstiloApp.CrearTextBox(new Point(x + 270, y + 20), 250);
-            this.Controls.Add(txtDescripcion);
+            AddLabelSobrio("MARCA", new Point(x + 410, y));
+            txtMarca = EstiloApp.CrearTextBox(new Point(x + 410, y + 20), 150);
+            this.Controls.Add(txtMarca);
 
-            AddLabelSobrio("CATEGORÍA", new Point(x + 540, y));
-            cmbCategoria = EstiloApp.CrearComboBox(new Point(x + 540, y + 20), 250);
+            AddLabelSobrio("CATEGORÍA", new Point(x + 580, y));
+            cmbCategoria = EstiloApp.CrearComboBox(new Point(x + 580, y + 20), 200);
             CargarComboCategorias();
             this.Controls.Add(cmbCategoria);
+
+            y += 60;
+            AddLabelSobrio("DESCRIPCIÓN", new Point(x, y));
+            txtDescripcion = EstiloApp.CrearTextBox(new Point(x, y + 20), 400);
+            this.Controls.Add(txtDescripcion);
+
+            AddLabelSobrio("UNIDAD MEDIDA", new Point(x + 420, y));
+            txtUnidadMedida = EstiloApp.CrearTextBox(new Point(x + 420, y + 20), 150);
+            this.Controls.Add(txtUnidadMedida);
 
             y += 60;
             btnGuardar = EstiloApp.CrearBoton("GUARDAR", new Point(x, y), 150, EstiloApp.Verde);
@@ -86,8 +98,11 @@ namespace AorusMarket.Formularios
             };
 
             dgvProductos.Columns.Add("IdProducto", "Id");
+            dgvProductos.Columns.Add("CodigoBarras", "Cód. Barras");
             dgvProductos.Columns.Add("Nombre", "Nombre");
+            dgvProductos.Columns.Add("Marca", "Marca");
             dgvProductos.Columns.Add("Descripcion", "Descripción");
+            dgvProductos.Columns.Add("UnidadMedida", "U. Medida");
             dgvProductos.Columns.Add("Categoria", "Categoría");
             dgvProductos.Columns.Add("IdCategoria", "IdCategoria");
 
@@ -114,28 +129,23 @@ namespace AorusMarket.Formularios
         private void CargarGrilla(string filtro = "")
         {
             dgvProductos.SelectionChanged -= DgvProductos_SelectionChanged;
-
             dgvProductos.Rows.Clear();
-            var listaProductos = _productoNegocio.Listar();
 
+            var listaProductos = _productoNegocio.Listar();
             if (!string.IsNullOrEmpty(filtro))
-            {
                 listaProductos = listaProductos.Where(p => p.Nombre.ToLower().Contains(filtro.ToLower())).ToList();
-            }
 
             foreach (var item in listaProductos)
             {
-                dgvProductos.Rows.Add(item.IdProducto, item.Nombre, item.Descripcion, item.NombreCategoria, item.IdCategoria);
+                dgvProductos.Rows.Add(item.IdProducto, item.CodigoBarras, item.Nombre, item.Marca, item.Descripcion, item.UnidadMedida, item.NombreCategoria, item.IdCategoria);
             }
             dgvProductos.ClearSelection();
-
             dgvProductos.SelectionChanged += DgvProductos_SelectionChanged;
         }
 
         private void BtnBuscar_Click(object sender, EventArgs e)
         {
-            string filtro = EstiloApp.LeerTexto(txtBuscar);
-            CargarGrilla(filtro);
+            CargarGrilla(EstiloApp.LeerTexto(txtBuscar));
         }
 
         private void DgvProductos_SelectionChanged(object sender, EventArgs e)
@@ -144,9 +154,11 @@ namespace AorusMarket.Formularios
             var fila = dgvProductos.CurrentRow;
 
             idSeleccionado = Convert.ToInt32(fila.Cells["IdProducto"].Value ?? 0);
-
+            EstiloApp.EscribirTexto(txtCodigoBarras, fila.Cells["CodigoBarras"].Value?.ToString());
             EstiloApp.EscribirTexto(txtNombre, fila.Cells["Nombre"].Value?.ToString());
+            EstiloApp.EscribirTexto(txtMarca, fila.Cells["Marca"].Value?.ToString());
             EstiloApp.EscribirTexto(txtDescripcion, fila.Cells["Descripcion"].Value?.ToString());
+            EstiloApp.EscribirTexto(txtUnidadMedida, fila.Cells["UnidadMedida"].Value?.ToString());
 
             cmbCategoria.SelectedValue = Convert.ToInt32(fila.Cells["IdCategoria"].Value ?? 0);
         }
@@ -154,8 +166,11 @@ namespace AorusMarket.Formularios
         private void LimpiarCampos()
         {
             idSeleccionado = 0;
+            EstiloApp.EscribirTexto(txtCodigoBarras, "");
             EstiloApp.EscribirTexto(txtNombre, "");
+            EstiloApp.EscribirTexto(txtMarca, "");
             EstiloApp.EscribirTexto(txtDescripcion, "");
+            EstiloApp.EscribirTexto(txtUnidadMedida, "");
             EstiloApp.EscribirTexto(txtBuscar, "");
             cmbCategoria.SelectedIndex = -1;
             dgvProductos.ClearSelection();
@@ -167,15 +182,15 @@ namespace AorusMarket.Formularios
             Producto nuevoProducto = new Producto()
             {
                 IdProducto = idSeleccionado,
+                CodigoBarras = EstiloApp.LeerTexto(txtCodigoBarras),
                 Nombre = EstiloApp.LeerTexto(txtNombre),
+                Marca = EstiloApp.LeerTexto(txtMarca),
                 Descripcion = EstiloApp.LeerTexto(txtDescripcion),
+                UnidadMedida = EstiloApp.LeerTexto(txtUnidadMedida),
                 IdCategoria = cmbCategoria.SelectedValue != null ? Convert.ToInt32(cmbCategoria.SelectedValue) : 0
             };
 
-            string mensaje;
-            bool resultado = _productoNegocio.Guardar(nuevoProducto, out mensaje);
-
-            if (resultado)
+            if (_productoNegocio.Guardar(nuevoProducto, out string mensaje))
             {
                 MessageBox.Show("Producto guardado correctamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LimpiarCampos();
@@ -188,22 +203,11 @@ namespace AorusMarket.Formularios
 
         private void BtnEliminar_Click(object sender, EventArgs e)
         {
-            if (idSeleccionado == 0)
+            if (idSeleccionado == 0) return;
+
+            if (MessageBox.Show("¿Seguro que desea eliminar este producto?", "Confirmar Eliminación", MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation) == DialogResult.Yes)
             {
-                MessageBox.Show("Seleccione un producto de la tabla", "Aviso",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            var resp = MessageBox.Show("¿Seguro que desea eliminar este producto?", "Confirmar Eliminación",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation);
-
-            if (resp == DialogResult.Yes)
-            {
-                string mensaje;
-                bool resultado = _productoNegocio.Eliminar(idSeleccionado, out mensaje);
-
-                if (resultado)
+                if (_productoNegocio.Eliminar(idSeleccionado, out string mensaje))
                 {
                     MessageBox.Show("Producto eliminado.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     LimpiarCampos();

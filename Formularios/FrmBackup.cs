@@ -1,9 +1,10 @@
-﻿using System;
-using System.Drawing;
-using System.IO;
+﻿using AorusMarket.Entidades;
+using AorusMarket.Negocio;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
-using AorusMarket.Negocio;
+using System;
+using System.Drawing;
+using System.IO;
 using WinForms = System.Windows.Forms;
 
 namespace AorusMarket.Formularios
@@ -270,11 +271,96 @@ namespace AorusMarket.Formularios
             }
         }
 
+        // ==============================================================
+        // MÉTODO DE VALIDACIÓN CRUZADA (MODAL)
+        // ==============================================================
+        private bool SolicitarAutorizacionCruzada()
+        {
+            bool autorizado = false;
+
+            using (WinForms.Form frmAuth = new WinForms.Form())
+            {
+                frmAuth.Text = "Autorización de Gerencia Requerida";
+                frmAuth.Size = new Size(420, 240);
+                frmAuth.StartPosition = WinForms.FormStartPosition.CenterParent;
+                frmAuth.FormBorderStyle = WinForms.FormBorderStyle.FixedDialog;
+                frmAuth.MaximizeBox = false;
+                frmAuth.MinimizeBox = false;
+                frmAuth.BackColor = Color.FromArgb(18, 18, 18);
+
+                WinForms.Label lblInfo = new WinForms.Label()
+                {
+                    Text = "CONTROL CRUZADO: Un administrador distinto\ndebe autorizar la restauración de la base de datos.",
+                    ForeColor = Color.WhiteSmoke,
+                    Location = new Point(20, 20),
+                    AutoSize = true,
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                };
+
+                WinForms.Label lblEmail = new WinForms.Label() { Text = "Email del Admin:", ForeColor = Color.LightGray, Location = new Point(20, 70), AutoSize = true };
+                WinForms.TextBox txtEmail = new WinForms.TextBox() { Location = new Point(140, 67), Width = 230, BackColor = Color.FromArgb(28, 28, 28), ForeColor = Color.White, BorderStyle = WinForms.BorderStyle.FixedSingle };
+
+                WinForms.Label lblPass = new WinForms.Label() { Text = "Contraseña:", ForeColor = Color.LightGray, Location = new Point(20, 110), AutoSize = true };
+                WinForms.TextBox txtPass = new WinForms.TextBox() { Location = new Point(140, 107), Width = 230, BackColor = Color.FromArgb(28, 28, 28), ForeColor = Color.White, PasswordChar = '●', BorderStyle = WinForms.BorderStyle.FixedSingle };
+
+                WinForms.Button btnConfirmar = new WinForms.Button() { Text = "AUTORIZAR", Location = new Point(140, 150), Width = 110, BackColor = EstiloApp.RojoNeon, ForeColor = Color.White, FlatStyle = WinForms.FlatStyle.Flat };
+                WinForms.Button btnCancelar = new WinForms.Button() { Text = "CANCELAR", Location = new Point(260, 150), Width = 110, BackColor = EstiloApp.Gris, ForeColor = Color.White, FlatStyle = WinForms.FlatStyle.Flat };
+
+                btnConfirmar.FlatAppearance.BorderSize = 0;
+                btnCancelar.FlatAppearance.BorderSize = 0;
+
+                btnConfirmar.Click += (s, e) =>
+                {
+                    UsuarioNegocio un = new UsuarioNegocio();
+                    string msjError;
+
+                    Usuario adminAuth = un.Login(txtEmail.Text, txtPass.Text, out msjError);
+
+                    if (adminAuth != null)
+                    {
+                        if (adminAuth.IdPerfil != 1)
+                        {
+                            WinForms.MessageBox.Show("Permiso denegado. El usuario ingresado debe tener perfil de Administrador.", "Acceso Denegado", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
+                        }
+                        else if (adminAuth.IdUsuario == SesionActual.IdUsuario)
+                        {
+                            WinForms.MessageBox.Show("Control Cruzado: El aprobador no puede ser el mismo usuario que está solicitando la restauración.", "Violación de Seguridad", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Stop);
+                        }
+                        else
+                        {
+                            autorizado = true;
+                            frmAuth.Close();
+                        }
+                    }
+                    else
+                    {
+                        WinForms.MessageBox.Show(msjError, "Error de credenciales", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
+                    }
+                };
+
+                btnCancelar.Click += (s, e) => frmAuth.Close();
+
+                frmAuth.Controls.Add(lblInfo);
+                frmAuth.Controls.Add(lblEmail);
+                frmAuth.Controls.Add(txtEmail);
+                frmAuth.Controls.Add(lblPass);
+                frmAuth.Controls.Add(txtPass);
+                frmAuth.Controls.Add(btnConfirmar);
+                frmAuth.Controls.Add(btnCancelar);
+
+                frmAuth.ShowDialog();
+            }
+            return autorizado;
+        }
+
+        // ==============================================================
+        // EJECUCIÓN DE RESTAURACIÓN CON VALIDACIÓN PREVIA
+        // ==============================================================
         private void BtnRestaurarBackup_Click(object sender, EventArgs e)
         {
             if (dgvBackupsLocales.CurrentRow == null)
             {
-                WinForms.MessageBox.Show("Seleccione un archivo de respaldo de la tabla para restaurar.", "Aviso", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
+                WinForms.MessageBox.Show("Seleccione un archivo de respaldo local de la tabla para restaurar.", "Aviso", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
                 return;
             }
 
@@ -298,6 +384,13 @@ namespace AorusMarket.Formularios
 
             if (confirmacionFinal == WinForms.DialogResult.Yes)
             {
+                // Validación Modal de Control Cruzado
+                if (!SolicitarAutorizacionCruzada())
+                {
+                    WinForms.MessageBox.Show("Restauración cancelada. No se obtuvo la autorización cruzada de seguridad.", "Operación Abortada", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
+                    return;
+                }
+
                 string mensaje;
                 bool restaurado = _backupNegocio.RestaurarBaseDatos(archivoSeleccionado, out mensaje);
 

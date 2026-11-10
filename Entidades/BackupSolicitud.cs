@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AorusMarket.Entidades
 {
@@ -10,10 +6,11 @@ namespace AorusMarket.Entidades
     {
         public int Id { get; set; }
         public int SolicitanteId { get; set; }
+        public string SolicitanteNombre { get; set; } // Agregado para la grilla
         public int? AprobadorId { get; set; }
-        public string Estado { get; set; } // "Pendiente", "Aprobado", "Completado"
+        public string Estado { get; set; }
         public DateTime FechaSolicitud { get; set; }
-        public DateTime FechaProgramada { get; set; } // La fecha/hora que el usuario eligió
+        public DateTime FechaProgramada { get; set; }
         public string RutaArchivo { get; set; }
     }
 }

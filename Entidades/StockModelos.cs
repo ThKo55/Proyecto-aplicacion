@@ -9,6 +9,7 @@ namespace AorusMarket.Entidades
         public int IdSucursal { get; set; }
         public int Cantidad { get; set; }
         public decimal Precio { get; set; }
+        public int StockMinimo { get; set; }
 
         public string Producto { get; set; }
         public string Sucursal { get; set; }
@@ -20,7 +21,6 @@ namespace AorusMarket.Entidades
         public string Nombre { get; set; }
     }
 
-    // NUEVO MOLDE: Para la pantalla de Auditoría
     public class MovimientoStock
     {
         public int IdMovimiento { get; set; }

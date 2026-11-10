@@ -21,19 +21,10 @@ namespace AorusMarket.AccesoDatos
                     using (SqlDataReader dr = cmd.ExecuteReader())
                     {
                         while (dr.Read())
-                        {
-                            lista.Add(new ComboBasico()
-                            {
-                                Id = Convert.ToInt32(dr[campoId]),
-                                Nombre = dr[campoNombre].ToString()
-                            });
-                        }
+                            lista.Add(new ComboBasico() { Id = Convert.ToInt32(dr[campoId]), Nombre = dr[campoNombre].ToString() });
                     }
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error al cargar combo {tabla}: " + ex.Message);
-                }
+                catch { }
             }
             return lista;
         }
@@ -45,7 +36,7 @@ namespace AorusMarket.AccesoDatos
             {
                 string query = @"
                     SELECT ss.id_stock_sucursal, p.nombre AS producto, s.nombre AS sucursal, 
-                           ss.cantidad, ss.precio, ss.id_producto, ss.id_sucursal
+                           ss.cantidad, ss.precio, ss.stock_minimo, ss.id_producto, ss.id_sucursal
                     FROM stock_sucursal ss
                     INNER JOIN producto p ON ss.id_producto = p.id_producto
                     INNER JOIN sucursal s ON ss.id_sucursal = s.id_sucursal
@@ -66,16 +57,14 @@ namespace AorusMarket.AccesoDatos
                                 Sucursal = dr["sucursal"].ToString(),
                                 Cantidad = Convert.ToInt32(dr["cantidad"]),
                                 Precio = Convert.ToDecimal(dr["precio"]),
+                                StockMinimo = Convert.ToInt32(dr["stock_minimo"]),
                                 IdProducto = Convert.ToInt32(dr["id_producto"]),
                                 IdSucursal = Convert.ToInt32(dr["id_sucursal"])
                             });
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("Error al listar stock: " + ex.Message);
-                }
+                catch { }
             }
             return lista;
         }
@@ -111,10 +100,11 @@ namespace AorusMarket.AccesoDatos
 
                     if (idStockExistente > 0)
                     {
-                        string updateQuery = "UPDATE stock_sucursal SET cantidad = @cant, precio = @prec WHERE id_stock_sucursal = @idStock";
+                        string updateQuery = "UPDATE stock_sucursal SET cantidad = @cant, precio = @prec, stock_minimo = @min WHERE id_stock_sucursal = @idStock";
                         SqlCommand cmdUpdate = new SqlCommand(updateQuery, oConexion, transaccion);
                         cmdUpdate.Parameters.AddWithValue("@cant", obj.Cantidad);
                         cmdUpdate.Parameters.AddWithValue("@prec", obj.Precio);
+                        cmdUpdate.Parameters.AddWithValue("@min", obj.StockMinimo);
                         cmdUpdate.Parameters.AddWithValue("@idStock", idStockExistente);
                         cmdUpdate.ExecuteNonQuery();
 
@@ -124,14 +114,15 @@ namespace AorusMarket.AccesoDatos
                     else
                     {
                         string insertQuery = @"
-                            INSERT INTO stock_sucursal (id_producto, id_sucursal, cantidad, precio) 
+                            INSERT INTO stock_sucursal (id_producto, id_sucursal, cantidad, precio, stock_minimo) 
                             OUTPUT INSERTED.id_stock_sucursal
-                            VALUES (@idProd, @idSuc, @cant, @prec)";
+                            VALUES (@idProd, @idSuc, @cant, @prec, @min)";
                         SqlCommand cmdInsert = new SqlCommand(insertQuery, oConexion, transaccion);
                         cmdInsert.Parameters.AddWithValue("@idProd", obj.IdProducto);
                         cmdInsert.Parameters.AddWithValue("@idSuc", obj.IdSucursal);
                         cmdInsert.Parameters.AddWithValue("@cant", obj.Cantidad);
                         cmdInsert.Parameters.AddWithValue("@prec", obj.Precio);
+                        cmdInsert.Parameters.AddWithValue("@min", obj.StockMinimo);
 
                         idStockAfectado = Convert.ToInt32(cmdInsert.ExecuteScalar());
                         variacion = obj.Cantidad;
@@ -152,43 +143,26 @@ namespace AorusMarket.AccesoDatos
                     transaccion.Commit();
                     respuesta = true;
                 }
-                catch (Exception ex)
-                {
-                    transaccion.Rollback();
-                    Console.WriteLine("Error al guardar stock: " + ex.Message);
-                }
+                catch { transaccion.Rollback(); }
             }
             return respuesta;
         }
 
         public bool Eliminar(int idStock)
         {
-            bool respuesta = false;
             using (SqlConnection oConexion = Conexion.ObtenerConexion())
             {
                 oConexion.Open();
                 SqlTransaction tx = oConexion.BeginTransaction();
                 try
                 {
-                    string queryMov = "DELETE FROM movimiento_stock WHERE id_stock_sucursal = @id";
-                    SqlCommand cmdMov = new SqlCommand(queryMov, oConexion, tx);
-                    cmdMov.Parameters.AddWithValue("@id", idStock);
-                    cmdMov.ExecuteNonQuery();
-
-                    string query = "DELETE FROM stock_sucursal WHERE id_stock_sucursal = @id";
-                    SqlCommand cmd = new SqlCommand(query, oConexion, tx);
-                    cmd.Parameters.AddWithValue("@id", idStock);
-
-                    respuesta = cmd.ExecuteNonQuery() > 0;
+                    new SqlCommand("DELETE FROM movimiento_stock WHERE id_stock_sucursal = " + idStock, oConexion, tx).ExecuteNonQuery();
+                    bool resp = new SqlCommand("DELETE FROM stock_sucursal WHERE id_stock_sucursal = " + idStock, oConexion, tx).ExecuteNonQuery() > 0;
                     tx.Commit();
+                    return resp;
                 }
-                catch (Exception ex)
-                {
-                    tx.Rollback();
-                    Console.WriteLine("Error al eliminar stock: " + ex.Message);
-                }
+                catch { tx.Rollback(); return false; }
             }
-            return respuesta;
         }
 
         public List<MovimientoStock> ListarMovimientos(DateTime desde, DateTime hasta)
@@ -210,7 +184,6 @@ namespace AorusMarket.AccesoDatos
                 SqlCommand cmd = new SqlCommand(query, oConexion);
                 cmd.Parameters.AddWithValue("@desde", desde.Date);
                 cmd.Parameters.AddWithValue("@hasta", hasta.Date);
-
                 try
                 {
                     oConexion.Open();
@@ -231,10 +204,7 @@ namespace AorusMarket.AccesoDatos
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("Error al listar movimientos: " + ex.Message);
-                }
+                catch { }
             }
             return lista;
         }
@@ -248,17 +218,7 @@ namespace AorusMarket.AccesoDatos
                 SqlCommand cmd = new SqlCommand(query, conexion);
                 cmd.Parameters.AddWithValue("@idProducto", idProducto);
                 cmd.Parameters.AddWithValue("@idSucursal", idSucursal);
-
-                try
-                {
-                    conexion.Open();
-                    object result = cmd.ExecuteScalar();
-                    if (result != null && result != DBNull.Value)
-                    {
-                        cantidad = Convert.ToInt32(result);
-                    }
-                }
-                catch { }
+                try { conexion.Open(); object res = cmd.ExecuteScalar(); if (res != null) cantidad = Convert.ToInt32(res); } catch { }
             }
             return cantidad;
         }
@@ -269,7 +229,7 @@ namespace AorusMarket.AccesoDatos
             using (SqlConnection conexion = Conexion.ObtenerConexion())
             {
                 string query = @"
-                    SELECT id_producto, ISNULL(cantidad, 0) AS StockActual
+                    SELECT id_producto, ISNULL(cantidad, 0) AS StockActual, ISNULL(stock_minimo, 10) AS StockMinimo
                     FROM stock_sucursal
                     WHERE id_producto = @idProducto AND id_sucursal = @idSucursal";
 
@@ -288,7 +248,7 @@ namespace AorusMarket.AccesoDatos
                             {
                                 IdProducto = Convert.ToInt32(dr["id_producto"]),
                                 StockActual = Convert.ToInt32(dr["StockActual"]),
-                                StockMinimo = 5 // Umbral mínimo estándar alineado con FrmStock
+                                StockMinimo = Convert.ToInt32(dr["StockMinimo"])
                             };
                         }
                     }
