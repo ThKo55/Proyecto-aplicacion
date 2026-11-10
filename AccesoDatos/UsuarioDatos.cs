@@ -213,14 +213,9 @@ namespace AorusMarket.AccesoDatos
                 SqlTransaction tx = oConexion.BeginTransaction();
                 try
                 {
-                    string qDir = "UPDATE direccion SET calle = @calle, altura = @altura WHERE id_direccion = @idDir";
-                    SqlCommand cmdDir = new SqlCommand(qDir, oConexion, tx);
-                    cmdDir.Parameters.AddWithValue("@calle", obj.Calle ?? "");
-                    cmdDir.Parameters.AddWithValue("@altura", obj.Altura ?? "");
-                    cmdDir.Parameters.AddWithValue("@idDir", obj.IdDireccion);
-                    cmdDir.ExecuteNonQuery();
+                    int idDir = DireccionHelper.GuardarDireccion(oConexion, tx, obj.IdDireccion, obj.Calle, obj.Altura);
 
-                    string qUsr = "UPDATE usuario SET dni = @dni, nombre = @nom, apellido = @ape, email = @email, telefono = @tel, fecha_nacimiento = @fec, id_perfil = @perfil, id_sucursal = @sucursal ";
+                    string qUsr = "UPDATE usuario SET dni = @dni, nombre = @nom, apellido = @ape, email = @email, telefono = @tel, fecha_nacimiento = @fec, id_perfil = @perfil, id_sucursal = @sucursal, id_direccion = @iddir ";
                     if (!string.IsNullOrEmpty(obj.Password)) qUsr += ", password = @pass ";
                     qUsr += "WHERE id_usuario = @id";
 
@@ -233,6 +228,7 @@ namespace AorusMarket.AccesoDatos
                     cmdUsr.Parameters.AddWithValue("@fec", obj.FechaNacimiento.HasValue ? (object)obj.FechaNacimiento.Value : DBNull.Value);
                     cmdUsr.Parameters.AddWithValue("@perfil", obj.IdPerfil);
                     cmdUsr.Parameters.AddWithValue("@sucursal", obj.IdSucursal);
+                    cmdUsr.Parameters.AddWithValue("@iddir", idDir);
                     cmdUsr.Parameters.AddWithValue("@id", obj.IdUsuario);
                     if (!string.IsNullOrEmpty(obj.Password)) cmdUsr.Parameters.AddWithValue("@pass", obj.Password);
 

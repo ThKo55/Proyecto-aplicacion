@@ -61,5 +61,60 @@ namespace AorusMarket.AccesoDatos
             if (string.IsNullOrEmpty(texto)) return null;
             return texto.Length <= max ? texto : texto.Substring(0, max);
         }
+
+
+        public DataTable ListarUnificada(DateTime desde, DateTime hasta, string entidad)
+        {
+            DataTable tabla = new DataTable();
+            string sql = @"
+        SELECT * FROM (
+            SELECT fecha AS Fecha,
+                   ISNULL(usuario, 'Sistema') COLLATE DATABASE_DEFAULT AS Usuario,
+                   entidad COLLATE DATABASE_DEFAULT AS Entidad,
+                   accion COLLATE DATABASE_DEFAULT AS Accion,
+                   ISNULL(detalle, '') COLLATE DATABASE_DEFAULT AS Detalle
+            FROM auditoria_acciones
+
+            UNION ALL
+
+            SELECT m.fecha AS Fecha,
+                   ISNULL(u.nombre + ' ' + u.apellido, 'Sistema') COLLATE DATABASE_DEFAULT AS Usuario,
+                   CAST('Stock' AS varchar(100)) COLLATE DATABASE_DEFAULT AS Entidad,
+                   CAST('Movimiento: ' + m.tipo_movimiento AS varchar(255)) COLLATE DATABASE_DEFAULT AS Accion,
+                   CAST((CASE WHEN m.cantidad_variacion > 0 THEN '+' ELSE '' END) + 
+                   CAST(m.cantidad_variacion AS varchar(50)) + ' unid. | ' + 
+                   ISNULL(p.nombre, 'Prod. Eliminado') + ' | ' + ISNULL(s.nombre, 'Suc. Eliminada') AS varchar(MAX)) COLLATE DATABASE_DEFAULT AS Detalle
+            FROM movimiento_stock m
+            INNER JOIN stock_sucursal ss ON m.id_stock_sucursal = ss.id_stock_sucursal
+            LEFT JOIN producto p ON ss.id_producto = p.id_producto
+            LEFT JOIN sucursal s ON ss.id_sucursal = s.id_sucursal
+            LEFT JOIN usuario u ON m.id_usuario = u.id_usuario
+        ) AS Unificada
+        WHERE Fecha >= @desde AND Fecha < @hasta ";
+
+            if (!string.IsNullOrEmpty(entidad) && entidad != "(Todas)")
+                sql += " AND Entidad = @entidad";
+
+            sql += " ORDER BY Fecha DESC";
+
+            using (SqlConnection cn = Conexion.ObtenerConexion())
+            using (SqlCommand cmd = new SqlCommand(sql, cn))
+            {
+                cmd.Parameters.AddWithValue("@desde", desde.Date);
+                cmd.Parameters.AddWithValue("@hasta", hasta.Date.AddDays(1));
+                if (!string.IsNullOrEmpty(entidad) && entidad != "(Todas)")
+                    cmd.Parameters.AddWithValue("@entidad", entidad);
+
+                using (SqlDataAdapter da = new SqlDataAdapter(cmd))
+                {
+                    da.Fill(tabla);
+                }
+            }
+            return tabla;
+        }
+
+
+
+
     }
 }

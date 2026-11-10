@@ -59,13 +59,12 @@ namespace AorusMarket.Negocio
             if (obj.IdPerfil <= 0) { mensaje = "Debe seleccionar un Perfil válido."; return false; }
             if (obj.IdSucursal <= 0) { mensaje = "Debe seleccionar una Sucursal válida."; return false; }
 
-            // Validación de Edad razonable
             if (obj.FechaNacimiento.HasValue)
             {
-                int edad = DateTime.Now.Year - obj.FechaNacimiento.Value.Year;
+                int edad = Validaciones.CalcularEdad(obj.FechaNacimiento.Value);
                 if (edad < 18 || edad > 100)
                 {
-                    mensaje = "El usuario debe ser mayor de edad y tener una fecha de nacimiento válida.";
+                    mensaje = "El usuario debe ser mayor de edad (18+) y tener una fecha de nacimiento válida.";
                     return false;
                 }
             }
@@ -79,8 +78,9 @@ namespace AorusMarket.Negocio
 
             if (obj.IdUsuario == 0)
             {
-                if (string.IsNullOrWhiteSpace(obj.Password) || obj.Password.Length < 4)
-                { mensaje = "La Contraseña es obligatoria para nuevos usuarios (mínimo 4 caracteres)."; return false; }
+                string msjPass;
+                if (!Validaciones.PasswordValida(obj.Password, out msjPass))
+                { mensaje = msjPass; return false; }
 
                 obj.Password = BCrypt.Net.BCrypt.HashPassword(obj.Password);
                 bool ok = _usuarioDatos.Insertar(obj);
@@ -91,14 +91,22 @@ namespace AorusMarket.Negocio
             }
             else
             {
+                // No se puede quitar el perfil Administrador al último administrador activo
+                Usuario actual = listaExistente.FirstOrDefault(u => u.IdUsuario == obj.IdUsuario);
+                if (actual != null && actual.IdPerfil == 1 && obj.IdPerfil != 1
+                    && listaExistente.Count(u => u.IdPerfil == 1) <= 1)
+                {
+                    mensaje = "No se puede cambiar el perfil del único Administrador del sistema.";
+                    return false;
+                }
+
                 bool cambioClave = !string.IsNullOrWhiteSpace(obj.Password);
                 if (cambioClave)
                 {
-                    if (obj.Password.Length < 4)
-                    {
-                        mensaje = "La nueva contraseña debe tener al menos 4 caracteres.";
-                        return false;
-                    }
+                    string msjPass;
+                    if (!Validaciones.PasswordValida(obj.Password, out msjPass))
+                    { mensaje = msjPass; return false; }
+
                     obj.Password = BCrypt.Net.BCrypt.HashPassword(obj.Password);
                 }
 
@@ -118,6 +126,14 @@ namespace AorusMarket.Negocio
             if (id == SesionActual.IdUsuario)
             {
                 mensaje = "No puede eliminar su propio usuario mientras tiene la sesión iniciada.";
+                return false;
+            }
+
+            var usuarios = _usuarioDatos.Listar();
+            Usuario objetivo = usuarios.FirstOrDefault(u => u.IdUsuario == id);
+            if (objetivo != null && objetivo.IdPerfil == 1 && usuarios.Count(u => u.IdPerfil == 1) <= 1)
+            {
+                mensaje = "No se puede eliminar al único Administrador del sistema.";
                 return false;
             }
 

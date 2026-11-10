@@ -1,8 +1,9 @@
-﻿using System;
+﻿using AorusMarket.AccesoDatos;
+using AorusMarket.Entidades;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using AorusMarket.AccesoDatos;
-using AorusMarket.Entidades;
+using System.Text.RegularExpressions;
 
 namespace AorusMarket.Negocio
 {
@@ -37,6 +38,23 @@ namespace AorusMarket.Negocio
                 mensaje = "Ya existe un producto registrado con ese nombre.";
                 return false;
             }
+
+            string codigo = obj.CodigoBarras == null ? null : obj.CodigoBarras.Trim();
+            if (!string.IsNullOrEmpty(codigo))
+            {
+                if (!Regex.IsMatch(codigo, @"^\d{8,14}$"))
+                {
+                    mensaje = "El código de barras debe tener entre 8 y 14 números.";
+                    return false;
+                }
+                if (_productoDatos.ExisteCodigoBarras(codigo, obj.IdProducto))
+                {
+                    mensaje = "Ya existe un producto (activo o dado de baja) con ese código de barras.";
+                    return false;
+                }
+            }
+            obj.CodigoBarras = codigo;
+
 
             bool nuevo = obj.IdProducto == 0;
             bool resultado = nuevo ? _productoDatos.Insertar(obj) : _productoDatos.Editar(obj);

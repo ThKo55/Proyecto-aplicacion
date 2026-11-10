@@ -1,42 +1,46 @@
-﻿using System;
-using System.Threading.Tasks;
-using AorusMarket.Entidades;
+﻿using AorusMarket.Entidades;
 using AorusMarket.Negocio;
+using System;
+using System.IO;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace AorusMarket.Utilidades
 {
     public static class BackupScheduler
     {
-        private static System.Windows.Forms.Timer _timer;
+        private static Timer _timer;
         private static readonly BackupNegocio _negocio = new BackupNegocio();
         private static ConfigBackup _config;
         private static bool _ejecutando;
-        private static DateTime _ultimoIntento = DateTime.MinValue;
+        private static string _ultimoMinutoEjecutado = "";
 
         public static void Iniciar()
         {
             Detener();
-
-            // Solo desde equipos de Administrador o Gerente (evita backups duplicados desde cajas)
-            if (SesionActual.IdPerfil != 1 && SesionActual.IdPerfil != 4) return;
-
             RecargarConfig();
-            _timer = new System.Windows.Forms.Timer { Interval = 30000 };
+
+            _timer = new Timer { Interval = 10000 }; // Revisa cada 10 segundos
             _timer.Tick += Timer_Tick;
             _timer.Start();
         }
 
         public static void Detener()
         {
-            if (_timer == null) return;
-            _timer.Stop();
-            _timer.Dispose();
-            _timer = null;
+            if (_timer != null)
+            {
+                _timer.Stop();
+                _timer.Dispose();
+                _timer = null;
+            }
         }
 
         public static void RecargarConfig()
         {
-            try { _config = _negocio.ObtenerConfig(); }
+            try
+            {
+                _config = _negocio.ObtenerConfig();
+            }
             catch { }
         }
 
@@ -44,37 +48,57 @@ namespace AorusMarket.Utilidades
         {
             if (_ejecutando || _config == null || !_config.Activo) return;
 
-            TimeSpan hora;
-            if (!TimeSpan.TryParse(_config.HoraProgramada, out hora)) return;
+            if (!TimeSpan.TryParse(_config.HoraProgramada, out TimeSpan horaConfigurada)) return;
 
-            DateTime ahora = DateTime.Now;
-            DateTime programada = ahora.Date + hora;
+            string horaActualMinuto = DateTime.Now.ToString("HH:mm");
+            string horaProgramadaMinuto = horaConfigurada.ToString(@"hh\:mm");
 
-            // Ventana de 2 horas desde la hora programada (por si la app se abrió un rato tarde)
-            bool enVentana = ahora >= programada && ahora < programada.AddHours(2);
-            bool yaHecho = _config.UltimoBackup.HasValue && _config.UltimoBackup.Value.Date == ahora.Date;
-            bool reintentoPronto = (ahora - _ultimoIntento).TotalMinutes < 30;
-
-            if (!enVentana || yaHecho || reintentoPronto) return;
-
-            _ejecutando = true;
-            _ultimoIntento = ahora;
-
-            ConfigBackup cfg = _config;
-            try
+            // Si es la hora programada y todavía NO se ejecutó en este mismo minuto exacto
+            if (horaActualMinuto == horaProgramadaMinuto && _ultimoMinutoEjecutado != horaActualMinuto)
             {
-                bool ok = await Task.Run(() =>
-                {
-                    string msg, ruta;
-                    return _negocio.CrearBackup(cfg.RutaDestino, cfg.TipoDestino,
-                                                cfg.CantidadAConservar, "Automático",
-                                                out msg, out ruta);
-                });
+                _ultimoMinutoEjecutado = horaActualMinuto; // Marcamos este minuto como procesado
+                _ejecutando = true;
 
-                if (ok) _config.UltimoBackup = DateTime.Now;
+                try
+                {
+                    string rutaDirectorio = string.IsNullOrWhiteSpace(_config.RutaDestino)
+                                            ? @"C:\Backups_AorusMarket"
+                                            : _config.RutaDestino;
+
+                    if (!Directory.Exists(rutaDirectorio))
+                    {
+                        Directory.CreateDirectory(rutaDirectorio);
+                    }
+
+                    // Ejecución asíncrona para no congelar la interfaz
+                    await Task.Run(() =>
+                    {
+                        string msg, ruta;
+                        _negocio.CrearBackup(rutaDirectorio,
+                                             _config.TipoDestino,
+                                             _config.CantidadAConservar,
+                                             "Automático",
+                                             out msg, out ruta);
+                    });
+
+                    _config.UltimoBackup = DateTime.Now;
+                    Console.WriteLine("[ÉXITO] ¡Backup automático generado correctamente en: " + rutaDirectorio + "]");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ERROR] Falló el backup automático: {ex.Message}");
+                }
+                finally
+                {
+                    _ejecutando = false;
+                }
             }
-            catch { }
-            finally { _ejecutando = false; }
+
+            // Si cambia el minuto, permitimos que pueda volver a ejecutarse al día siguiente a la misma hora
+            if (horaActualMinuto != horaProgramadaMinuto)
+            {
+                _ultimoMinutoEjecutado = "";
+            }
         }
     }
 }

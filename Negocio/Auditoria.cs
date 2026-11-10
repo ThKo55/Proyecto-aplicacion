@@ -28,5 +28,13 @@ namespace AorusMarket.Negocio
         {
             return _datos.Listar(desde, hasta, entidad);
         }
+
+
+
+
+        public static DataTable ListarUnificada(DateTime desde, DateTime hasta, string entidad)
+        {
+            return _datos.ListarUnificada(desde, hasta, entidad);
+        }
     }
 }

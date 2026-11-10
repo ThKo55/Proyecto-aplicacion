@@ -1,7 +1,11 @@
-﻿using System;
+﻿using AorusMarket.Entidades;
+using System;
 using System.Data;
 using System.Data.SqlClient;
-using AorusMarket.Entidades;
+using System.Threading.Tasks;
+using System.IO;
+
+
 
 namespace AorusMarket.AccesoDatos
 {
@@ -131,5 +135,35 @@ namespace AorusMarket.AccesoDatos
             if (string.IsNullOrEmpty(texto)) return null;
             return texto.Length <= max ? texto : texto.Substring(0, max);
         }
+
+
+        public async Task EjecutarBackupAutomaticoAsync(string rutaDestino)
+        {
+            string nombreArchivo = $"SuperMercadoDB_Auto_{DateTime.Now:yyyyMMdd_HHmmss}.bak";
+            string rutaCompleta = Path.Combine(rutaDestino, nombreArchivo);
+
+            await Task.Run(() =>
+            {
+                // NOTA: Si en tu archivo Conexion.cs usas un método para obtener la cadena, 
+                // reemplaza este string por tu variable de conexión (ej. Conexion.cadena)
+                string cadenaConexion = "Server=TU_SERVIDOR;Database=master;Integrated Security=True;";
+
+                using (SqlConnection con = new SqlConnection(cadenaConexion))
+                {
+                    con.Open();
+                    string query = $@"BACKUP DATABASE SuperMercadoDB 
+                                      TO DISK = '{rutaCompleta}' 
+                                      WITH FORMAT, MEDIANAME = 'AutoBackup', NAME = 'Backup Automatico'";
+
+                    using (SqlCommand cmd = new SqlCommand(query, con))
+                    {
+                        cmd.CommandTimeout = 300; // Evita que dé error por tiempo de espera
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            });
+        }
+
+
     }
 }

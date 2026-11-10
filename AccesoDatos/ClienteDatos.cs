@@ -97,14 +97,9 @@ namespace AorusMarket.AccesoDatos
                 SqlTransaction tx = oConexion.BeginTransaction();
                 try
                 {
-                    string qDir = "UPDATE direccion SET calle = @calle, altura = @altura WHERE id_direccion = @idDir";
-                    SqlCommand cmdDir = new SqlCommand(qDir, oConexion, tx);
-                    cmdDir.Parameters.AddWithValue("@calle", obj.Calle ?? "");
-                    cmdDir.Parameters.AddWithValue("@altura", obj.Altura ?? "");
-                    cmdDir.Parameters.AddWithValue("@idDir", obj.IdDireccion);
-                    cmdDir.ExecuteNonQuery();
+                    int idDir = DireccionHelper.GuardarDireccion(oConexion, tx, obj.IdDireccion, obj.Calle, obj.Altura);
 
-                    string qCli = "UPDATE cliente SET dni=@dni, cuil_cuit=@cuil, nombre=@nom, apellido=@ape, email=@email, telefono=@tel, fecha_nacimiento=@fec WHERE id_cliente=@id";
+                    string qCli = "UPDATE cliente SET dni=@dni, cuil_cuit=@cuil, nombre=@nom, apellido=@ape, email=@email, telefono=@tel, fecha_nacimiento=@fec, id_direccion=@iddir WHERE id_cliente=@id";
                     SqlCommand cmdCli = new SqlCommand(qCli, oConexion, tx);
                     cmdCli.Parameters.AddWithValue("@dni", obj.Dni ?? "");
                     cmdCli.Parameters.AddWithValue("@cuil", obj.CuilCuit ?? "");
@@ -113,6 +108,7 @@ namespace AorusMarket.AccesoDatos
                     cmdCli.Parameters.AddWithValue("@email", obj.Email ?? "");
                     cmdCli.Parameters.AddWithValue("@tel", obj.Telefono ?? "");
                     cmdCli.Parameters.AddWithValue("@fec", obj.FechaNacimiento.HasValue ? (object)obj.FechaNacimiento.Value : DBNull.Value);
+                    cmdCli.Parameters.AddWithValue("@iddir", idDir);
                     cmdCli.Parameters.AddWithValue("@id", obj.IdCliente);
 
                     cmdCli.ExecuteNonQuery();

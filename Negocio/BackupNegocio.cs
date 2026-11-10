@@ -1,21 +1,24 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using System.Data;
-using System.Data.SqlClient;
-using System.Threading;
-using AorusMarket.AccesoDatos;
+﻿using AorusMarket.AccesoDatos;
+using AorusMarket.Entidades;
+using AorusMarket.Utilidades;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Drive.v3;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
-using AorusMarket.Entidades;
-using AorusMarket.Utilidades;
+using System;
+using System.Data;
+using System.Data.SqlClient;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace AorusMarket.Negocio
 {
     public class BackupNegocio
     {
+
+        private BackupDatos objDatos = new BackupDatos();
 
         public void PurgarBackupsAntiguos(string carpeta, int cantidadMaxima)
         {
@@ -289,6 +292,11 @@ namespace AorusMarket.Negocio
                 mensaje = "Error al restaurar: " + ex.Message;
                 return false;
             }
+        }
+
+        public async Task EjecutarBackupAutomaticoAsync(string rutaDestino)
+        {
+            await objDatos.EjecutarBackupAutomaticoAsync(rutaDestino);
         }
 
 

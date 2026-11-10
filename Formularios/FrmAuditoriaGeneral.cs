@@ -4,27 +4,28 @@ using System.Drawing;
 using System.Windows.Forms;
 using AorusMarket.Negocio;
 using AorusMarket.Utilidades;
+using ReaLTaiizor.Controls;
 
 namespace AorusMarket.Formularios
 {
-    public partial class FrmAuditoriaAcciones : Form
+    public partial class FrmAuditoriaGeneral : Form
     {
         private DateTimePicker dtpDesde, dtpHasta;
         private ComboBox cmbEntidad;
-        private DataGridView dgv;
+        private DataGridView dgvAuditoria;
+        private CyberButton btnBuscar;
 
-        public FrmAuditoriaAcciones()
+        public FrmAuditoriaGeneral()
         {
             this.ClientSize = new Size(1100, 700);
             this.BackColor = Color.FromArgb(18, 18, 18);
-            this.Text = "Auditoría de Acciones";
-            this.StartPosition = FormStartPosition.CenterParent;
+            this.Text = "Auditoría General del Sistema";
             ConstruirInterfaz();
         }
 
         private void ConstruirInterfaz()
         {
-            this.Controls.Add(EstiloApp.CrearTitulo("AUDITORÍA DE ACCIONES DEL SISTEMA", new Point(30, 20)));
+            this.Controls.Add(EstiloApp.CrearTitulo("AUDITORÍA GENERAL DEL SISTEMA", new Point(30, 20)));
 
             int x = 30, y = 80;
 
@@ -35,7 +36,7 @@ namespace AorusMarket.Formularios
                 Size = new Size(160, 28),
                 Format = DateTimePickerFormat.Short,
                 Font = new Font("Segoe UI", 10F),
-                Value = DateTime.Now.AddDays(-7)
+                Value = DateTime.Now.AddDays(-30)
             };
             this.Controls.Add(dtpDesde);
 
@@ -50,7 +51,7 @@ namespace AorusMarket.Formularios
             };
             this.Controls.Add(dtpHasta);
 
-            this.Controls.Add(EstiloApp.CrearLabel("ENTIDAD:", new Point(x + 380, y)));
+            this.Controls.Add(EstiloApp.CrearLabel("ENTIDAD (Opcional):", new Point(x + 380, y)));
             cmbEntidad = new ComboBox
             {
                 Location = new Point(x + 380, y + 20),
@@ -60,31 +61,33 @@ namespace AorusMarket.Formularios
             };
             cmbEntidad.Items.AddRange(new object[]
             {
-                "(Todas)", "Sesión", "Venta", "Usuario", "Cliente",
-                "Producto", "Categoría", "Sucursal", "Stock", "Backup"
+                "(Todas)", "Stock", "Venta", "Sesión", "Usuario", "Cliente",
+                "Producto", "Categoría", "Sucursal", "Backup"
             });
             cmbEntidad.SelectedIndex = 0;
             this.Controls.Add(cmbEntidad);
 
-            var btnBuscar = EstiloApp.CrearBoton("BUSCAR", new Point(x + 590, y + 10), 140, EstiloApp.Verde);
+            btnBuscar = EstiloApp.CrearBoton("BUSCAR REGISTROS", new Point(x + 590, y + 10), 200, EstiloApp.Verde);
             btnBuscar.Click += (s, e) => CargarGrilla();
             this.Controls.Add(btnBuscar);
 
             y += 60;
-            dgv = new DataGridView
+            dgvAuditoria = new DataGridView
             {
                 Location = new Point(x, y),
                 Size = new Size(this.ClientSize.Width - 60, this.ClientSize.Height - y - 30),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
-            dgv.Columns.Add("Fecha", "Fecha y Hora");
-            dgv.Columns.Add("Usuario", "Usuario");
-            dgv.Columns.Add("Accion", "Acción");
-            dgv.Columns.Add("Entidad", "Entidad");
-            dgv.Columns.Add("Detalle", "Detalle");
 
-            EstiloApp.EstilizarGrid(dgv);
-            this.Controls.Add(dgv);
+            dgvAuditoria.Columns.Add("Fecha", "Fecha y Hora");
+            dgvAuditoria.Columns.Add("Usuario", "Usuario");
+            dgvAuditoria.Columns.Add("Entidad", "Entidad");
+            dgvAuditoria.Columns.Add("Accion", "Acción / Operación");
+            dgvAuditoria.Columns.Add("Detalle", "Detalle");
+
+            EstiloApp.EstilizarGrid(dgvAuditoria);
+            dgvAuditoria.CellDoubleClick += DgvAuditoria_CellDoubleClick;
+            this.Controls.Add(dgvAuditoria);
 
             CargarGrilla();
         }
@@ -100,17 +103,24 @@ namespace AorusMarket.Formularios
 
             try
             {
-                string entidad = cmbEntidad.SelectedIndex <= 0 ? null : cmbEntidad.SelectedItem.ToString();
-                DataTable tabla = Auditoria.Listar(dtpDesde.Value, dtpHasta.Value, entidad);
+                string entidad = cmbEntidad.SelectedItem.ToString();
+                DataTable tabla = Auditoria.ListarUnificada(dtpDesde.Value, dtpHasta.Value, entidad);
 
-                dgv.Rows.Clear();
+                dgvAuditoria.Rows.Clear();
                 foreach (DataRow r in tabla.Rows)
                 {
-                    dgv.Rows.Add(
+                    int index = dgvAuditoria.Rows.Add(
                         Convert.ToDateTime(r["Fecha"]).ToString("dd/MM/yyyy HH:mm:ss"),
-                        r["Usuario"], r["Accion"], r["Entidad"], r["Detalle"]);
+                        r["Usuario"], r["Entidad"], r["Accion"], r["Detalle"]);
+
+                    // Colorear automáticamente si es un movimiento de stock
+                    string detalle = r["Detalle"].ToString();
+                    if (detalle.StartsWith("+"))
+                        dgvAuditoria.Rows[index].Cells["Detalle"].Style.ForeColor = Color.MediumSeaGreen;
+                    else if (detalle.StartsWith("-"))
+                        dgvAuditoria.Rows[index].Cells["Detalle"].Style.ForeColor = EstiloApp.RojoNeon;
                 }
-                dgv.ClearSelection();
+                dgvAuditoria.ClearSelection();
             }
             catch (Exception ex)
             {
@@ -118,5 +128,26 @@ namespace AorusMarket.Formularios
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+
+        private void DgvAuditoria_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0)
+            {
+                string fecha = dgvAuditoria.Rows[e.RowIndex].Cells["Fecha"].Value.ToString();
+                string usuario = dgvAuditoria.Rows[e.RowIndex].Cells["Usuario"].Value.ToString();
+                string accion = dgvAuditoria.Rows[e.RowIndex].Cells["Accion"].Value.ToString();
+                string detalle = dgvAuditoria.Rows[e.RowIndex].Cells["Detalle"].Value.ToString();
+
+                // Abrimos la ventana personalizada y la centramos sobre la principal
+                using (FrmDetalleAuditoria modal = new FrmDetalleAuditoria(fecha, usuario, accion, detalle))
+                {
+                    modal.ShowDialog();
+                }
+            }
+        }
+
+
+
     }
 }

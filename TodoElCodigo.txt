@@ -1,62 +1,300 @@
-﻿using AorusMarket.Entidades;
+﻿
+
+=== Program.cs ===
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using AorusMarket.Formularios;
+using System.Globalization;
+using System.Threading;
+
+namespace AorusMarket
+{
+    internal static class Program
+    {
+        [STAThread]
+        static void Main()
+        {
+            CultureInfo culture = new CultureInfo("es-AR");
+            Thread.CurrentThread.CurrentCulture = culture;
+            Thread.CurrentThread.CurrentUICulture = culture;
+
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new FrmLogin());
+        }
+    }
+}
+
+
+=== AuditoriaDatos.cs ===
+
+using System;
 using System.Data;
 using System.Data.SqlClient;
 
 namespace AorusMarket.AccesoDatos
 {
-    public class BackupDatos
+    public class AuditoriaDatos
     {
-        // 1. Procedimiento para registrar la solicitud
-        public bool RegistrarSolicitud(BackupSolicitud solicitud)
+        public void Registrar(int? idUsuario, string usuario, string accion, string entidad, string detalle)
         {
-            // Usamos tu método ObtenerConexion() que lee del App.config
-            using (SqlConnection conexion = Conexion.ObtenerConexion())
-            {
-                SqlCommand cmd = new SqlCommand("SP_RegistrarSolicitudBackup", conexion);
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.AddWithValue("@SolicitanteId", solicitud.SolicitanteId);
-                cmd.Parameters.AddWithValue("@FechaProgramada", solicitud.FechaProgramada);
+            const string sql = @"
+                INSERT INTO auditoria_acciones (id_usuario, usuario, accion, entidad, detalle)
+                VALUES (@idu, @usr, @accion, @entidad, @detalle)";
 
-                conexion.Open();
-                int filasAfectadas = cmd.ExecuteNonQuery();
-                return filasAfectadas > 0;
+            using (SqlConnection cn = Conexion.ObtenerConexion())
+            using (SqlCommand cmd = new SqlCommand(sql, cn))
+            {
+                cmd.Parameters.AddWithValue("@idu", idUsuario.HasValue ? (object)idUsuario.Value : DBNull.Value);
+                cmd.Parameters.AddWithValue("@usr", (object)Recortar(usuario, 150) ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@accion", Recortar(accion, 60) ?? string.Empty);
+                cmd.Parameters.AddWithValue("@entidad", Recortar(entidad, 60) ?? string.Empty);
+                cmd.Parameters.AddWithValue("@detalle", (object)Recortar(detalle, 500) ?? DBNull.Value);
+                cn.Open();
+                cmd.ExecuteNonQuery();
             }
         }
 
-        // 2. Procedimiento para aprobar y ejecutar
-        public bool EjecutarBackup(int idSolicitud, int aprobadorId, string ruta)
-        {
-            // Usamos tu método ObtenerConexion()
-            using (SqlConnection conexion = Conexion.ObtenerConexion())
-            {
-                SqlCommand cmd = new SqlCommand("SP_AprobarYEjecutarBackup", conexion);
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.AddWithValue("@IdSolicitud", idSolicitud);
-                cmd.Parameters.AddWithValue("@AprobadorId", aprobadorId);
-                cmd.Parameters.AddWithValue("@RutaArchivo", ruta);
-
-                conexion.Open();
-                int filasAfectadas = cmd.ExecuteNonQuery();
-                return filasAfectadas > 0;
-            }
-        }
-
-        // 3. Método para listar pendientes
-        public DataTable ListarPendientes()
+        public DataTable Listar(DateTime desde, DateTime hasta, string entidad)
         {
             DataTable tabla = new DataTable();
-            // Usamos tu método ObtenerConexion()
-            using (SqlConnection conexion = Conexion.ObtenerConexion())
+
+            string sql = @"
+                SELECT fecha AS Fecha,
+                       ISNULL(usuario, 'Sistema') AS Usuario,
+                       accion AS Accion,
+                       entidad AS Entidad,
+                       ISNULL(detalle, '') AS Detalle
+                FROM auditoria_acciones
+                WHERE fecha >= @desde AND fecha < @hasta";
+
+            if (!string.IsNullOrEmpty(entidad)) sql += " AND entidad = @entidad";
+            sql += " ORDER BY fecha DESC";
+
+            using (SqlConnection cn = Conexion.ObtenerConexion())
+            using (SqlCommand cmd = new SqlCommand(sql, cn))
             {
-                SqlCommand cmd = new SqlCommand("SP_ListarBackupsPendientes", conexion);
-                cmd.CommandType = CommandType.StoredProcedure;
-                SqlDataAdapter da = new SqlDataAdapter(cmd);
+                cmd.Parameters.AddWithValue("@desde", desde.Date);
+                cmd.Parameters.AddWithValue("@hasta", hasta.Date.AddDays(1));
+                if (!string.IsNullOrEmpty(entidad)) cmd.Parameters.AddWithValue("@entidad", entidad);
+
+                using (SqlDataAdapter da = new SqlDataAdapter(cmd))
+                {
+                    da.Fill(tabla);
+                }
+            }
+            return tabla;
+        }
+
+        private static string Recortar(string texto, int max)
+        {
+            if (string.IsNullOrEmpty(texto)) return null;
+            return texto.Length <= max ? texto : texto.Substring(0, max);
+        }
+
+
+        public DataTable ListarUnificada(DateTime desde, DateTime hasta, string entidad)
+        {
+            DataTable tabla = new DataTable();
+            string sql = @"
+        SELECT * FROM (
+            SELECT fecha AS Fecha,
+                   ISNULL(usuario, 'Sistema') COLLATE DATABASE_DEFAULT AS Usuario,
+                   entidad COLLATE DATABASE_DEFAULT AS Entidad,
+                   accion COLLATE DATABASE_DEFAULT AS Accion,
+                   ISNULL(detalle, '') COLLATE DATABASE_DEFAULT AS Detalle
+            FROM auditoria_acciones
+
+            UNION ALL
+
+            SELECT m.fecha AS Fecha,
+                   ISNULL(u.nombre + ' ' + u.apellido, 'Sistema') COLLATE DATABASE_DEFAULT AS Usuario,
+                   CAST('Stock' AS varchar(100)) COLLATE DATABASE_DEFAULT AS Entidad,
+                   CAST('Movimiento: ' + m.tipo_movimiento AS varchar(255)) COLLATE DATABASE_DEFAULT AS Accion,
+                   CAST((CASE WHEN m.cantidad_variacion > 0 THEN '+' ELSE '' END) + 
+                   CAST(m.cantidad_variacion AS varchar(50)) + ' unid. | ' + 
+                   ISNULL(p.nombre, 'Prod. Eliminado') + ' | ' + ISNULL(s.nombre, 'Suc. Eliminada') AS varchar(MAX)) COLLATE DATABASE_DEFAULT AS Detalle
+            FROM movimiento_stock m
+            INNER JOIN stock_sucursal ss ON m.id_stock_sucursal = ss.id_stock_sucursal
+            LEFT JOIN producto p ON ss.id_producto = p.id_producto
+            LEFT JOIN sucursal s ON ss.id_sucursal = s.id_sucursal
+            LEFT JOIN usuario u ON m.id_usuario = u.id_usuario
+        ) AS Unificada
+        WHERE Fecha >= @desde AND Fecha < @hasta ";
+
+            if (!string.IsNullOrEmpty(entidad) && entidad != "(Todas)")
+                sql += " AND Entidad = @entidad";
+
+            sql += " ORDER BY Fecha DESC";
+
+            using (SqlConnection cn = Conexion.ObtenerConexion())
+            using (SqlCommand cmd = new SqlCommand(sql, cn))
+            {
+                cmd.Parameters.AddWithValue("@desde", desde.Date);
+                cmd.Parameters.AddWithValue("@hasta", hasta.Date.AddDays(1));
+                if (!string.IsNullOrEmpty(entidad) && entidad != "(Todas)")
+                    cmd.Parameters.AddWithValue("@entidad", entidad);
+
+                using (SqlDataAdapter da = new SqlDataAdapter(cmd))
+                {
+                    da.Fill(tabla);
+                }
+            }
+            return tabla;
+        }
+
+
+
+
+    }
+}
+
+
+=== BackupDatos.cs ===
+
+using System;
+using System.Data;
+using System.Data.SqlClient;
+using AorusMarket.Entidades;
+
+namespace AorusMarket.AccesoDatos
+{
+    public class BackupDatos
+    {
+        public ConfigBackup ObtenerConfig()
+        {
+            ConfigBackup cfg = new ConfigBackup();
+
+            using (SqlConnection cn = Conexion.ObtenerConexion())
+            using (SqlCommand cmd = new SqlCommand(
+                @"SELECT activo, tipo_destino, ruta_destino, hora_programada,
+                         cantidad_a_conservar, ultimo_backup
+                  FROM configuracion_backup WHERE id = 1", cn))
+            {
+                cn.Open();
+                using (SqlDataReader dr = cmd.ExecuteReader())
+                {
+                    if (dr.Read())
+                    {
+                        cfg.Activo = Convert.ToBoolean(dr["activo"]);
+                        cfg.TipoDestino = dr["tipo_destino"].ToString();
+
+                        string ruta = dr["ruta_destino"].ToString();
+                        if (!string.IsNullOrWhiteSpace(ruta)) cfg.RutaDestino = ruta;
+
+                        cfg.HoraProgramada = dr["hora_programada"].ToString();
+                        cfg.CantidadAConservar = Convert.ToInt32(dr["cantidad_a_conservar"]);
+                        cfg.UltimoBackup = dr["ultimo_backup"] == DBNull.Value
+                            ? (DateTime?)null
+                            : Convert.ToDateTime(dr["ultimo_backup"]);
+                    }
+                }
+            }
+            return cfg;
+        }
+
+        public void GuardarConfig(ConfigBackup c)
+        {
+            const string sql = @"
+                IF EXISTS (SELECT 1 FROM configuracion_backup WHERE id = 1)
+                    UPDATE configuracion_backup
+                       SET activo = @activo, tipo_destino = @tipo, ruta_destino = @ruta,
+                           hora_programada = @hora, cantidad_a_conservar = @cant
+                     WHERE id = 1
+                ELSE
+                    INSERT INTO configuracion_backup
+                        (id, activo, tipo_destino, ruta_destino, hora_programada, cantidad_a_conservar)
+                    VALUES (1, @activo, @tipo, @ruta, @hora, @cant)";
+
+            using (SqlConnection cn = Conexion.ObtenerConexion())
+            using (SqlCommand cmd = new SqlCommand(sql, cn))
+            {
+                cmd.Parameters.AddWithValue("@activo", c.Activo);
+                cmd.Parameters.AddWithValue("@tipo", c.TipoDestino);
+                cmd.Parameters.AddWithValue("@ruta", c.RutaDestino ?? string.Empty);
+                cmd.Parameters.AddWithValue("@hora", c.HoraProgramada);
+                cmd.Parameters.AddWithValue("@cant", c.CantidadAConservar);
+                cn.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        public void ActualizarUltimoBackup(DateTime fecha)
+        {
+            using (SqlConnection cn = Conexion.ObtenerConexion())
+            using (SqlCommand cmd = new SqlCommand(
+                "UPDATE configuracion_backup SET ultimo_backup = @f WHERE id = 1", cn))
+            {
+                cmd.Parameters.AddWithValue("@f", fecha);
+                cn.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        // Registra en backup_registro cada backup / restauración
+        public void RegistrarOperacion(string tipo, string origen, string archivo,
+                                       int? idSolicitante, int? idAprobador,
+                                       string estado, string detalle)
+        {
+            const string sql = @"
+                INSERT INTO backup_registro
+                    (tipo_operacion, origen, archivo, id_usuario_solicitante,
+                     id_usuario_aprobador, estado, detalle)
+                VALUES (@tipo, @origen, @archivo, @sol, @apr, @estado, @detalle)";
+
+            using (SqlConnection cn = Conexion.ObtenerConexion())
+            using (SqlCommand cmd = new SqlCommand(sql, cn))
+            {
+                cmd.Parameters.AddWithValue("@tipo", tipo);
+                cmd.Parameters.AddWithValue("@origen", origen);
+                cmd.Parameters.AddWithValue("@archivo", (object)Recortar(archivo, 500) ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@sol", idSolicitante.HasValue ? (object)idSolicitante.Value : DBNull.Value);
+                cmd.Parameters.AddWithValue("@apr", idAprobador.HasValue ? (object)idAprobador.Value : DBNull.Value);
+                cmd.Parameters.AddWithValue("@estado", estado);
+                cmd.Parameters.AddWithValue("@detalle", (object)Recortar(detalle, 500) ?? DBNull.Value);
+                cn.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        public DataTable ListarRegistro()
+        {
+            DataTable tabla = new DataTable();
+            const string sql = @"
+                SELECT TOP 200
+                       r.fecha AS Fecha, r.tipo_operacion AS Tipo, r.origen AS Origen,
+                       r.estado AS Estado,
+                       ISNULL(us.nombre + ' ' + us.apellido, 'Sistema') AS Solicitante,
+                       ISNULL(ua.nombre + ' ' + ua.apellido, '-') AS Aprobador,
+                       r.archivo AS Archivo, r.detalle AS Detalle
+                FROM backup_registro r
+                LEFT JOIN usuario us ON r.id_usuario_solicitante = us.id_usuario
+                LEFT JOIN usuario ua ON r.id_usuario_aprobador = ua.id_usuario
+                ORDER BY r.fecha DESC";
+
+            using (SqlConnection cn = Conexion.ObtenerConexion())
+            using (SqlDataAdapter da = new SqlDataAdapter(sql, cn))
+            {
                 da.Fill(tabla);
             }
             return tabla;
         }
+
+        private static string Recortar(string texto, int max)
+        {
+            if (string.IsNullOrEmpty(texto)) return null;
+            return texto.Length <= max ? texto : texto.Substring(0, max);
+        }
     }
 }
+
+
+=== CategoriaDatos.cs ===
+
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -183,6 +421,10 @@ namespace AorusMarket.AccesoDatos
         }
     }
 }
+
+
+=== ClienteDatos.cs ===
+
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
@@ -282,14 +524,9 @@ namespace AorusMarket.AccesoDatos
                 SqlTransaction tx = oConexion.BeginTransaction();
                 try
                 {
-                    string qDir = "UPDATE direccion SET calle = @calle, altura = @altura WHERE id_direccion = @idDir";
-                    SqlCommand cmdDir = new SqlCommand(qDir, oConexion, tx);
-                    cmdDir.Parameters.AddWithValue("@calle", obj.Calle ?? "");
-                    cmdDir.Parameters.AddWithValue("@altura", obj.Altura ?? "");
-                    cmdDir.Parameters.AddWithValue("@idDir", obj.IdDireccion);
-                    cmdDir.ExecuteNonQuery();
+                    int idDir = DireccionHelper.GuardarDireccion(oConexion, tx, obj.IdDireccion, obj.Calle, obj.Altura);
 
-                    string qCli = "UPDATE cliente SET dni=@dni, cuil_cuit=@cuil, nombre=@nom, apellido=@ape, email=@email, telefono=@tel, fecha_nacimiento=@fec WHERE id_cliente=@id";
+                    string qCli = "UPDATE cliente SET dni=@dni, cuil_cuit=@cuil, nombre=@nom, apellido=@ape, email=@email, telefono=@tel, fecha_nacimiento=@fec, id_direccion=@iddir WHERE id_cliente=@id";
                     SqlCommand cmdCli = new SqlCommand(qCli, oConexion, tx);
                     cmdCli.Parameters.AddWithValue("@dni", obj.Dni ?? "");
                     cmdCli.Parameters.AddWithValue("@cuil", obj.CuilCuit ?? "");
@@ -298,6 +535,7 @@ namespace AorusMarket.AccesoDatos
                     cmdCli.Parameters.AddWithValue("@email", obj.Email ?? "");
                     cmdCli.Parameters.AddWithValue("@tel", obj.Telefono ?? "");
                     cmdCli.Parameters.AddWithValue("@fec", obj.FechaNacimiento.HasValue ? (object)obj.FechaNacimiento.Value : DBNull.Value);
+                    cmdCli.Parameters.AddWithValue("@iddir", idDir);
                     cmdCli.Parameters.AddWithValue("@id", obj.IdCliente);
 
                     cmdCli.ExecuteNonQuery();
@@ -321,6 +559,10 @@ namespace AorusMarket.AccesoDatos
         }
     }
 }
+
+
+=== Conexion.cs ===
+
 using System.Configuration; // Agregado para leer el App.config
 using System.Data.SqlClient;
 
@@ -336,6 +578,10 @@ namespace AorusMarket.AccesoDatos
         }
     }
 }
+
+
+=== DashboardDatos.cs ===
+
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -488,6 +734,65 @@ namespace AorusMarket.AccesoDatos
         }
     }
 }
+
+
+=== DireccionHelper.cs ===
+
+using System;
+using System.Data.SqlClient;
+
+namespace AorusMarket.AccesoDatos
+{
+    internal static class DireccionHelper
+    {
+        // Devuelve el id de dirección que debe quedar asignado a la persona.
+        // - Si la dirección actual es solo suya: se actualiza en el lugar.
+        // - Si la comparte con otra persona (o no tiene): se crea una nueva y propia.
+        public static int GuardarDireccion(SqlConnection cn, SqlTransaction tx,
+                                           int idDireccionActual, string calle, string altura)
+        {
+            calle = calle ?? string.Empty;
+            altura = altura ?? string.Empty;
+
+            if (idDireccionActual > 0)
+            {
+                int usos;
+                using (SqlCommand cmd = new SqlCommand(
+                    @"SELECT (SELECT COUNT(*) FROM usuario WHERE id_direccion = @id)
+                           + (SELECT COUNT(*) FROM cliente WHERE id_direccion = @id)", cn, tx))
+                {
+                    cmd.Parameters.AddWithValue("@id", idDireccionActual);
+                    usos = Convert.ToInt32(cmd.ExecuteScalar());
+                }
+
+                if (usos <= 1)
+                {
+                    using (SqlCommand cmdUpd = new SqlCommand(
+                        "UPDATE direccion SET calle = @calle, altura = @altura WHERE id_direccion = @id", cn, tx))
+                    {
+                        cmdUpd.Parameters.AddWithValue("@calle", calle);
+                        cmdUpd.Parameters.AddWithValue("@altura", altura);
+                        cmdUpd.Parameters.AddWithValue("@id", idDireccionActual);
+                        cmdUpd.ExecuteNonQuery();
+                    }
+                    return idDireccionActual;
+                }
+            }
+
+            using (SqlCommand cmdIns = new SqlCommand(
+                "INSERT INTO direccion (calle, altura) OUTPUT INSERTED.id_direccion VALUES (@calle, @altura)", cn, tx))
+            {
+                cmdIns.Parameters.AddWithValue("@calle", calle);
+                cmdIns.Parameters.AddWithValue("@altura", altura);
+                return Convert.ToInt32(cmdIns.ExecuteScalar());
+            }
+        }
+    }
+}
+
+
+=== ProductoDatos.cs ===
+
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -602,8 +907,31 @@ namespace AorusMarket.AccesoDatos
                 catch { return false; }
             }
         }
+
+
+
+        public bool ExisteCodigoBarras(string codigo, int idProductoExcluido)
+        {
+            using (SqlConnection oConexion = Conexion.ObtenerConexion())
+            {
+                SqlCommand cmd = new SqlCommand(
+                    "SELECT COUNT(1) FROM producto WHERE codigo_barras = @cb AND id_producto <> @id", oConexion);
+                cmd.Parameters.AddWithValue("@cb", codigo);
+                cmd.Parameters.AddWithValue("@id", idProductoExcluido);
+                try
+                {
+                    oConexion.Open();
+                    return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+                }
+                catch { return false; }
+            }
+        }
     }
 }
+
+
+=== ReporteDatos.cs ===
+
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
@@ -788,6 +1116,10 @@ namespace AorusMarket.AccesoDatos
         }
     }
 }
+
+
+=== StockDatos.cs ===
+
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -890,7 +1222,7 @@ namespace AorusMarket.AccesoDatos
 
                     if (idStockExistente > 0)
                     {
-                        string updateQuery = "UPDATE stock_sucursal SET cantidad = @cant, precio = @prec, stock_minimo = @min WHERE id_stock_sucursal = @idStock";
+                        string updateQuery = "UPDATE stock_sucursal SET cantidad = @cant, precio = @prec, stock_minimo = @min, activo = 1 WHERE id_stock_sucursal = @idStock";
                         SqlCommand cmdUpdate = new SqlCommand(updateQuery, oConexion, transaccion);
                         cmdUpdate.Parameters.AddWithValue("@cant", obj.Cantidad);
                         cmdUpdate.Parameters.AddWithValue("@prec", obj.Precio);
@@ -938,7 +1270,8 @@ namespace AorusMarket.AccesoDatos
             return respuesta;
         }
 
-        public bool Eliminar(int idStock)
+        // Baja lógica: el registro deja de verse, pero se conserva todo el historial de movimientos
+        public bool Eliminar(int idStock, int idUsuario)
         {
             using (SqlConnection oConexion = Conexion.ObtenerConexion())
             {
@@ -946,10 +1279,39 @@ namespace AorusMarket.AccesoDatos
                 SqlTransaction tx = oConexion.BeginTransaction();
                 try
                 {
-                    new SqlCommand("DELETE FROM movimiento_stock WHERE id_stock_sucursal = " + idStock, oConexion, tx).ExecuteNonQuery();
-                    bool resp = new SqlCommand("DELETE FROM stock_sucursal WHERE id_stock_sucursal = " + idStock, oConexion, tx).ExecuteNonQuery() > 0;
+                    int cantidadActual;
+                    using (SqlCommand cmdSel = new SqlCommand(
+                        "SELECT cantidad FROM stock_sucursal WHERE id_stock_sucursal = @id AND activo = 1", oConexion, tx))
+                    {
+                        cmdSel.Parameters.AddWithValue("@id", idStock);
+                        object res = cmdSel.ExecuteScalar();
+                        if (res == null) { tx.Rollback(); return false; }
+                        cantidadActual = Convert.ToInt32(res);
+                    }
+
+                    using (SqlCommand cmdUpd = new SqlCommand(
+                        "UPDATE stock_sucursal SET activo = 0, cantidad = 0 WHERE id_stock_sucursal = @id", oConexion, tx))
+                    {
+                        cmdUpd.Parameters.AddWithValue("@id", idStock);
+                        cmdUpd.ExecuteNonQuery();
+                    }
+
+                    // Si había unidades, queda registrado que salieron por la baja
+                    if (cantidadActual != 0)
+                    {
+                        using (SqlCommand cmdMov = new SqlCommand(
+                            @"INSERT INTO movimiento_stock (id_stock_sucursal, cantidad_variacion, tipo_movimiento, id_usuario)
+                      VALUES (@id, @var, 'Baja de Stock', @usr)", oConexion, tx))
+                        {
+                            cmdMov.Parameters.AddWithValue("@id", idStock);
+                            cmdMov.Parameters.AddWithValue("@var", -cantidadActual);
+                            cmdMov.Parameters.AddWithValue("@usr", idUsuario);
+                            cmdMov.ExecuteNonQuery();
+                        }
+                    }
+
                     tx.Commit();
-                    return resp;
+                    return true;
                 }
                 catch { tx.Rollback(); return false; }
             }
@@ -968,7 +1330,7 @@ namespace AorusMarket.AccesoDatos
                     INNER JOIN producto p ON ss.id_producto = p.id_producto
                     INNER JOIN sucursal s ON ss.id_sucursal = s.id_sucursal
                     INNER JOIN usuario u ON m.id_usuario = u.id_usuario
-                    WHERE CAST(m.fecha AS DATE) BETWEEN @desde AND @hasta
+                    WHERE p.activo = 1 AND s.activo = 1 AND ss.activo = 1"";
                     ORDER BY m.fecha DESC";
 
                 SqlCommand cmd = new SqlCommand(query, oConexion);
@@ -1004,7 +1366,8 @@ namespace AorusMarket.AccesoDatos
             int cantidad = 0;
             using (SqlConnection conexion = Conexion.ObtenerConexion())
             {
-                string query = "SELECT ISNULL(cantidad, 0) FROM stock_sucursal WHERE id_producto = @idProducto AND id_sucursal = @idSucursal";
+                string query = "SELECT ISNULL(cantidad, 0) FROM stock_sucursal WHERE id_producto = @idProducto AND id_sucursal = @idSucursal AND activo = 1";
+
                 SqlCommand cmd = new SqlCommand(query, conexion);
                 cmd.Parameters.AddWithValue("@idProducto", idProducto);
                 cmd.Parameters.AddWithValue("@idSucursal", idSucursal);
@@ -1021,7 +1384,7 @@ namespace AorusMarket.AccesoDatos
                 string query = @"
                     SELECT id_producto, ISNULL(cantidad, 0) AS StockActual, ISNULL(stock_minimo, 10) AS StockMinimo
                     FROM stock_sucursal
-                    WHERE id_producto = @idProducto AND id_sucursal = @idSucursal";
+                    WHERE id_producto = @idProducto AND id_sucursal = @idSucursal AND activo = 1";
 
                 SqlCommand cmd = new SqlCommand(query, conexion);
                 cmd.Parameters.AddWithValue("@idProducto", idProducto);
@@ -1049,6 +1412,10 @@ namespace AorusMarket.AccesoDatos
         }
     }
 }
+
+
+=== SucursalDatos.cs ===
+
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -1177,6 +1544,10 @@ namespace AorusMarket.AccesoDatos
         }
     }
 }
+
+
+=== UsuarioDatos.cs ===
+
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -1215,15 +1586,11 @@ namespace AorusMarket.AccesoDatos
                             string passGuardada = dr["password"].ToString();
                             bool passwordValida = false;
 
-                            // Verificamos si la contraseña está encriptada con BCrypt ($2a$, $2b$, $2y$)
+                            // Solo se aceptan contraseñas con hash BCrypt
                             if (passGuardada.StartsWith("$2"))
                             {
-                                passwordValida = BCrypt.Net.BCrypt.Verify(password, passGuardada);
-                            }
-                            else
-                            {
-                                // Fallback para usuarios viejos con texto plano (ej: '1234')
-                                passwordValida = (password == passGuardada);
+                                try { passwordValida = BCrypt.Net.BCrypt.Verify(password, passGuardada); }
+                                catch { passwordValida = false; }
                             }
 
                             if (passwordValida)
@@ -1250,6 +1617,10 @@ namespace AorusMarket.AccesoDatos
             }
             return obj;
         }
+
+
+
+
 
         public List<ComboUsuario> ObtenerPerfiles()
         {
@@ -1392,14 +1763,9 @@ namespace AorusMarket.AccesoDatos
                 SqlTransaction tx = oConexion.BeginTransaction();
                 try
                 {
-                    string qDir = "UPDATE direccion SET calle = @calle, altura = @altura WHERE id_direccion = @idDir";
-                    SqlCommand cmdDir = new SqlCommand(qDir, oConexion, tx);
-                    cmdDir.Parameters.AddWithValue("@calle", obj.Calle ?? "");
-                    cmdDir.Parameters.AddWithValue("@altura", obj.Altura ?? "");
-                    cmdDir.Parameters.AddWithValue("@idDir", obj.IdDireccion);
-                    cmdDir.ExecuteNonQuery();
+                    int idDir = DireccionHelper.GuardarDireccion(oConexion, tx, obj.IdDireccion, obj.Calle, obj.Altura);
 
-                    string qUsr = "UPDATE usuario SET dni = @dni, nombre = @nom, apellido = @ape, email = @email, telefono = @tel, fecha_nacimiento = @fec, id_perfil = @perfil, id_sucursal = @sucursal ";
+                    string qUsr = "UPDATE usuario SET dni = @dni, nombre = @nom, apellido = @ape, email = @email, telefono = @tel, fecha_nacimiento = @fec, id_perfil = @perfil, id_sucursal = @sucursal, id_direccion = @iddir ";
                     if (!string.IsNullOrEmpty(obj.Password)) qUsr += ", password = @pass ";
                     qUsr += "WHERE id_usuario = @id";
 
@@ -1412,6 +1778,7 @@ namespace AorusMarket.AccesoDatos
                     cmdUsr.Parameters.AddWithValue("@fec", obj.FechaNacimiento.HasValue ? (object)obj.FechaNacimiento.Value : DBNull.Value);
                     cmdUsr.Parameters.AddWithValue("@perfil", obj.IdPerfil);
                     cmdUsr.Parameters.AddWithValue("@sucursal", obj.IdSucursal);
+                    cmdUsr.Parameters.AddWithValue("@iddir", idDir);
                     cmdUsr.Parameters.AddWithValue("@id", obj.IdUsuario);
                     if (!string.IsNullOrEmpty(obj.Password)) cmdUsr.Parameters.AddWithValue("@pass", obj.Password);
 
@@ -1436,6 +1803,10 @@ namespace AorusMarket.AccesoDatos
         }
     }
 }
+
+
+=== VentaDatos.cs ===
+
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -1456,6 +1827,7 @@ namespace AorusMarket.AccesoDatos
                     FROM producto p
                     INNER JOIN stock_sucursal ss ON p.id_producto = ss.id_producto
                     WHERE ss.id_sucursal = @idSucursal 
+                      AND ss.activo = 1
                       AND p.activo = 1 
                       AND (p.codigo_barras = @textoExacto OR p.nombre LIKE @textoParcial)";
 
@@ -1528,7 +1900,7 @@ namespace AorusMarket.AccesoDatos
                         const string queryStock = @"
                             UPDATE stock_sucursal SET cantidad = cantidad - @cant 
                             OUTPUT INSERTED.id_stock_sucursal
-                            WHERE id_producto = @idProd AND id_sucursal = @sucursal AND cantidad >= @cant";
+                            WHERE id_producto = @idProd AND id_sucursal = @sucursal AND activo = 1 AND cantidad >= @cant";
                         SqlCommand cmdStock = new SqlCommand(queryStock, oConexion, transaccion);
                         cmdStock.Parameters.AddWithValue(paramCant, item.Cantidad);
                         cmdStock.Parameters.AddWithValue("@idProd", item.IdProducto);
@@ -1698,9 +2070,9 @@ namespace AorusMarket.AccesoDatos
                     foreach (var d in detalles)
                     {
                         const string qStock = @"
-                            UPDATE stock_sucursal SET cantidad = cantidad + @cant 
-                            OUTPUT INSERTED.id_stock_sucursal
-                            WHERE id_producto = @idProd AND id_sucursal = @idSuc";
+                        UPDATE stock_sucursal SET cantidad = cantidad + @cant, activo = 1 
+                        OUTPUT INSERTED.id_stock_sucursal
+                        WHERE id_producto = @idProd AND id_sucursal = @idSuc";
 
                         SqlCommand cmdStock = new SqlCommand(qStock, oConexion, transaccion);
                         cmdStock.Parameters.AddWithValue("@cant", d.Cantidad);
@@ -1736,6 +2108,10 @@ namespace AorusMarket.AccesoDatos
         }
     }
 }
+
+
+=== BackupSolicitud.cs ===
+
 using System;
 
 namespace AorusMarket.Entidades
@@ -1752,6 +2128,10 @@ namespace AorusMarket.Entidades
         public string RutaArchivo { get; set; }
     }
 }
+
+
+=== Categoria.cs ===
+
 using System;
 
 namespace AorusMarket.Entidades
@@ -1765,6 +2145,10 @@ namespace AorusMarket.Entidades
         public bool Activo { get; set; } // Representa la baja lógica (1 o 0)
     }
 }
+
+
+=== Cliente.cs ===
+
 using System;
 namespace AorusMarket.Entidades
 {
@@ -1796,6 +2180,28 @@ namespace AorusMarket.Entidades
         }
     }
 }
+
+
+=== ConfigBackup.cs ===
+
+using System;
+
+namespace AorusMarket.Entidades
+{
+    public class ConfigBackup
+    {
+        public bool Activo { get; set; } = false;
+        public string TipoDestino { get; set; } = "Carpeta Interna / PC";
+        public string RutaDestino { get; set; } = @"C:\AorusMarket\Backups\";
+        public string HoraProgramada { get; set; } = "03:00";
+        public int CantidadAConservar { get; set; } = 5;
+        public DateTime? UltimoBackup { get; set; }
+    }
+}
+
+
+=== DashboardModelos.cs ===
+
 using System;
 
 namespace AorusMarket.Entidades
@@ -1827,6 +2233,10 @@ namespace AorusMarket.Entidades
         public string Estado { get; set; }
     }
 }
+
+
+=== Producto.cs ===
+
 using System;
 
 namespace AorusMarket.Entidades
@@ -1847,6 +2257,10 @@ namespace AorusMarket.Entidades
         public int StockMinimo { get; set; }
     }
 }
+
+
+=== ReportesDTO.cs ===
+
 using System;
 
 namespace AorusMarket.Entidades
@@ -1884,6 +2298,10 @@ namespace AorusMarket.Entidades
         public decimal TotalRecaudado { get; set; }
     }
 }
+
+
+=== StockModelos.cs ===
+
 using System;
 
 namespace AorusMarket.Entidades
@@ -1918,6 +2336,10 @@ namespace AorusMarket.Entidades
         public string Usuario { get; set; }
     }
 }
+
+
+=== Sucursal.cs ===
+
 using System;
 
 namespace AorusMarket.Entidades
@@ -1932,6 +2354,10 @@ namespace AorusMarket.Entidades
         public bool Activo { get; set; } // Representa la baja lógica (1 o 0)
     }
 }
+
+
+=== Usuario.cs ===
+
 using System;
 namespace AorusMarket.Entidades
 {
@@ -1959,6 +2385,10 @@ namespace AorusMarket.Entidades
     }
     public class ComboUsuario { public int Id { get; set; } public string Nombre { get; set; } }
 }
+
+
+=== VentaModelos.cs ===
+
 using System;
 using System.Collections.Generic;
 
@@ -2015,67 +2445,81 @@ namespace AorusMarket.Entidades
         public string Estado { get; set; } // Confirmada o Anulada
     }
 }
+
+
+=== FrmAuditoriaGeneral.cs ===
+
 using System;
+using System.Data;
 using System.Drawing;
 using System.Windows.Forms;
+using AorusMarket.Negocio;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
-using AorusMarket.Negocio;
 
 namespace AorusMarket.Formularios
 {
-    public partial class FrmAuditoriaStock : Form
+    public partial class FrmAuditoriaGeneral : Form
     {
         private DateTimePicker dtpDesde, dtpHasta;
+        private ComboBox cmbEntidad;
         private DataGridView dgvAuditoria;
         private CyberButton btnBuscar;
 
-        private StockNegocio _stockNegocio = new StockNegocio();
-
-        public FrmAuditoriaStock()
+        public FrmAuditoriaGeneral()
         {
             this.ClientSize = new Size(1100, 700);
             this.BackColor = Color.FromArgb(18, 18, 18);
-            this.Text = "Auditoría de Movimientos";
+            this.Text = "Auditoría General del Sistema";
             ConstruirInterfaz();
         }
 
         private void ConstruirInterfaz()
         {
-            this.Controls.Add(EstiloApp.CrearTitulo("AUDITORÍA DE STOCK", new Point(30, 20)));
-
-            void AddLabelSobrio(string texto, Point ubicacion)
-            {
-                Label lbl = EstiloApp.CrearLabel(texto, ubicacion);
-                this.Controls.Add(lbl);
-            }
+            this.Controls.Add(EstiloApp.CrearTitulo("AUDITORÍA GENERAL DEL SISTEMA", new Point(30, 20)));
 
             int x = 30, y = 80;
 
-            AddLabelSobrio("FECHA DESDE:", new Point(x, y));
+            this.Controls.Add(EstiloApp.CrearLabel("FECHA DESDE:", new Point(x, y)));
             dtpDesde = new DateTimePicker
             {
                 Location = new Point(x, y + 20),
-                Size = new Size(180, 28),
+                Size = new Size(160, 28),
                 Format = DateTimePickerFormat.Short,
                 Font = new Font("Segoe UI", 10F),
                 Value = DateTime.Now.AddDays(-30)
             };
             this.Controls.Add(dtpDesde);
 
-            AddLabelSobrio("FECHA HASTA:", new Point(x + 220, y));
+            this.Controls.Add(EstiloApp.CrearLabel("FECHA HASTA:", new Point(x + 190, y)));
             dtpHasta = new DateTimePicker
             {
-                Location = new Point(x + 220, y + 20),
-                Size = new Size(180, 28),
+                Location = new Point(x + 190, y + 20),
+                Size = new Size(160, 28),
                 Format = DateTimePickerFormat.Short,
                 Font = new Font("Segoe UI", 10F),
                 Value = DateTime.Now
             };
             this.Controls.Add(dtpHasta);
 
-            btnBuscar = EstiloApp.CrearBoton("BUSCAR MOVIMIENTOS", new Point(x + 440, y + 10), 200, EstiloApp.Verde);
-            btnBuscar.Click += BtnBuscar_Click;
+            this.Controls.Add(EstiloApp.CrearLabel("ENTIDAD (Opcional):", new Point(x + 380, y)));
+            cmbEntidad = new ComboBox
+            {
+                Location = new Point(x + 380, y + 20),
+                Size = new Size(180, 28),
+                Font = new Font("Segoe UI", 10F),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cmbEntidad.Items.AddRange(new object[]
+            {
+                "(Todas)", "Stock", "Venta", "Sesión", "Usuario", "Cliente",
+                "Producto", "Categoría", "Sucursal", "Backup"
+            });
+            cmbEntidad.SelectedIndex = 0;
+            this.Controls.Add(cmbEntidad);
+
+            btnBuscar = EstiloApp.CrearBoton("BUSCAR REGISTROS", new Point(x + 590, y + 10), 200, EstiloApp.Verde);
+            btnBuscar.Click += (s, e) => CargarGrilla();
             this.Controls.Add(btnBuscar);
 
             y += 60;
@@ -2086,15 +2530,14 @@ namespace AorusMarket.Formularios
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
 
-            dgvAuditoria.Columns.Add("IdMovimiento", "ID");
             dgvAuditoria.Columns.Add("Fecha", "Fecha y Hora");
-            dgvAuditoria.Columns.Add("Producto", "Producto");
-            dgvAuditoria.Columns.Add("Sucursal", "Sucursal");
-            dgvAuditoria.Columns.Add("Tipo", "Operación");
-            dgvAuditoria.Columns.Add("Cantidad", "Variación");
-            dgvAuditoria.Columns.Add("Usuario", "Usuario Responsable");
+            dgvAuditoria.Columns.Add("Usuario", "Usuario");
+            dgvAuditoria.Columns.Add("Entidad", "Entidad");
+            dgvAuditoria.Columns.Add("Accion", "Acción / Operación");
+            dgvAuditoria.Columns.Add("Detalle", "Detalle");
 
             EstiloApp.EstilizarGrid(dgvAuditoria);
+            dgvAuditoria.CellDoubleClick += DgvAuditoria_CellDoubleClick;
             this.Controls.Add(dgvAuditoria);
 
             CargarGrilla();
@@ -2104,52 +2547,65 @@ namespace AorusMarket.Formularios
         {
             if (dtpDesde.Value.Date > dtpHasta.Value.Date)
             {
-                MessageBox.Show("La fecha 'Desde' no puede ser mayor que 'Hasta'.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("La fecha 'Desde' no puede ser mayor que 'Hasta'.", "Aviso",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            dgvAuditoria.Rows.Clear();
-            var lista = _stockNegocio.ListarAuditoria(dtpDesde.Value, dtpHasta.Value);
-
-            foreach (var item in lista)
+            try
             {
-                dgvAuditoria.Rows.Add(
-                    item.IdMovimiento,
-                    item.Fecha,
-                    item.Producto,
-                    item.Sucursal,
-                    item.TipoMovimiento,
-                    item.CantidadVariacion,
-                    item.Usuario
-                );
-            }
+                string entidad = cmbEntidad.SelectedItem.ToString();
+                DataTable tabla = Auditoria.ListarUnificada(dtpDesde.Value, dtpHasta.Value, entidad);
 
-            foreach (DataGridViewRow fila in dgvAuditoria.Rows)
-            {
-                if (int.TryParse(fila.Cells["Cantidad"].Value?.ToString(), out int cantidad))
+                dgvAuditoria.Rows.Clear();
+                foreach (DataRow r in tabla.Rows)
                 {
-                    if (cantidad > 0)
-                    {
-                        fila.Cells["Cantidad"].Style.ForeColor = Color.MediumSeaGreen;
-                        fila.Cells["Cantidad"].Style.Font = new Font(dgvAuditoria.Font, FontStyle.Bold);
-                        fila.Cells["Cantidad"].Value = "+" + cantidad;
-                    }
-                    else if (cantidad < 0)
-                    {
-                        fila.Cells["Cantidad"].Style.ForeColor = EstiloApp.RojoNeon;
-                        fila.Cells["Cantidad"].Style.Font = new Font(dgvAuditoria.Font, FontStyle.Bold);
-                    }
+                    int index = dgvAuditoria.Rows.Add(
+                        Convert.ToDateTime(r["Fecha"]).ToString("dd/MM/yyyy HH:mm:ss"),
+                        r["Usuario"], r["Entidad"], r["Accion"], r["Detalle"]);
+
+                    // Colorear automáticamente si es un movimiento de stock
+                    string detalle = r["Detalle"].ToString();
+                    if (detalle.StartsWith("+"))
+                        dgvAuditoria.Rows[index].Cells["Detalle"].Style.ForeColor = Color.MediumSeaGreen;
+                    else if (detalle.StartsWith("-"))
+                        dgvAuditoria.Rows[index].Cells["Detalle"].Style.ForeColor = EstiloApp.RojoNeon;
+                }
+                dgvAuditoria.ClearSelection();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("No se pudo cargar la auditoría: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+
+        private void DgvAuditoria_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0)
+            {
+                string fecha = dgvAuditoria.Rows[e.RowIndex].Cells["Fecha"].Value.ToString();
+                string usuario = dgvAuditoria.Rows[e.RowIndex].Cells["Usuario"].Value.ToString();
+                string accion = dgvAuditoria.Rows[e.RowIndex].Cells["Accion"].Value.ToString();
+                string detalle = dgvAuditoria.Rows[e.RowIndex].Cells["Detalle"].Value.ToString();
+
+                // Abrimos la ventana personalizada y la centramos sobre la principal
+                using (FrmDetalleAuditoria modal = new FrmDetalleAuditoria(fecha, usuario, accion, detalle))
+                {
+                    modal.ShowDialog();
                 }
             }
-            dgvAuditoria.ClearSelection();
         }
 
-        private void BtnBuscar_Click(object sender, EventArgs e)
-        {
-            CargarGrilla();
-        }
+
+
     }
 }
+
+
+=== FrmBackup.cs ===
+
 using AorusMarket.Entidades;
 using AorusMarket.Negocio;
 using AorusMarket.Utilidades;
@@ -2158,6 +2614,7 @@ using System;
 using System.Drawing;
 using System.IO;
 using WinForms = System.Windows.Forms;
+using System.Threading.Tasks;
 
 namespace AorusMarket.Formularios
 {
@@ -2169,9 +2626,10 @@ namespace AorusMarket.Formularios
         private WinForms.CheckBox chkAutomatico;
         private WinForms.DateTimePicker dtpHoraAuto;
         private WinForms.DataGridView dgvBackupsLocales;
-        private WinForms.Timer timerAuto;
-        private DateTime ultimaEjecucion = DateTime.MinValue;
 
+        private ConfigBackup _config;
+        private CyberButton btnGuardarConfig;
+        private const bool RequierePerfilDistinto = true; // true = Admin <-> Gerente; false = cualquier Admin/Gerente distinto
         private BackupNegocio _backupNegocio = new BackupNegocio();
 
         public FrmBackup()
@@ -2182,7 +2640,7 @@ namespace AorusMarket.Formularios
             this.Text = "Gestión de Backups y Seguridad";
             this.MinimumSize = new Size(950, 600);
             ConstruirInterfaz();
-            ConfigurarTimer();
+            CargarConfiguracion();
         }
 
         private void ConstruirInterfaz()
@@ -2256,6 +2714,10 @@ namespace AorusMarket.Formularios
             btnCrearBackup.Click += BtnCrearBackup_Click;
             this.Controls.Add(btnCrearBackup);
 
+            btnGuardarConfig = EstiloApp.CrearBoton("GUARDAR CONFIG.", new Point(margenX + 670, y), 180, EstiloApp.Gris);
+            btnGuardarConfig.Click += BtnGuardarConfig_Click;
+            this.Controls.Add(btnGuardarConfig);
+
             y += 60;
 
             // FILA 3: HISTORIAL DE BACKUPS (GRILLA RESPONSIVA)
@@ -2295,27 +2757,7 @@ namespace AorusMarket.Formularios
             CargarListaBackupsLocales();
         }
 
-        private void ConfigurarTimer()
-        {
-            timerAuto = new WinForms.Timer();
-            timerAuto.Interval = 30000;
-            timerAuto.Tick += TimerAuto_Tick;
-            timerAuto.Start();
-        }
 
-        private void TimerAuto_Tick(object sender, EventArgs e)
-        {
-            if (!chkAutomatico.Checked) return;
-
-            DateTime ahora = DateTime.Now;
-            TimeSpan horaProg = dtpHoraAuto.Value.TimeOfDay;
-
-            if (ahora.Hour == horaProg.Hours && ahora.Minute == horaProg.Minutes && ultimaEjecucion.Date != ahora.Date)
-            {
-                ultimaEjecucion = ahora.Date;
-                EjecutarProcesoBackup(false);
-            }
-        }
 
         private void AplicarDisenoSobrioGrid(WinForms.DataGridView grid)
         {
@@ -2384,109 +2826,179 @@ namespace AorusMarket.Formularios
             dgvBackupsLocales.ClearSelection();
         }
 
-        private void BtnCrearBackup_Click(object sender, EventArgs e)
+
+
+
+        private string ObtenerRuta()
         {
-            EjecutarProcesoBackup(true);
+            return string.IsNullOrWhiteSpace(txtRutaDestino.Text) ? txtRutaDestino.TextButton : txtRutaDestino.Text;
         }
 
-        private void EjecutarProcesoBackup(bool mostrarMensajes)
+        private void CargarConfiguracion()
         {
-            string ruta = string.IsNullOrWhiteSpace(txtRutaDestino.Text) ? txtRutaDestino.TextButton : txtRutaDestino.Text;
-
-            if (!Directory.Exists(ruta))
+            try
             {
-                try { Directory.CreateDirectory(ruta); }
-                catch
+                _config = _backupNegocio.ObtenerConfig();
+
+                int idx = cmbDestino.Items.IndexOf(_config.TipoDestino);
+                cmbDestino.SelectedIndex = idx >= 0 ? idx : 0;
+
+                txtRutaDestino.Text = _config.RutaDestino;
+                txtRutaDestino.TextButton = _config.RutaDestino;
+                chkAutomatico.Checked = _config.Activo;
+
+                TimeSpan h;
+                if (TimeSpan.TryParse(_config.HoraProgramada, out h))
+                    dtpHoraAuto.Value = DateTime.Today.Add(h);
+
+                CargarListaBackupsLocales();
+            }
+            catch (Exception ex)
+            {
+                _config = new ConfigBackup();
+                WinForms.MessageBox.Show("No se pudo cargar la configuración de backup: " + ex.Message,
+                    "Aviso", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
+            }
+        }
+
+        private void BtnGuardarConfig_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                ConfigBackup cfg = new ConfigBackup
                 {
-                    if (mostrarMensajes)
-                        WinForms.MessageBox.Show("La ruta no es válida o no tiene permisos.", "Error", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
-                    return;
+                    Activo = chkAutomatico.Checked,
+                    TipoDestino = cmbDestino.SelectedItem.ToString(),
+                    RutaDestino = ObtenerRuta(),
+                    HoraProgramada = dtpHoraAuto.Value.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture),
+                    CantidadAConservar = _config != null ? _config.CantidadAConservar : 5,
+                    UltimoBackup = _config != null ? _config.UltimoBackup : null
+                };
+
+                _backupNegocio.GuardarConfig(cfg);
+                _config = cfg;
+                BackupScheduler.RecargarConfig();
+
+                WinForms.MessageBox.Show("Configuración de backup guardada.", "Éxito",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                WinForms.MessageBox.Show("Error al guardar la configuración: " + ex.Message, "Error",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
+            }
+        }
+
+        // BACKUP LIBRE: sin autorización, cualquier usuario, en cualquier momento
+        private async void BtnCrearBackup_Click(object sender, EventArgs e)
+        {
+            btnCrearBackup.Enabled = false;
+
+            string carpeta = ObtenerRuta();
+            string destino = cmbDestino.SelectedItem.ToString();
+            int conservar = _config != null ? _config.CantidadAConservar : 5;
+
+            try
+            {
+                var res = await Task.Run(() =>
+                {
+                    string msg, ruta;
+                    bool ok = _backupNegocio.CrearBackup(carpeta, destino, conservar, "Manual", out msg, out ruta);
+                    return new { ok, msg, ruta };
+                });
+
+                CargarListaBackupsLocales();
+
+                if (res.ok)
+                {
+                    string texto = $"Respaldo generado con éxito en:\n{res.ruta}";
+                    if (!string.IsNullOrEmpty(res.msg)) texto += "\n\n" + res.msg;
+                    WinForms.MessageBox.Show(texto, "Éxito", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
+                }
+                else
+                {
+                    WinForms.MessageBox.Show("Error al generar el backup: " + res.msg, "Error",
+                        WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
                 }
             }
-
-            string nombreArchivo = $"AorusMarket_{DateTime.Now:yyyyMMdd_HHmmss}.bak";
-            string rutaCompleta = Path.Combine(ruta, nombreArchivo);
-
-            string mensaje;
-            bool exito = _backupNegocio.GenerarRespaldo(rutaCompleta, cmbDestino.SelectedItem.ToString(), out mensaje);
-
-            if (exito)
+            finally
             {
-                CargarListaBackupsLocales();
-                if (mostrarMensajes)
-                    WinForms.MessageBox.Show($"Respaldo generado con éxito en:\n{rutaCompleta}", "Éxito", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
-            }
-            else
-            {
-                if (mostrarMensajes)
-                    WinForms.MessageBox.Show("Error al generar el backup: " + mensaje, "Error", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
+                btnCrearBackup.Enabled = true;
             }
         }
 
-        // ==============================================================
-        // MÉTODO DE VALIDACIÓN CRUZADA (MODAL)
-        // ==============================================================
-        private bool SolicitarAutorizacionCruzada()
+        // SOLO LA RESTAURACIÓN pide aprobación de un segundo usuario (Admin <-> Gerente)
+        private bool SolicitarAutorizacionCruzada(out Usuario aprobador)
         {
             bool autorizado = false;
+            Usuario aprobadorLocal = null;
 
             using (WinForms.Form frmAuth = new WinForms.Form())
             {
-                frmAuth.Text = "Autorización de Gerencia Requerida";
-                frmAuth.Size = new Size(420, 240);
+                frmAuth.Text = "Autorización requerida para restaurar";
+                frmAuth.Size = new Size(430, 260);
                 frmAuth.StartPosition = WinForms.FormStartPosition.CenterParent;
                 frmAuth.FormBorderStyle = WinForms.FormBorderStyle.FixedDialog;
                 frmAuth.MaximizeBox = false;
                 frmAuth.MinimizeBox = false;
                 frmAuth.BackColor = Color.FromArgb(18, 18, 18);
 
+                string textoInfo = RequierePerfilDistinto
+                    ? "CONTROL CRUZADO: debe autorizar un usuario con el\notro perfil (Administrador ↔ Gerente)."
+                    : "CONTROL CRUZADO: debe autorizar otro usuario\nAdministrador o Gerente.";
+
                 WinForms.Label lblInfo = new WinForms.Label()
                 {
-                    Text = "CONTROL CRUZADO: Un administrador distinto\ndebe autorizar la restauración de la base de datos.",
+                    Text = textoInfo,
                     ForeColor = Color.WhiteSmoke,
                     Location = new Point(20, 20),
                     AutoSize = true,
                     Font = new Font("Segoe UI", 9F, FontStyle.Bold)
                 };
 
-                WinForms.Label lblEmail = new WinForms.Label() { Text = "Email del Admin:", ForeColor = Color.LightGray, Location = new Point(20, 70), AutoSize = true };
-                WinForms.TextBox txtEmail = new WinForms.TextBox() { Location = new Point(140, 67), Width = 230, BackColor = Color.FromArgb(28, 28, 28), ForeColor = Color.White, BorderStyle = WinForms.BorderStyle.FixedSingle };
+                WinForms.Label lblEmail = new WinForms.Label() { Text = "Email:", ForeColor = Color.LightGray, Location = new Point(20, 80), AutoSize = true };
+                WinForms.TextBox txtEmail = new WinForms.TextBox() { Location = new Point(140, 77), Width = 240, BackColor = Color.FromArgb(28, 28, 28), ForeColor = Color.White, BorderStyle = WinForms.BorderStyle.FixedSingle };
 
-                WinForms.Label lblPass = new WinForms.Label() { Text = "Contraseña:", ForeColor = Color.LightGray, Location = new Point(20, 110), AutoSize = true };
-                WinForms.TextBox txtPass = new WinForms.TextBox() { Location = new Point(140, 107), Width = 230, BackColor = Color.FromArgb(28, 28, 28), ForeColor = Color.White, PasswordChar = '●', BorderStyle = WinForms.BorderStyle.FixedSingle };
+                WinForms.Label lblPass = new WinForms.Label() { Text = "Contraseña:", ForeColor = Color.LightGray, Location = new Point(20, 120), AutoSize = true };
+                WinForms.TextBox txtPass = new WinForms.TextBox() { Location = new Point(140, 117), Width = 240, BackColor = Color.FromArgb(28, 28, 28), ForeColor = Color.White, PasswordChar = '●', BorderStyle = WinForms.BorderStyle.FixedSingle };
 
-                WinForms.Button btnConfirmar = new WinForms.Button() { Text = "AUTORIZAR", Location = new Point(140, 150), Width = 110, BackColor = EstiloApp.RojoNeon, ForeColor = Color.White, FlatStyle = WinForms.FlatStyle.Flat };
-                WinForms.Button btnCancelar = new WinForms.Button() { Text = "CANCELAR", Location = new Point(260, 150), Width = 110, BackColor = EstiloApp.Gris, ForeColor = Color.White, FlatStyle = WinForms.FlatStyle.Flat };
-
+                WinForms.Button btnConfirmar = new WinForms.Button() { Text = "AUTORIZAR", Location = new Point(140, 165), Width = 115, BackColor = EstiloApp.RojoNeon, ForeColor = Color.White, FlatStyle = WinForms.FlatStyle.Flat };
+                WinForms.Button btnCancelar = new WinForms.Button() { Text = "CANCELAR", Location = new Point(265, 165), Width = 115, BackColor = EstiloApp.Gris, ForeColor = Color.White, FlatStyle = WinForms.FlatStyle.Flat };
                 btnConfirmar.FlatAppearance.BorderSize = 0;
                 btnCancelar.FlatAppearance.BorderSize = 0;
 
                 btnConfirmar.Click += (s, e) =>
                 {
-                    UsuarioNegocio un = new UsuarioNegocio();
                     string msjError;
+                    Usuario u = new UsuarioNegocio().Login(txtEmail.Text, txtPass.Text, out msjError);
 
-                    Usuario adminAuth = un.Login(txtEmail.Text, txtPass.Text, out msjError);
-
-                    if (adminAuth != null)
+                    if (u == null)
                     {
-                        if (adminAuth.IdPerfil != 1)
-                        {
-                            WinForms.MessageBox.Show("Permiso denegado. El usuario ingresado debe tener perfil de Administrador.", "Acceso Denegado", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
-                        }
-                        else if (adminAuth.IdUsuario == SesionActual.IdUsuario)
-                        {
-                            WinForms.MessageBox.Show("Control Cruzado: El aprobador no puede ser el mismo usuario que está solicitando la restauración.", "Violación de Seguridad", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Stop);
-                        }
-                        else
-                        {
-                            autorizado = true;
-                            frmAuth.Close();
-                        }
+                        WinForms.MessageBox.Show(msjError, "Error de credenciales",
+                            WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    if (u.IdPerfil != 1 && u.IdPerfil != 4)
+                    {
+                        WinForms.MessageBox.Show("Permiso denegado. El autorizante debe ser Administrador o Gerente.",
+                            "Acceso Denegado", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
+                    }
+                    else if (u.IdUsuario == SesionActual.IdUsuario)
+                    {
+                        WinForms.MessageBox.Show("Control Cruzado: el autorizante no puede ser el mismo usuario que solicita la restauración.",
+                            "Violación de Seguridad", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Stop);
+                    }
+                    else if (RequierePerfilDistinto && u.IdPerfil == SesionActual.IdPerfil)
+                    {
+                        WinForms.MessageBox.Show("La autorización debe provenir del otro perfil (Administrador ↔ Gerente).",
+                            "Perfil no válido", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
                     }
                     else
                     {
-                        WinForms.MessageBox.Show(msjError, "Error de credenciales", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
+                        aprobadorLocal = u;
+                        autorizado = true;
+                        frmAuth.Close();
                     }
                 };
 
@@ -2499,66 +3011,68 @@ namespace AorusMarket.Formularios
                 frmAuth.Controls.Add(txtPass);
                 frmAuth.Controls.Add(btnConfirmar);
                 frmAuth.Controls.Add(btnCancelar);
+                frmAuth.AcceptButton = btnConfirmar;
 
                 frmAuth.ShowDialog();
             }
+
+            aprobador = aprobadorLocal;
             return autorizado;
         }
 
-        // ==============================================================
-        // EJECUCIÓN DE RESTAURACIÓN CON VALIDACIÓN PREVIA
-        // ==============================================================
         private void BtnRestaurarBackup_Click(object sender, EventArgs e)
         {
             if (dgvBackupsLocales.CurrentRow == null)
             {
-                WinForms.MessageBox.Show("Seleccione un archivo de respaldo local de la tabla para restaurar.", "Aviso", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
+                WinForms.MessageBox.Show("Seleccione un archivo de respaldo de la tabla para restaurar.", "Aviso",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
                 return;
             }
 
-            string archivoSeleccionado = dgvBackupsLocales.CurrentRow.Cells["Ruta"].Value.ToString();
+            string archivo = dgvBackupsLocales.CurrentRow.Cells["Ruta"].Value.ToString();
+            string nombre = dgvBackupsLocales.CurrentRow.Cells["Archivo"].Value.ToString();
 
-            WinForms.DialogResult alertaCritica = WinForms.MessageBox.Show(
-                "¡ATENCIÓN ACCIÓN CRÍTICA!\n\n" +
-                "Restaurar la base de datos sobrescribirá toda la información actual por el estado del archivo seleccionado.\n\n" +
-                "¿Confirma que posee autorización gerencial para ejecutar esta restauración?",
-                "Control Cruzado de Seguridad",
-                WinForms.MessageBoxButtons.YesNo,
-                WinForms.MessageBoxIcon.Stop);
+            if (WinForms.MessageBox.Show(
+                    $"Se reemplazará TODA la información actual por la del archivo:\n{nombre}\n\n" +
+                    "Antes se guardará automáticamente una copia del estado actual (PreRestore_...).\n\n¿Desea continuar?",
+                    "Restaurar base de datos",
+                    WinForms.MessageBoxButtons.YesNo, WinForms.MessageBoxIcon.Warning) != WinForms.DialogResult.Yes)
+                return;
 
-            if (alertaCritica == WinForms.DialogResult.No) return;
-
-            WinForms.DialogResult confirmacionFinal = WinForms.MessageBox.Show(
-                "Esta acción es irreversible y reiniciará el sistema.\n\n¿Está absolutamente seguro?",
-                "Última Advertencia",
-                WinForms.MessageBoxButtons.YesNo,
-                WinForms.MessageBoxIcon.Warning);
-
-            if (confirmacionFinal == WinForms.DialogResult.Yes)
+            Usuario aprobador;
+            if (!SolicitarAutorizacionCruzada(out aprobador))
             {
-                // Validación Modal de Control Cruzado
-                if (!SolicitarAutorizacionCruzada())
-                {
-                    WinForms.MessageBox.Show("Restauración cancelada. No se obtuvo la autorización cruzada de seguridad.", "Operación Abortada", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
-                    return;
-                }
+                WinForms.MessageBox.Show("Restauración cancelada. No se obtuvo la autorización cruzada.", "Operación abortada",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
+                return;
+            }
 
-                string mensaje;
-                bool restaurado = _backupNegocio.RestaurarBaseDatos(archivoSeleccionado, out mensaje);
+            WinForms.Cursor.Current = WinForms.Cursors.WaitCursor;
+            string mensaje;
+            bool ok = _backupNegocio.Restaurar(archivo, SesionActual.IdUsuario, aprobador.IdUsuario, out mensaje);
+            WinForms.Cursor.Current = WinForms.Cursors.Default;
 
-                if (restaurado)
-                {
-                    WinForms.MessageBox.Show("Sistema restaurado con éxito. La aplicación se reiniciará.", "Éxito", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
-                    WinForms.Application.Restart();
-                }
-                else
-                {
-                    WinForms.MessageBox.Show("Error en la restauración: " + mensaje, "Error Crítico", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
-                }
+            if (ok)
+            {
+                WinForms.MessageBox.Show("Sistema restaurado con éxito. La aplicación se reiniciará.", "Éxito",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
+                WinForms.Application.Restart();
+            }
+            else
+            {
+                WinForms.MessageBox.Show(mensaje, "Error en la restauración",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
             }
         }
+
+
+
     }
 }
+
+
+=== FrmBackup.Designer.cs ===
+
 namespace AorusMarket.Formularios
 {
     partial class FrmBackup
@@ -2598,6 +3112,10 @@ namespace AorusMarket.Formularios
         #endregion
     }
 }
+
+
+=== FrmCategorias.cs ===
+
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -2770,6 +3288,10 @@ namespace AorusMarket.Formularios
         }
     }
 }
+
+
+=== FrmCategorias.Designer.cs ===
+
 namespace AorusMarket.Formularios
 {
     partial class FrmCategorias
@@ -2809,6 +3331,10 @@ namespace AorusMarket.Formularios
         #endregion
     }
 }
+
+
+=== FrmClientes.cs ===
+
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -3041,6 +3567,10 @@ namespace AorusMarket.Formularios
         }
     }
 }
+
+
+=== FrmClientes.Designer.cs ===
+
 namespace AorusMarket.Formularios
 {
     partial class FrmClientes
@@ -3080,6 +3610,10 @@ namespace AorusMarket.Formularios
         #endregion
     }
 }
+
+
+=== FrmDashboard.cs ===
+
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -3331,6 +3865,10 @@ namespace AorusMarket.Formularios
         }
     }
 }
+
+
+=== FrmDashboard.Designer.cs ===
+
 namespace AorusMarket.Formularios
 {
     partial class FrmDashboard
@@ -3370,6 +3908,154 @@ namespace AorusMarket.Formularios
         #endregion
     }
 }
+
+
+=== FrmDetalleAuditoria.cs ===
+
+using System;
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace AorusMarket.Formularios
+{
+    public partial class FrmDetalleAuditoria : Form
+    {
+        public FrmDetalleAuditoria(string fecha, string usuario, string accion, string detalle)
+        {
+            // Agrandamos un poquito el alto de la ventana para que respire mejor
+            this.Size = new Size(500, 460);
+            this.BackColor = Color.FromArgb(18, 18, 18);
+            this.ForeColor = Color.White;
+            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+            this.Text = "Información del Registro";
+
+            // Título principal
+            Label lblTitulo = new Label
+            {
+                Text = "DETALLE DE LA OPERACIÓN",
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Color.MediumSeaGreen,
+                AutoSize = true,
+                Location = new Point(25, 20)
+            };
+            this.Controls.Add(lblTitulo);
+
+            // Información básica (le quitamos la palabra Detalle de acá para que no empuje hacia abajo)
+            Label lblInfo = new Label
+            {
+                Text = $"📅  FECHA:   {fecha}\n\n" +
+                       $"👤  USUARIO:   {usuario}\n\n" +
+                       $"⚙️  ACCIÓN:   {accion}",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Location = new Point(25, 70),
+                AutoSize = true,
+                ForeColor = Color.LightGray
+            };
+            this.Controls.Add(lblInfo);
+
+            // Título del Detalle separado y con su propia posición (Y = 175)
+            Label lblDetalleTitulo = new Label
+            {
+                Text = "📝  DETALLE:",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Location = new Point(25, 175),
+                AutoSize = true,
+                ForeColor = Color.LightGray
+            };
+            this.Controls.Add(lblDetalleTitulo);
+
+            // Panel contenedor posicionado más abajo (Y = 205) para no superponerse
+            Panel pnlDetalle = new Panel
+            {
+                Location = new Point(25, 205),
+                Size = new Size(430, 130),
+                AutoScroll = true,
+                BackColor = Color.FromArgb(18, 18, 18)
+            };
+
+            // Label que muestra el texto, ahora con un límite de ancho (400) 
+            // que deja espacio para que no se coma la barra de desplazamiento
+            Label lblDetalleContenido = new Label
+            {
+                Text = detalle,
+                Font = new Font("Segoe UI", 11F),
+                ForeColor = Color.White,
+                Location = new Point(0, 0),
+                AutoSize = true,
+                MaximumSize = new Size(400, 0) // Clave para que haga salto de línea correctamente
+            };
+
+            pnlDetalle.Controls.Add(lblDetalleContenido);
+            this.Controls.Add(pnlDetalle);
+
+            // Botón de Cerrar movido un poco más abajo (Y = 360)
+            Button btnCerrar = new Button
+            {
+                Text = "CERRAR",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                BackColor = Color.FromArgb(45, 45, 45),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Location = new Point(175, 360),
+                Size = new Size(150, 35),
+                Cursor = Cursors.Hand
+            };
+            btnCerrar.FlatAppearance.BorderSize = 0;
+            btnCerrar.Click += (s, e) => this.Close();
+            this.Controls.Add(btnCerrar);
+        }
+    }
+}
+
+
+=== FrmDetalleAuditoria.Designer.cs ===
+
+namespace AorusMarket.Formularios
+{
+    partial class FrmDetalleAuditoria
+    {
+        /// <summary>
+        /// Required designer variable.
+        /// </summary>
+        private System.ComponentModel.IContainer components = null;
+
+        /// <summary>
+        /// Clean up any resources being used.
+        /// </summary>
+        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && (components != null))
+            {
+                components.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        #region Windows Form Designer generated code
+
+        /// <summary>
+        /// Required method for Designer support - do not modify
+        /// the contents of this method with the code editor.
+        /// </summary>
+        private void InitializeComponent()
+        {
+            this.components = new System.ComponentModel.Container();
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.ClientSize = new System.Drawing.Size(800, 450);
+            this.Text = "FrmDetalleAuditoria";
+        }
+
+        #endregion
+    }
+}
+
+
+=== FrmHistorialVentas.cs ===
+
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -3440,7 +4126,7 @@ namespace AorusMarket.Formularios
             btnAnular = EstiloApp.CrearBoton("ANULAR VENTA", new Point(x + 580, y + 10), 160, EstiloApp.RojoNeon);
             btnAnular.Click += BtnAnular_Click;
             // CORRECCIÓN: Oculta el botón Anular si no es Admin (Perfil 1)
-            btnAnular.Visible = (SesionActual.IdPerfil == 1);
+            btnAnular.Visible = (SesionActual.IdPerfil == 1 || SesionActual.IdPerfil == 4);
             this.Controls.Add(btnAnular);
 
             y += 60;
@@ -3497,7 +4183,7 @@ namespace AorusMarket.Formularios
             dgvHistorial.Rows.Clear();
             cmbProductosVendidos.Items.Clear();
 
-            int idUsuarioFiltro = Utilidades.SesionActual.IdPerfil == 1 ? 0 : Utilidades.SesionActual.IdUsuario;
+            int idUsuarioFiltro = (Utilidades.SesionActual.IdPerfil == 1 || Utilidades.SesionActual.IdPerfil == 4) ? 0 : Utilidades.SesionActual.IdUsuario;
             var lista = _ventaNegocio.ListarHistorial(dtpDesde.Value, dtpHasta.Value, idUsuarioFiltro);
 
             foreach (var item in lista)
@@ -3600,6 +4286,10 @@ namespace AorusMarket.Formularios
         }
     }
 }
+
+
+=== FrmLogin.cs ===
+
 using AorusMarket.Utilidades;
 using System;
 using System.Drawing;
@@ -3848,6 +4538,8 @@ namespace AorusMarket.Formularios
             if (usuarioLogueado == null)
             {
                 lblMensaje.Text = mensajeError;
+                if (!string.IsNullOrEmpty(correo))
+                    Auditoria.RegistrarComo(null, correo, "Intento de login fallido", "Sesión", null);
                 return;
             }
 
@@ -3857,6 +4549,7 @@ namespace AorusMarket.Formularios
             Utilidades.SesionActual.NombrePerfil = usuarioLogueado.NombrePerfil;
             Utilidades.SesionActual.IdSucursal = usuarioLogueado.IdSucursal;
             Utilidades.SesionActual.NombreSucursal = usuarioLogueado.NombreSucursal;
+            Auditoria.Registrar("Inicio de sesión", "Sesión");
 
             this.Hide();
             MDIParent1 mdi = new MDIParent1();
@@ -3865,6 +4558,10 @@ namespace AorusMarket.Formularios
         }
     }
 }
+
+
+=== FrmLogin.Designer.cs ===
+
 namespace AorusMarket.Formularios
 {
     partial class FrmLogin
@@ -3889,6 +4586,10 @@ namespace AorusMarket.Formularios
         }
     }
 }
+
+
+=== FrmProductos.cs ===
+
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -4111,6 +4812,10 @@ namespace AorusMarket.Formularios
         }
     }
 }
+
+
+=== FrmProductos.Designer.cs ===
+
 namespace AorusMarket.Formularios
 {
     partial class FrmProductos
@@ -4145,6 +4850,10 @@ namespace AorusMarket.Formularios
 
     }
 }
+
+
+=== FrmPuntoVenta.cs ===
+
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -4596,6 +5305,10 @@ namespace AorusMarket.Formularios
         }
     }
 }
+
+
+=== FrmPuntoVenta.Designer.cs ===
+
 namespace AorusMarket.Formularios
 {
     partial class FrmPuntoVenta
@@ -4635,6 +5348,10 @@ namespace AorusMarket.Formularios
         #endregion
     }
 }
+
+
+=== FrmReportes.cs ===
+
 using System;
 using System.IO;
 using System.Drawing;
@@ -4879,6 +5596,10 @@ namespace AorusMarket.Formularios
         }
     }
 }
+
+
+=== FrmReportes.Designer.cs ===
+
 namespace AorusMarket.Formularios
 {
     partial class FrmReportes
@@ -4918,6 +5639,10 @@ namespace AorusMarket.Formularios
         #endregion
     }
 }
+
+
+=== FrmStock.cs ===
+
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -5150,6 +5875,10 @@ namespace AorusMarket.Formularios
         }
     }
 }
+
+
+=== FrmStock.Designer.cs ===
+
 namespace AorusMarket.Formularios
 {
     partial class FrmStock
@@ -5189,6 +5918,10 @@ namespace AorusMarket.Formularios
         #endregion
     }
 }
+
+
+=== FrmSucursales.cs ===
+
 using System;
 using System.Drawing;
 using AorusMarket.Utilidades;
@@ -5430,6 +6163,10 @@ namespace AorusMarket.Formularios
         }
     }
 }
+
+
+=== FrmSucursales.Designer.cs ===
+
 namespace AorusMarket.Formularios
 {
     partial class FrmSucursales
@@ -5469,6 +6206,10 @@ namespace AorusMarket.Formularios
         #endregion
     }
 }
+
+
+=== FrmUsuarios.cs ===
+
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -5738,6 +6479,10 @@ namespace AorusMarket.Formularios
         }
     }
 }
+
+
+=== FrmUsuarios.Designer.cs ===
+
 namespace AorusMarket.Formularios
 {
     partial class FrmUsuarios
@@ -5759,6 +6504,11 @@ namespace AorusMarket.Formularios
         }
     }
 }
+
+
+=== MDIParent1.cs ===
+
+using AorusMarket.Negocio;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
 using System;
@@ -5798,6 +6548,8 @@ namespace AorusMarket.Formularios
 
             AplicarPermisosPorPerfil();
             this.FormClosed += (s, e) => Application.Exit();
+            this.FormClosed += (s, e) => BackupScheduler.Detener();
+            BackupScheduler.Iniciar();
         }
 
         private void ConfigurarFormulario()
@@ -5914,8 +6666,8 @@ namespace AorusMarket.Formularios
             panelMenuLateral.Controls.Add(btnHistorial);
             yPos += btnHeight;
 
-            btnAuditoria = CrearBotonMenu("🔎 Auditoría Stock", yPos);
-            btnAuditoria.Click += (s, e) => { ResaltarBotonActivo(btnAuditoria); AbrirFormularioEnPanel<FrmAuditoriaStock>(); };
+            btnAuditoria = CrearBotonMenu("🔎 Auditoría General", yPos);
+            btnAuditoria.Click += (s, e) => { ResaltarBotonActivo(btnAuditoria); AbrirFormularioEnPanel<FrmAuditoriaGeneral>(); };
             panelMenuLateral.Controls.Add(btnAuditoria);
             yPos += btnHeight;
 
@@ -6181,6 +6933,21 @@ namespace AorusMarket.Formularios
                 ResaltarBotonActivo(btnStock);
                 AbrirFormularioEnPanel<FrmStock>();
             }
+            else if (SesionActual.IdPerfil == 4)
+            {
+                menuDelUsuario.Add(btnDashboard);
+                menuDelUsuario.Add(btnReportes);
+                menuDelUsuario.Add(btnHistorial);
+                menuDelUsuario.Add(btnClientes);
+                menuDelUsuario.Add(btnStock);
+                menuDelUsuario.Add(btnProductos);
+                menuDelUsuario.Add(btnCategorias);
+                menuDelUsuario.Add(btnBackup);
+
+                ResaltarBotonActivo(btnDashboard);
+                AbrirFormularioEnPanel<FrmDashboard>();
+            }
+
 
             int yPos = 110;
             int btnHeight = 45;
@@ -6212,6 +6979,8 @@ namespace AorusMarket.Formularios
                 }
                 formulariosCacheados.Clear();
 
+                Auditoria.Registrar("Cierre de sesión", "Sesión");
+
                 SesionActual.CerrarSesion();
                 this.Hide();
                 FrmLogin login = new FrmLogin();
@@ -6231,6 +7000,10 @@ namespace AorusMarket.Formularios
         }
     }
 }
+
+
+=== MDIParent1.Designer.cs ===
+
 namespace AorusMarket.Formularios
 {
     partial class MDIParent1
@@ -6253,6 +7026,54 @@ namespace AorusMarket.Formularios
         }
     }
 }
+
+
+=== Auditoria.cs ===
+
+using System;
+using System.Data;
+using AorusMarket.AccesoDatos;
+using AorusMarket.Utilidades;
+
+namespace AorusMarket.Negocio
+{
+    public static class Auditoria
+    {
+        private static readonly AuditoriaDatos _datos = new AuditoriaDatos();
+
+        // Registra la acción a nombre del usuario con sesión iniciada
+        public static void Registrar(string accion, string entidad, string detalle = null)
+        {
+            int? id = SesionActual.IdUsuario > 0 ? SesionActual.IdUsuario : (int?)null;
+            RegistrarComo(id, SesionActual.NombreCompleto, accion, entidad, detalle);
+        }
+
+        // Para eventos sin sesión (ej: login fallido)
+        public static void RegistrarComo(int? idUsuario, string usuario, string accion, string entidad, string detalle = null)
+        {
+            // La auditoría nunca debe romper la operación principal
+            try { _datos.Registrar(idUsuario, usuario, accion, entidad, detalle); }
+            catch { }
+        }
+
+        public static DataTable Listar(DateTime desde, DateTime hasta, string entidad)
+        {
+            return _datos.Listar(desde, hasta, entidad);
+        }
+
+
+
+
+        public static DataTable ListarUnificada(DateTime desde, DateTime hasta, string entidad)
+        {
+            return _datos.ListarUnificada(desde, hasta, entidad);
+        }
+    }
+}
+
+
+=== BackupNegocio.cs ===
+
 using System;
 using System.IO;
 using System.Linq;
@@ -6264,53 +7085,13 @@ using Google.Apis.Auth.OAuth2;
 using Google.Apis.Drive.v3;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
+using AorusMarket.Entidades;
+using AorusMarket.Utilidades;
 
 namespace AorusMarket.Negocio
 {
     public class BackupNegocio
     {
-        public bool GenerarRespaldo(string rutaCompleta, string tipoDestino, out string mensaje)
-        {
-            mensaje = string.Empty;
-            try
-            {
-                using (SqlConnection oConexion = Conexion.ObtenerConexion())
-                {
-                    oConexion.Open();
-                    string nombreBd = oConexion.Database;
-
-                    string query = $"BACKUP DATABASE [{nombreBd}] TO DISK = @ruta WITH FORMAT, MEDIANAME = 'AorusBackups', NAME = 'Backup Completo AorusMarket';";
-
-                    using (SqlCommand cmd = new SqlCommand(query, oConexion))
-                    {
-                        cmd.Parameters.AddWithValue("@ruta", rutaCompleta);
-                        cmd.CommandTimeout = 300;
-                        cmd.ExecuteNonQuery();
-                    }
-                }
-
-                // 1. Conserva solo los 5 más recientes
-                string carpeta = Path.GetDirectoryName(rutaCompleta);
-                PurgarBackupsAntiguos(carpeta, 5);
-
-                // 2. Si se eligió Google Drive, sube el archivo
-                if (tipoDestino.Contains("Google Drive"))
-                {
-                    SubirAGoogleDrive(rutaCompleta, out string msjDrive);
-                    if (!string.IsNullOrEmpty(msjDrive))
-                    {
-                        mensaje = "Backup local creado. Aviso Drive: " + msjDrive;
-                    }
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                mensaje = "Error al generar el respaldo: " + ex.Message;
-                return false;
-            }
-        }
 
         public void PurgarBackupsAntiguos(string carpeta, int cantidadMaxima)
         {
@@ -6388,7 +7169,124 @@ namespace AorusMarket.Negocio
             }
         }
 
-        public bool RestaurarBaseDatos(string archivoBak, out string mensaje)
+
+        private readonly BackupDatos _datos = new BackupDatos();
+
+        public ConfigBackup ObtenerConfig() => _datos.ObtenerConfig();
+        public void GuardarConfig(ConfigBackup cfg) => _datos.GuardarConfig(cfg);
+        public DataTable ListarRegistro() => _datos.ListarRegistro();
+
+        // El registro nunca debe romper la operación principal
+        private void RegistrarSeguro(string tipo, string origen, string archivo,
+                                     int? idSol, int? idApr, string estado, string detalle)
+        {
+            try { _datos.RegistrarOperacion(tipo, origen, archivo, idSol, idApr, estado, detalle); }
+            catch { }
+
+            Auditoria.Registrar($"{tipo} {origen.ToLower()} - {estado}", "Backup", archivo);
+        }
+
+        private static void EjecutarSql(SqlConnection cn, string sql)
+        {
+            using (SqlCommand cmd = new SqlCommand(sql, cn))
+            {
+                cmd.CommandTimeout = 300;
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        private void EjecutarBackupSql(string rutaCompleta)
+        {
+            using (SqlConnection cn = Conexion.ObtenerConexion())
+            {
+                cn.Open();
+                string bd = cn.Database;
+                using (SqlCommand cmd = new SqlCommand(
+                    $"BACKUP DATABASE [{bd}] TO DISK = @ruta WITH FORMAT, CHECKSUM, MEDIANAME = 'AorusBackups', NAME = 'Backup Completo AorusMarket';", cn))
+                {
+                    cmd.Parameters.AddWithValue("@ruta", rutaCompleta);
+                    cmd.CommandTimeout = 300;
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        // Comprueba que el archivo generado sea legible y no esté corrupto
+        private void VerificarBackup(string rutaCompleta)
+        {
+            using (SqlConnection cn = Conexion.ObtenerConexion())
+            {
+                cn.Open();
+                using (SqlCommand cmd = new SqlCommand("RESTORE VERIFYONLY FROM DISK = @ruta WITH CHECKSUM;", cn))
+                {
+                    cmd.Parameters.AddWithValue("@ruta", rutaCompleta);
+                    cmd.CommandTimeout = 300;
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public bool GenerarRespaldo(string rutaCompleta, string tipoDestino, int conservar, out string mensaje)
+        {
+            mensaje = string.Empty;
+            try
+            {
+                EjecutarBackupSql(rutaCompleta);
+                VerificarBackup(rutaCompleta);
+
+                PurgarBackupsAntiguos(Path.GetDirectoryName(rutaCompleta), conservar);
+
+                if (tipoDestino.Contains("Google Drive"))
+                {
+                    SubirAGoogleDrive(rutaCompleta, out string msjDrive);
+                    if (!string.IsNullOrEmpty(msjDrive))
+                        mensaje = "Backup local creado. Aviso Drive: " + msjDrive;
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                mensaje = "Error al generar el respaldo: " + ex.Message;
+                return false;
+            }
+        }
+
+        // Backup libre: lo puede ejecutar cualquier usuario en cualquier momento
+        public bool CrearBackup(string carpeta, string tipoDestino, int conservar, string origen,
+                                out string mensaje, out string rutaCompleta)
+        {
+            mensaje = string.Empty;
+            rutaCompleta = string.Empty;
+            int? idUsuario = SesionActual.IdUsuario > 0 ? SesionActual.IdUsuario : (int?)null;
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(carpeta)) throw new InvalidOperationException("La ruta de destino está vacía.");
+                if (!Directory.Exists(carpeta)) Directory.CreateDirectory(carpeta);
+            }
+            catch (Exception ex)
+            {
+                mensaje = "La ruta no es válida o no tiene permisos: " + ex.Message;
+                RegistrarSeguro("Backup", origen, null, idUsuario, null, "Fallido", mensaje);
+                return false;
+            }
+
+            rutaCompleta = Path.Combine(carpeta, $"AorusMarket_{DateTime.Now:yyyyMMdd_HHmmss}.bak");
+
+            bool ok = GenerarRespaldo(rutaCompleta, tipoDestino, conservar, out mensaje);
+
+            RegistrarSeguro("Backup", origen, ok ? rutaCompleta : null, idUsuario, null,
+                            ok ? "Completado" : "Fallido", mensaje);
+
+            if (ok)
+            {
+                try { _datos.ActualizarUltimoBackup(DateTime.Now); } catch { }
+            }
+            return ok;
+        }
+
+        // Restauración: antes de pisar la BD se guarda una copia del estado actual
+        public bool Restaurar(string archivoBak, int idSolicitante, int idAprobador, out string mensaje)
         {
             mensaje = string.Empty;
 
@@ -6400,35 +7298,66 @@ namespace AorusMarket.Negocio
 
             try
             {
-                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder(Conexion.ObtenerConexion().ConnectionString);
-                string nombreDbActual = builder.InitialCatalog;
+                string carpeta = Path.GetDirectoryName(archivoBak);
+                string copiaPrevia = Path.Combine(carpeta, $"PreRestore_AorusMarket_{DateTime.Now:yyyyMMdd_HHmmss}.bak");
+                EjecutarBackupSql(copiaPrevia);
+            }
+            catch (Exception ex)
+            {
+                mensaje = "No se pudo generar la copia previa de seguridad. Restauración cancelada: " + ex.Message;
+                return false;
+            }
+
+            bool ok = RestaurarBaseDatos(archivoBak, out mensaje);
+
+            // Se registra DESPUÉS: el restore reemplaza la BD (y con ella el registro)
+            SqlConnection.ClearAllPools();
+            RegistrarSeguro("Restauración", "Manual", archivoBak, idSolicitante, idAprobador,
+                            ok ? "Completado" : "Fallido", ok ? null : mensaje);
+            return ok;
+        }
+
+        public bool RestaurarBaseDatos(string archivoBak, out string mensaje)
+        {
+            mensaje = string.Empty;
+
+            if (!File.Exists(archivoBak))
+            {
+                mensaje = "El archivo de respaldo seleccionado no existe.";
+                return false;
+            }
+
+            string nombreDb, cadenaMaster;
+            using (SqlConnection tmp = Conexion.ObtenerConexion())
+            {
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder(tmp.ConnectionString);
+                nombreDb = builder.InitialCatalog;
                 builder.InitialCatalog = "master";
+                cadenaMaster = builder.ConnectionString;
+            }
 
-                using (SqlConnection oConexionMaster = new SqlConnection(builder.ConnectionString))
+            try
+            {
+                using (SqlConnection cn = new SqlConnection(cadenaMaster))
                 {
-                    oConexionMaster.Open();
-
-                    string querySingleUser = $"ALTER DATABASE [{nombreDbActual}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;";
-                    using (SqlCommand cmd1 = new SqlCommand(querySingleUser, oConexionMaster))
+                    cn.Open();
+                    EjecutarSql(cn, $"ALTER DATABASE [{nombreDb}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;");
+                    try
                     {
-                        cmd1.ExecuteNonQuery();
+                        using (SqlCommand cmd = new SqlCommand(
+                            $"RESTORE DATABASE [{nombreDb}] FROM DISK = @ruta WITH REPLACE;", cn))
+                        {
+                            cmd.Parameters.AddWithValue("@ruta", archivoBak);
+                            cmd.CommandTimeout = 300;
+                            cmd.ExecuteNonQuery();
+                        }
                     }
-
-                    string queryRestore = $"RESTORE DATABASE [{nombreDbActual}] FROM DISK = @ruta WITH REPLACE;";
-                    using (SqlCommand cmd2 = new SqlCommand(queryRestore, oConexionMaster))
+                    finally
                     {
-                        cmd2.Parameters.AddWithValue("@ruta", archivoBak);
-                        cmd2.CommandTimeout = 300;
-                        cmd2.ExecuteNonQuery();
-                    }
-
-                    string queryMultiUser = $"ALTER DATABASE [{nombreDbActual}] SET MULTI_USER;";
-                    using (SqlCommand cmd3 = new SqlCommand(queryMultiUser, oConexionMaster))
-                    {
-                        cmd3.ExecuteNonQuery();
+                        // Si el RESTORE falla, la BD NO queda bloqueada en modo single user
+                        EjecutarSql(cn, $"ALTER DATABASE [{nombreDb}] SET MULTI_USER;");
                     }
                 }
-
                 return true;
             }
             catch (Exception ex)
@@ -6437,8 +7366,16 @@ namespace AorusMarket.Negocio
                 return false;
             }
         }
+
+
+
+
     }
 }
+
+
+=== CategoriaNegocio.cs ===
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6474,38 +7411,36 @@ namespace AorusMarket.Negocio
                 return false;
             }
 
-            if (obj.IdCategoria == 0)
-            {
-                bool resultado = _categoriaDatos.Insertar(obj);
-                if (!resultado) mensaje = "No se pudo insertar la categoría.";
-                return resultado;
-            }
+            bool nuevo = obj.IdCategoria == 0;
+            bool resultado = nuevo ? _categoriaDatos.Insertar(obj) : _categoriaDatos.Editar(obj);
+            if (!resultado)
+                mensaje = nuevo ? "No se pudo insertar la categoría." : "No se pudo actualizar la categoría.";
             else
-            {
-                bool resultado = _categoriaDatos.Editar(obj);
-                if (!resultado) mensaje = "No se pudo actualizar la categoría.";
-                return resultado;
-            }
+                Auditoria.Registrar(nuevo ? "Alta de categoría" : "Modificación de categoría", "Categoría", obj.Nombre);
+            return resultado;
         }
 
         public bool Eliminar(int id, out string mensaje)
         {
             mensaje = string.Empty;
             bool resultado = _categoriaDatos.Eliminar(id);
-            if (!resultado)
-            {
-                mensaje = "Ocurrió un error al intentar eliminar la categoría.";
-            }
+            if (resultado) Auditoria.Registrar("Baja de categoría", "Categoría", $"Id {id}");   // ajustá texto/entidad en cada una
+            else mensaje = "...";   // lo que ya tenías
             return resultado;
         }
     }
 }
+
+
+=== ClienteNegocio.cs ===
+
+using AorusMarket.AccesoDatos;
+using AorusMarket.Entidades;
+using AorusMarket.Utilidades;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using AorusMarket.AccesoDatos;
-using AorusMarket.Entidades;
 
 namespace AorusMarket.Negocio
 {
@@ -6542,11 +7477,10 @@ namespace AorusMarket.Negocio
             if (string.IsNullOrWhiteSpace(obj.Altura) || !Regex.IsMatch(obj.Altura, @"^\d+$"))
             { mensaje = "La Altura de la dirección es obligatoria y debe contener solo números."; return false; }
 
-            // Validación de Edad razonable
             if (obj.FechaNacimiento.HasValue)
             {
-                int edad = DateTime.Now.Year - obj.FechaNacimiento.Value.Year;
-                if (edad > 100 || obj.FechaNacimiento.Value.Date > DateTime.Now.Date)
+                int edad = Validaciones.CalcularEdad(obj.FechaNacimiento.Value);
+                if (obj.FechaNacimiento.Value.Date > DateTime.Today || edad > 100)
                 {
                     mensaje = "La fecha de nacimiento ingresada no es válida.";
                     return false;
@@ -6563,19 +7497,28 @@ namespace AorusMarket.Negocio
             if (listaExistente.Any(c => c.Email.ToLower() == obj.Email.ToLower() && c.IdCliente != obj.IdCliente))
             { mensaje = "El Email ingresado ya se encuentra registrado en el sistema."; return false; }
 
-            if (obj.IdCliente == 0)
-                return _clienteDatos.Insertar(obj);
-            else
-                return _clienteDatos.Editar(obj);
+            bool nuevo = obj.IdCliente == 0;
+            bool resultado = nuevo ? _clienteDatos.Insertar(obj) : _clienteDatos.Editar(obj);
+            if (resultado)
+                Auditoria.Registrar(nuevo ? "Alta de cliente" : "Modificación de cliente", "Cliente",
+                    $"{obj.Nombre} {obj.Apellido} | DNI {obj.Dni}");
+            return resultado;
         }
 
+        // ClienteNegocio.Eliminar (reemplazalo entero):
         public bool Eliminar(int id, out string mensaje)
         {
             mensaje = string.Empty;
-            return _clienteDatos.Eliminar(id);
+            bool resultado = _clienteDatos.Eliminar(id);
+            if (resultado) Auditoria.Registrar("Baja de cliente", "Cliente", $"Id {id}");
+            return resultado;
         }
     }
 }
+
+
+=== DashboardNegocio.cs ===
+
 using System;
 using System.Collections.Generic;
 using AorusMarket.AccesoDatos;
@@ -6623,11 +7566,16 @@ namespace AorusMarket.Negocio
         }
     }
 }
+
+
+=== ProductoNegocio.cs ===
+
+using AorusMarket.AccesoDatos;
+using AorusMarket.Entidades;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using AorusMarket.AccesoDatos;
-using AorusMarket.Entidades;
+using System.Text.RegularExpressions;
 
 namespace AorusMarket.Negocio
 {
@@ -6663,32 +7611,46 @@ namespace AorusMarket.Negocio
                 return false;
             }
 
-            if (obj.IdProducto == 0)
+            string codigo = obj.CodigoBarras == null ? null : obj.CodigoBarras.Trim();
+            if (!string.IsNullOrEmpty(codigo))
             {
-                bool resultado = _productoDatos.Insertar(obj);
-                if (!resultado) mensaje = "No se pudo insertar el producto.";
-                return resultado;
+                if (!Regex.IsMatch(codigo, @"^\d{8,14}$"))
+                {
+                    mensaje = "El código de barras debe tener entre 8 y 14 números.";
+                    return false;
+                }
+                if (_productoDatos.ExisteCodigoBarras(codigo, obj.IdProducto))
+                {
+                    mensaje = "Ya existe un producto (activo o dado de baja) con ese código de barras.";
+                    return false;
+                }
             }
+            obj.CodigoBarras = codigo;
+
+
+            bool nuevo = obj.IdProducto == 0;
+            bool resultado = nuevo ? _productoDatos.Insertar(obj) : _productoDatos.Editar(obj);
+            if (!resultado)
+                mensaje = nuevo ? "No se pudo insertar el producto." : "No se pudo actualizar el producto.";
             else
-            {
-                bool resultado = _productoDatos.Editar(obj);
-                if (!resultado) mensaje = "No se pudo actualizar el producto.";
-                return resultado;
-            }
+                Auditoria.Registrar(nuevo ? "Alta de producto" : "Modificación de producto", "Producto", obj.Nombre);
+            return resultado;
         }
 
         public bool Eliminar(int id, out string mensaje)
         {
             mensaje = string.Empty;
             bool resultado = _productoDatos.Eliminar(id);
-            if (!resultado)
-            {
-                mensaje = "Ocurrió un error al intentar eliminar el producto.";
-            }
+            if (resultado) Auditoria.Registrar("Baja de categoría", "Categoría", $"Id {id}");   // ajustá texto/entidad en cada una
+            else mensaje = "...";   // lo que ya tenías
             return resultado;
         }
     }
 }
+
+
+=== ReporteNegocio.cs ===
+
 using System;
 using System.Collections.Generic;
 using AorusMarket.AccesoDatos;
@@ -6736,10 +7698,15 @@ namespace AorusMarket.Negocio
         }
     }
 }
+
+
+=== StockNegocio.cs ===
+
 using System;
 using System.Collections.Generic;
 using AorusMarket.AccesoDatos;
 using AorusMarket.Entidades;
+using AorusMarket.Utilidades;
 
 namespace AorusMarket.Negocio
 {
@@ -6768,6 +7735,13 @@ namespace AorusMarket.Negocio
                 return false;
             }
 
+            // Con cultura es-AR el punto es separador de miles: "1500.50" se leería como 150050
+            if (strPrec.Contains("."))
+            {
+                mensaje = "Use la coma como separador decimal en el precio (ejemplo: 1500,50).";
+                return false;
+            }
+
             if (!int.TryParse(strCant, out int cantidad) || !decimal.TryParse(strPrec, out decimal precio) || !int.TryParse(strMinimo, out int stockMinimo))
             {
                 mensaje = "Cantidad, Precio y Stock Mínimo deben ser valores numéricos válidos.";
@@ -6786,6 +7760,18 @@ namespace AorusMarket.Negocio
                 return false;
             }
 
+            if (precio > 10000000m)
+            {
+                mensaje = "El precio ingresado es demasiado alto. Verifique el valor.";
+                return false;
+            }
+
+            if (cantidad > 1000000 || stockMinimo > 1000000)
+            {
+                mensaje = "La cantidad o el stock mínimo exceden el máximo permitido (1.000.000).";
+                return false;
+            }
+
             StockSucursal obj = new StockSucursal()
             {
                 IdProducto = Convert.ToInt32(strProd),
@@ -6796,7 +7782,11 @@ namespace AorusMarket.Negocio
             };
 
             bool resultado = _stockDatos.Guardar(obj, idUsuario);
-            if (!resultado) mensaje = "Ocurrió un error en la base de datos al intentar guardar el stock.";
+            if (!resultado)
+                mensaje = "Ocurrió un error en la base de datos al intentar guardar el stock.";
+            else
+                Auditoria.Registrar("Ajuste de stock / precio", "Stock",
+                    $"Producto #{obj.IdProducto} | Sucursal #{obj.IdSucursal} | Cant: {cantidad} | Precio: {precio:0.00} | Mín: {stockMinimo}");
 
             return resultado;
         }
@@ -6804,8 +7794,13 @@ namespace AorusMarket.Negocio
         public bool Eliminar(int idStock, out string mensaje)
         {
             mensaje = string.Empty;
-            bool resultado = _stockDatos.Eliminar(idStock);
-            if (!resultado) mensaje = "Error: Es posible que este registro de stock esté vinculado a detalles de ventas.";
+            bool resultado = _stockDatos.Eliminar(idStock, SesionActual.IdUsuario);
+
+            if (resultado)
+                Auditoria.Registrar("Baja de stock", "Stock", $"Registro de stock #{idStock} dado de baja (se conserva el historial)");
+            else
+                mensaje = "No se pudo dar de baja el registro de stock (puede que ya no exista).";
+
             return resultado;
         }
 
@@ -6829,6 +7824,10 @@ namespace AorusMarket.Negocio
         }
     }
 }
+
+
+=== SucursalNegocio.cs ===
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6871,32 +7870,29 @@ namespace AorusMarket.Negocio
                 return false;
             }
 
-            if (obj.IdSucursal == 0)
-            {
-                bool resultado = _sucursalDatos.Insertar(obj);
-                if (!resultado) mensaje = "No se pudo insertar la sucursal. Verifique la conexión.";
-                return resultado;
-            }
+            bool nuevo = obj.IdSucursal == 0;
+            bool resultado = nuevo ? _sucursalDatos.Insertar(obj) : _sucursalDatos.Editar(obj);
+            if (!resultado)
+                mensaje = nuevo ? "No se pudo insertar la sucursal. Verifique la conexión." : "No se pudo actualizar la sucursal.";
             else
-            {
-                bool resultado = _sucursalDatos.Editar(obj);
-                if (!resultado) mensaje = "No se pudo actualizar la sucursal.";
-                return resultado;
-            }
+                Auditoria.Registrar(nuevo ? "Alta de sucursal" : "Modificación de sucursal", "Sucursal", obj.Nombre);
+            return resultado;
         }
 
         public bool Eliminar(int id, out string mensaje)
         {
             mensaje = string.Empty;
             bool resultado = _sucursalDatos.Eliminar(id);
-            if (!resultado)
-            {
-                mensaje = "Ocurrió un error al intentar eliminar la sucursal.";
-            }
+            if (resultado) Auditoria.Registrar("Baja de categoría", "Categoría", $"Id {id}");   // ajustá texto/entidad en cada una
+            else mensaje = "...";   // lo que ya tenías
             return resultado;
         }
     }
 }
+
+
+=== UsuarioNegocio.cs ===
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6958,13 +7954,12 @@ namespace AorusMarket.Negocio
             if (obj.IdPerfil <= 0) { mensaje = "Debe seleccionar un Perfil válido."; return false; }
             if (obj.IdSucursal <= 0) { mensaje = "Debe seleccionar una Sucursal válida."; return false; }
 
-            // Validación de Edad razonable
             if (obj.FechaNacimiento.HasValue)
             {
-                int edad = DateTime.Now.Year - obj.FechaNacimiento.Value.Year;
+                int edad = Validaciones.CalcularEdad(obj.FechaNacimiento.Value);
                 if (edad < 18 || edad > 100)
                 {
-                    mensaje = "El usuario debe ser mayor de edad y tener una fecha de nacimiento válida.";
+                    mensaje = "El usuario debe ser mayor de edad (18+) y tener una fecha de nacimiento válida.";
                     return false;
                 }
             }
@@ -6978,26 +7973,43 @@ namespace AorusMarket.Negocio
 
             if (obj.IdUsuario == 0)
             {
-                if (string.IsNullOrWhiteSpace(obj.Password) || obj.Password.Length < 4)
-                { mensaje = "La Contraseña es obligatoria para nuevos usuarios (mínimo 4 caracteres)."; return false; }
+                string msjPass;
+                if (!Validaciones.PasswordValida(obj.Password, out msjPass))
+                { mensaje = msjPass; return false; }
 
-                // Hasheamos la contraseña antes de insertar
                 obj.Password = BCrypt.Net.BCrypt.HashPassword(obj.Password);
-                return _usuarioDatos.Insertar(obj);
+                bool ok = _usuarioDatos.Insertar(obj);
+                if (ok)
+                    Auditoria.Registrar("Alta de usuario", "Usuario",
+                        $"{obj.Nombre} {obj.Apellido} | DNI {obj.Dni} | Perfil #{obj.IdPerfil} | Sucursal #{obj.IdSucursal}");
+                return ok;
             }
             else
             {
-                if (!string.IsNullOrWhiteSpace(obj.Password))
+                // No se puede quitar el perfil Administrador al último administrador activo
+                Usuario actual = listaExistente.FirstOrDefault(u => u.IdUsuario == obj.IdUsuario);
+                if (actual != null && actual.IdPerfil == 1 && obj.IdPerfil != 1
+                    && listaExistente.Count(u => u.IdPerfil == 1) <= 1)
                 {
-                    if (obj.Password.Length < 4)
-                    {
-                        mensaje = "La nueva contraseña debe tener al menos 4 caracteres.";
-                        return false;
-                    }
-                    // Si completó el campo al editar, la hasheamos; si lo dejó vacío, Editar no lo toma.
+                    mensaje = "No se puede cambiar el perfil del único Administrador del sistema.";
+                    return false;
+                }
+
+                bool cambioClave = !string.IsNullOrWhiteSpace(obj.Password);
+                if (cambioClave)
+                {
+                    string msjPass;
+                    if (!Validaciones.PasswordValida(obj.Password, out msjPass))
+                    { mensaje = msjPass; return false; }
+
                     obj.Password = BCrypt.Net.BCrypt.HashPassword(obj.Password);
                 }
-                return _usuarioDatos.Editar(obj);
+
+                bool ok = _usuarioDatos.Editar(obj);
+                if (ok)
+                    Auditoria.Registrar("Modificación de usuario", "Usuario",
+                        $"{obj.Nombre} {obj.Apellido} | DNI {obj.Dni} | Perfil #{obj.IdPerfil}" + (cambioClave ? " | Cambió contraseña" : ""));
+                return ok;
             }
         }
 
@@ -7012,10 +8024,24 @@ namespace AorusMarket.Negocio
                 return false;
             }
 
-            return _usuarioDatos.Eliminar(id);
+            var usuarios = _usuarioDatos.Listar();
+            Usuario objetivo = usuarios.FirstOrDefault(u => u.IdUsuario == id);
+            if (objetivo != null && objetivo.IdPerfil == 1 && usuarios.Count(u => u.IdPerfil == 1) <= 1)
+            {
+                mensaje = "No se puede eliminar al único Administrador del sistema.";
+                return false;
+            }
+
+            bool ok = _usuarioDatos.Eliminar(id);
+            if (ok) Auditoria.Registrar("Baja de usuario", "Usuario", $"Id {id}");
+            return ok;
         }
     }
 }
+
+
+=== VentaNegocio.cs ===
+
 using System;
 using System.Collections.Generic;
 using AorusMarket.AccesoDatos;
@@ -7046,11 +8072,13 @@ namespace AorusMarket.Negocio
 
             bool respuesta = _ventaDatos.ConfirmarVenta(objVenta);
             if (!respuesta)
-            {
                 mensaje = "Ocurrió un error crítico al intentar registrar la venta en la base de datos.";
-            }
+            else
+                Auditoria.Registrar("Venta confirmada", "Venta",
+                    $"Venta #{objVenta.IdVenta} | Total: {objVenta.Total:0.00} | Pago: {objVenta.MetodoPago} | Sucursal #{objVenta.IdSucursal}");
+
             return respuesta;
-         
+
         }
 
         // 3. Listar el Historial
@@ -7079,9 +8107,9 @@ namespace AorusMarket.Negocio
             bool respuesta = _ventaDatos.AnularVenta(idVenta, idUsuarioAuditoria);
 
             if (!respuesta)
-            {
                 mensaje = "Ocurrió un error al intentar anular la venta y devolver el stock.";
-            }
+            else
+                Auditoria.Registrar("Venta anulada", "Venta", $"Venta #{idVenta} anulada y stock devuelto");
 
             return respuesta;
         }
@@ -7094,14 +8122,26 @@ namespace AorusMarket.Negocio
         }
     }
 }
+
+
+=== .NETFramework,Version=v4.8.AssemblyAttributes.cs ===
+
 // <autogenerated />
 using System;
 using System.Reflection;
 [assembly: global::System.Runtime.Versioning.TargetFrameworkAttribute(".NETFramework,Version=v4.8", FrameworkDisplayName = ".NET Framework 4.8")]
+
+
+=== .NETFramework,Version=v4.8.AssemblyAttributes.cs ===
+
 // <autogenerated />
 using System;
 using System.Reflection;
 [assembly: global::System.Runtime.Versioning.TargetFrameworkAttribute(".NETFramework,Version=v4.8", FrameworkDisplayName = ".NET Framework 4.8")]
+
+
+=== AssemblyInfo.cs ===
+
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -7135,6 +8175,10 @@ using System.Runtime.InteropServices;
 //
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
+
+
+=== Resources.Designer.cs ===
+
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Este código fue generado por una herramienta.
@@ -7198,6 +8242,10 @@ namespace AorusMarket.Properties {
         }
     }
 }
+
+
+=== Settings.Designer.cs ===
+
 //------------------------------------------------------------------------------
 // <auto-generated>
 //     Este código fue generado por una herramienta.
@@ -7224,6 +8272,94 @@ namespace AorusMarket.Properties {
         }
     }
 }
+
+
+=== BackupScheduler.cs ===
+
+using System;
+using System.Threading.Tasks;
+using AorusMarket.Entidades;
+using AorusMarket.Negocio;
+
+namespace AorusMarket.Utilidades
+{
+    public static class BackupScheduler
+    {
+        private static System.Windows.Forms.Timer _timer;
+        private static readonly BackupNegocio _negocio = new BackupNegocio();
+        private static ConfigBackup _config;
+        private static bool _ejecutando;
+        private static DateTime _ultimoIntento = DateTime.MinValue;
+
+        public static void Iniciar()
+        {
+            Detener();
+
+            // Solo desde equipos de Administrador o Gerente (evita backups duplicados desde cajas)
+            if (SesionActual.IdPerfil != 1 && SesionActual.IdPerfil != 4) return;
+
+            RecargarConfig();
+            _timer = new System.Windows.Forms.Timer { Interval = 30000 };
+            _timer.Tick += Timer_Tick;
+            _timer.Start();
+        }
+
+        public static void Detener()
+        {
+            if (_timer == null) return;
+            _timer.Stop();
+            _timer.Dispose();
+            _timer = null;
+        }
+
+        public static void RecargarConfig()
+        {
+            try { _config = _negocio.ObtenerConfig(); }
+            catch { }
+        }
+
+        private static async void Timer_Tick(object sender, EventArgs e)
+        {
+            if (_ejecutando || _config == null || !_config.Activo) return;
+
+            TimeSpan hora;
+            if (!TimeSpan.TryParse(_config.HoraProgramada, out hora)) return;
+
+            DateTime ahora = DateTime.Now;
+            DateTime programada = ahora.Date + hora;
+
+            // Ventana de 2 horas desde la hora programada (por si la app se abrió un rato tarde)
+            bool enVentana = ahora >= programada && ahora < programada.AddHours(2);
+            bool yaHecho = _config.UltimoBackup.HasValue && _config.UltimoBackup.Value.Date == ahora.Date;
+            bool reintentoPronto = (ahora - _ultimoIntento).TotalMinutes < 30;
+
+            if (!enVentana || yaHecho || reintentoPronto) return;
+
+            _ejecutando = true;
+            _ultimoIntento = ahora;
+
+            ConfigBackup cfg = _config;
+            try
+            {
+                bool ok = await Task.Run(() =>
+                {
+                    string msg, ruta;
+                    return _negocio.CrearBackup(cfg.RutaDestino, cfg.TipoDestino,
+                                                cfg.CantidadAConservar, "Automático",
+                                                out msg, out ruta);
+                });
+
+                if (ok) _config.UltimoBackup = DateTime.Now;
+            }
+            catch { }
+            finally { _ejecutando = false; }
+        }
+    }
+}
+
+
+=== EstiloApp.cs ===
+
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -7384,6 +8520,10 @@ namespace AorusMarket.Utilidades
         }
     }
 }
+
+
+=== GeneradorFactura.cs ===
+
 using System;
 using System.IO;
 using System.Diagnostics;
@@ -7474,6 +8614,10 @@ namespace AorusMarket.Utilidades
         }
     }
 }
+
+
+=== SesionActual.cs ===
+
 namespace AorusMarket.Utilidades
 {
     public static class SesionActual
@@ -7496,29 +8640,41 @@ namespace AorusMarket.Utilidades
         }
     }
 }
+
+
+=== Validaciones.cs ===
+
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
-using System.Windows.Forms;
-using AorusMarket.Formularios;
-using System.Globalization;
-using System.Threading;
 
-namespace AorusMarket
+namespace AorusMarket.Utilidades
 {
-    internal static class Program
+    public static class Validaciones
     {
-        [STAThread]
-        static void Main()
+        // Edad exacta (la resta de años falla si todavía no cumplió años este año)
+        public static int CalcularEdad(DateTime nacimiento)
         {
-            CultureInfo culture = new CultureInfo("es-AR");
-            Thread.CurrentThread.CurrentCulture = culture;
-            Thread.CurrentThread.CurrentUICulture = culture;
+            DateTime hoy = DateTime.Today;
+            int edad = hoy.Year - nacimiento.Year;
+            if (nacimiento.Date > hoy.AddYears(-edad)) edad--;
+            return edad;
+        }
 
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new FrmLogin());
+        public static bool PasswordValida(string password, out string mensaje)
+        {
+            mensaje = string.Empty;
+
+            if (string.IsNullOrEmpty(password) || password.Length < 8)
+            {
+                mensaje = "La contraseña debe tener al menos 8 caracteres.";
+                return false;
+            }
+            if (!password.Any(char.IsLetter) || !password.Any(char.IsDigit))
+            {
+                mensaje = "La contraseña debe combinar letras y números.";
+                return false;
+            }
+            return true;
         }
     }
 }

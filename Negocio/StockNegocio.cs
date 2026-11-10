@@ -31,6 +31,13 @@ namespace AorusMarket.Negocio
                 return false;
             }
 
+            // Con cultura es-AR el punto es separador de miles: "1500.50" se leería como 150050
+            if (strPrec.Contains("."))
+            {
+                mensaje = "Use la coma como separador decimal en el precio (ejemplo: 1500,50).";
+                return false;
+            }
+
             if (!int.TryParse(strCant, out int cantidad) || !decimal.TryParse(strPrec, out decimal precio) || !int.TryParse(strMinimo, out int stockMinimo))
             {
                 mensaje = "Cantidad, Precio y Stock Mínimo deben ser valores numéricos válidos.";
@@ -46,6 +53,18 @@ namespace AorusMarket.Negocio
             if (precio <= 0)
             {
                 mensaje = "El precio debe ser mayor a $0.00.";
+                return false;
+            }
+
+            if (precio > 10000000m)
+            {
+                mensaje = "El precio ingresado es demasiado alto. Verifique el valor.";
+                return false;
+            }
+
+            if (cantidad > 1000000 || stockMinimo > 1000000)
+            {
+                mensaje = "La cantidad o el stock mínimo exceden el máximo permitido (1.000.000).";
                 return false;
             }
 

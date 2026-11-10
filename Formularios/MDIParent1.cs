@@ -4,6 +4,7 @@ using ReaLTaiizor.Controls;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Reflection;
 using System.Windows.Forms;
 
@@ -156,8 +157,8 @@ namespace AorusMarket.Formularios
             panelMenuLateral.Controls.Add(btnHistorial);
             yPos += btnHeight;
 
-            btnAuditoria = CrearBotonMenu("🔎 Auditoría Stock", yPos);
-            btnAuditoria.Click += (s, e) => { ResaltarBotonActivo(btnAuditoria); AbrirFormularioEnPanel<FrmAuditoriaStock>(); };
+            btnAuditoria = CrearBotonMenu("🔎 Auditoría General", yPos);
+            btnAuditoria.Click += (s, e) => { ResaltarBotonActivo(btnAuditoria); AbrirFormularioEnPanel<FrmAuditoriaGeneral>(); };
             panelMenuLateral.Controls.Add(btnAuditoria);
             yPos += btnHeight;
 
@@ -488,5 +489,11 @@ namespace AorusMarket.Formularios
                 prop.SetValue(control, true, null);
             }
         }
+
+
+
+
+
+
     }
 }

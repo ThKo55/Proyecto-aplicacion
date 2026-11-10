@@ -1,9 +1,10 @@
-﻿using System;
+﻿using AorusMarket.AccesoDatos;
+using AorusMarket.Entidades;
+using AorusMarket.Utilidades;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using AorusMarket.AccesoDatos;
-using AorusMarket.Entidades;
 
 namespace AorusMarket.Negocio
 {
@@ -40,11 +41,10 @@ namespace AorusMarket.Negocio
             if (string.IsNullOrWhiteSpace(obj.Altura) || !Regex.IsMatch(obj.Altura, @"^\d+$"))
             { mensaje = "La Altura de la dirección es obligatoria y debe contener solo números."; return false; }
 
-            // Validación de Edad razonable
             if (obj.FechaNacimiento.HasValue)
             {
-                int edad = DateTime.Now.Year - obj.FechaNacimiento.Value.Year;
-                if (edad > 100 || obj.FechaNacimiento.Value.Date > DateTime.Now.Date)
+                int edad = Validaciones.CalcularEdad(obj.FechaNacimiento.Value);
+                if (obj.FechaNacimiento.Value.Date > DateTime.Today || edad > 100)
                 {
                     mensaje = "La fecha de nacimiento ingresada no es válida.";
                     return false;

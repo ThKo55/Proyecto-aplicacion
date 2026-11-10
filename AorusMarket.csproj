@@ -104,6 +104,7 @@
     <Compile Include="AccesoDatos\ClienteDatos.cs" />
     <Compile Include="AccesoDatos\Conexion.cs" />
     <Compile Include="AccesoDatos\DashboardDatos.cs" />
+    <Compile Include="AccesoDatos\DireccionHelper.cs" />
     <Compile Include="AccesoDatos\ProductoDatos.cs" />
     <Compile Include="AccesoDatos\ReporteDatos.cs" />
     <Compile Include="AccesoDatos\StockDatos.cs" />
@@ -121,17 +122,17 @@
     <Compile Include="Entidades\Sucursal.cs" />
     <Compile Include="Entidades\Usuario.cs" />
     <Compile Include="Entidades\VentaModelos.cs" />
-    <Compile Include="Formularios\FrmAuditoriaAcciones.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Formularios\FrmAuditoriaAcciones.Designer.cs">
-      <DependentUpon>FrmAuditoriaAcciones.cs</DependentUpon>
-    </Compile>
     <Compile Include="Formularios\FrmBackup.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Formularios\FrmBackup.Designer.cs">
       <DependentUpon>FrmBackup.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Formularios\FrmDetalleAuditoria.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Formularios\FrmDetalleAuditoria.Designer.cs">
+      <DependentUpon>FrmDetalleAuditoria.cs</DependentUpon>
     </Compile>
     <Compile Include="Formularios\FrmReportes.cs">
       <SubType>Form</SubType>
@@ -139,7 +140,7 @@
     <Compile Include="Formularios\FrmReportes.Designer.cs">
       <DependentUpon>FrmReportes.cs</DependentUpon>
     </Compile>
-    <Compile Include="Formularios\FrmAuditoriaStock.cs">
+    <Compile Include="Formularios\FrmAuditoriaGeneral.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Formularios\FrmCategorias.cs">
@@ -222,6 +223,7 @@
     <Compile Include="Utilidades\GeneradorFactura.cs" />
     <Compile Include="Utilidades\SesionActual.cs" />
     <Compile Include="Utilidades\EstiloApp.cs" />
+    <Compile Include="Utilidades\Validaciones.cs" />
     <EmbeddedResource Include="Formularios\FrmCategorias.resx">
       <DependentUpon>FrmCategorias.cs</DependentUpon>
     </EmbeddedResource>

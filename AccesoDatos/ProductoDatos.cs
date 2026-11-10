@@ -112,5 +112,24 @@ namespace AorusMarket.AccesoDatos
                 catch { return false; }
             }
         }
+
+
+
+        public bool ExisteCodigoBarras(string codigo, int idProductoExcluido)
+        {
+            using (SqlConnection oConexion = Conexion.ObtenerConexion())
+            {
+                SqlCommand cmd = new SqlCommand(
+                    "SELECT COUNT(1) FROM producto WHERE codigo_barras = @cb AND id_producto <> @id", oConexion);
+                cmd.Parameters.AddWithValue("@cb", codigo);
+                cmd.Parameters.AddWithValue("@id", idProductoExcluido);
+                try
+                {
+                    oConexion.Open();
+                    return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+                }
+                catch { return false; }
+            }
+        }
     }
 }
