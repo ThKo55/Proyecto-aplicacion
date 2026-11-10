@@ -1,4 +1,5 @@
-﻿using AorusMarket.Utilidades;
+﻿using AorusMarket.Negocio;
+using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
 using System;
 using System.Collections.Generic;
@@ -23,6 +24,9 @@ namespace AorusMarket.Formularios
         private CyberButton botonActivo = null;
         private System.Windows.Forms.Timer timerIndicador;
 
+        // SOLUCIÓN CARRITO: Diccionario para guardar los formularios abiertos sin destruirlos
+        private Dictionary<Type, Form> formulariosCacheados = new Dictionary<Type, Form>();
+
         public MDIParent1()
         {
             InitializeComponent();
@@ -34,6 +38,8 @@ namespace AorusMarket.Formularios
 
             AplicarPermisosPorPerfil();
             this.FormClosed += (s, e) => Application.Exit();
+            this.FormClosed += (s, e) => BackupScheduler.Detener();
+            BackupScheduler.Iniciar();
         }
 
         private void ConfigurarFormulario()
@@ -116,56 +122,57 @@ namespace AorusMarket.Formularios
             int yPos = 110;
             int btnHeight = 45;
 
+            // SOLUCIÓN CARRITO: Ahora usamos AbrirFormularioEnPanel genérico <T>
             btnPuntoVenta = CrearBotonMenu("🛒 Punto de Venta", yPos);
-            btnPuntoVenta.Click += (s, e) => { ResaltarBotonActivo(btnPuntoVenta); AbrirFormularioEnPanel(new FrmPuntoVenta()); };
+            btnPuntoVenta.Click += (s, e) => { ResaltarBotonActivo(btnPuntoVenta); AbrirFormularioEnPanel<FrmPuntoVenta>(); };
             yPos += btnHeight;
 
             btnClientes = CrearBotonMenu("👥 Clientes", yPos);
-            btnClientes.Click += (s, e) => { ResaltarBotonActivo(btnClientes); AbrirFormularioEnPanel(new FrmClientes()); };
+            btnClientes.Click += (s, e) => { ResaltarBotonActivo(btnClientes); AbrirFormularioEnPanel<FrmClientes>(); };
             yPos += btnHeight;
 
             btnStock = CrearBotonMenu("📦 Stock", yPos);
-            btnStock.Click += (s, e) => { ResaltarBotonActivo(btnStock); AbrirFormularioEnPanel(new FrmStock()); };
+            btnStock.Click += (s, e) => { ResaltarBotonActivo(btnStock); AbrirFormularioEnPanel<FrmStock>(); };
             yPos += btnHeight;
 
             btnProductos = CrearBotonMenu("🏷️ Productos", yPos);
-            btnProductos.Click += (s, e) => { ResaltarBotonActivo(btnProductos); AbrirFormularioEnPanel(new FrmProductos()); };
+            btnProductos.Click += (s, e) => { ResaltarBotonActivo(btnProductos); AbrirFormularioEnPanel<FrmProductos>(); };
             yPos += btnHeight;
 
             btnCategorias = CrearBotonMenu("📁 Categorías", yPos);
-            btnCategorias.Click += (s, e) => { ResaltarBotonActivo(btnCategorias); AbrirFormularioEnPanel(new FrmCategorias()); };
+            btnCategorias.Click += (s, e) => { ResaltarBotonActivo(btnCategorias); AbrirFormularioEnPanel<FrmCategorias>(); };
             yPos += btnHeight;
 
             btnUsuarios = CrearBotonMenu("👤 Usuarios", yPos);
-            btnUsuarios.Click += (s, e) => { ResaltarBotonActivo(btnUsuarios); AbrirFormularioEnPanel(new FrmUsuarios()); };
+            btnUsuarios.Click += (s, e) => { ResaltarBotonActivo(btnUsuarios); AbrirFormularioEnPanel<FrmUsuarios>(); };
             yPos += btnHeight;
 
             btnSucursales = CrearBotonMenu("🏢 Sucursales", yPos);
-            btnSucursales.Click += (s, e) => { ResaltarBotonActivo(btnSucursales); AbrirFormularioEnPanel(new FrmSucursales()); };
+            btnSucursales.Click += (s, e) => { ResaltarBotonActivo(btnSucursales); AbrirFormularioEnPanel<FrmSucursales>(); };
             yPos += btnHeight;
 
             btnHistorial = CrearBotonMenu("📜 Hist. Ventas", yPos);
-            btnHistorial.Click += (s, e) => { ResaltarBotonActivo(btnHistorial); AbrirFormularioEnPanel(new FrmHistorialVentas()); };
+            btnHistorial.Click += (s, e) => { ResaltarBotonActivo(btnHistorial); AbrirFormularioEnPanel<FrmHistorialVentas>(); };
             panelMenuLateral.Controls.Add(btnHistorial);
             yPos += btnHeight;
 
             btnAuditoria = CrearBotonMenu("🔎 Auditoría Stock", yPos);
-            btnAuditoria.Click += (s, e) => { ResaltarBotonActivo(btnAuditoria); AbrirFormularioEnPanel(new FrmAuditoriaStock()); };
+            btnAuditoria.Click += (s, e) => { ResaltarBotonActivo(btnAuditoria); AbrirFormularioEnPanel<FrmAuditoriaStock>(); };
             panelMenuLateral.Controls.Add(btnAuditoria);
             yPos += btnHeight;
 
             btnReportes = CrearBotonMenu("📊 Reportes", yPos);
-            btnReportes.Click += (s, e) => { ResaltarBotonActivo(btnReportes); AbrirFormularioEnPanel(new FrmReportes()); };
+            btnReportes.Click += (s, e) => { ResaltarBotonActivo(btnReportes); AbrirFormularioEnPanel<FrmReportes>(); };
             panelMenuLateral.Controls.Add(btnReportes);
             yPos += btnHeight;
 
             btnBackup = CrearBotonMenu("💾 Backups", yPos);
-            btnBackup.Click += (s, e) => { ResaltarBotonActivo(btnBackup); AbrirFormularioEnPanel(new FrmBackup()); };
+            btnBackup.Click += (s, e) => { ResaltarBotonActivo(btnBackup); AbrirFormularioEnPanel<FrmBackup>(); };
             panelMenuLateral.Controls.Add(btnBackup);
             yPos += btnHeight;
 
             btnDashboard = CrearBotonMenu("📊 Dashboard", yPos);
-            btnDashboard.Click += (s, e) => { ResaltarBotonActivo(btnDashboard); AbrirFormularioEnPanel(new FrmDashboard()); };
+            btnDashboard.Click += (s, e) => { ResaltarBotonActivo(btnDashboard); AbrirFormularioEnPanel<FrmDashboard>(); };
 
             btnCerrarSesion = CrearBotonMenu("🚪 Cerrar Sesión", this.ClientSize.Height - 60);
             btnCerrarSesion.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
@@ -269,7 +276,6 @@ namespace AorusMarket.Formularios
 
         private void ModificarTextoBotones(bool soloIconos)
         {
-            // CORRECCIÓN: Agregado btnReportes al array para que colapse correctamente
             CyberButton[] todosLosBotones = {
                 btnPuntoVenta, btnClientes, btnStock, btnProductos,
                 btnCategorias, btnUsuarios, btnSucursales, btnHistorial,
@@ -338,23 +344,33 @@ namespace AorusMarket.Formularios
             this.ActiveControl = null;
         }
 
-        private void AbrirFormularioEnPanel(Form formHijo)
+        // SOLUCIÓN CARRITO: Método modificado para usar caché
+        private void AbrirFormularioEnPanel<T>() where T : Form, new()
         {
             if (formularioActivo != null)
             {
-                formularioActivo.Close();
+                formularioActivo.Hide(); // Ocultamos en lugar de destruir
             }
 
-            formularioActivo = formHijo;
-            formHijo.TopLevel = false;
-            formHijo.FormBorderStyle = FormBorderStyle.None;
-            formHijo.Dock = DockStyle.Fill;
-            formHijo.BackColor = Color.FromArgb(18, 18, 18);
+            Type tipo = typeof(T);
 
-            panelContenedor.Controls.Add(formHijo);
-            panelContenedor.Tag = formHijo;
-            formHijo.BringToFront();
-            formHijo.Show();
+            // Si el formulario nunca se abrió, lo creamos y lo guardamos
+            if (!formulariosCacheados.ContainsKey(tipo))
+            {
+                T nuevoFormulario = new T();
+                nuevoFormulario.TopLevel = false;
+                nuevoFormulario.FormBorderStyle = FormBorderStyle.None;
+                nuevoFormulario.Dock = DockStyle.Fill;
+                nuevoFormulario.BackColor = Color.FromArgb(18, 18, 18);
+                
+                panelContenedor.Controls.Add(nuevoFormulario);
+                formulariosCacheados.Add(tipo, nuevoFormulario);
+            }
+
+            // Llamamos al formulario desde la caché
+            formularioActivo = formulariosCacheados[tipo];
+            formularioActivo.BringToFront();
+            formularioActivo.Show();
         }
 
         private void AplicarPermisosPorPerfil()
@@ -387,16 +403,16 @@ namespace AorusMarket.Formularios
                 menuDelUsuario.Add(btnReportes);
 
                 ResaltarBotonActivo(btnDashboard);
-                AbrirFormularioEnPanel(new FrmDashboard());
+                AbrirFormularioEnPanel<FrmDashboard>();
             }
             else if (SesionActual.IdPerfil == 2)
             {
                 menuDelUsuario.Add(btnPuntoVenta);
                 menuDelUsuario.Add(btnClientes);
-                menuDelUsuario.Add(btnHistorial); // CORRECCIÓN: El cajero ahora puede ver su historial de ventas
+                menuDelUsuario.Add(btnHistorial); 
 
                 ResaltarBotonActivo(btnPuntoVenta);
-                AbrirFormularioEnPanel(new FrmPuntoVenta());
+                AbrirFormularioEnPanel<FrmPuntoVenta>();
             }
             else if (SesionActual.IdPerfil == 3)
             {
@@ -405,8 +421,23 @@ namespace AorusMarket.Formularios
                 menuDelUsuario.Add(btnCategorias);
 
                 ResaltarBotonActivo(btnStock);
-                AbrirFormularioEnPanel(new FrmStock());
+                AbrirFormularioEnPanel<FrmStock>();
             }
+            else if (SesionActual.IdPerfil == 4)
+            {
+                menuDelUsuario.Add(btnDashboard);
+                menuDelUsuario.Add(btnReportes);
+                menuDelUsuario.Add(btnHistorial);
+                menuDelUsuario.Add(btnClientes);
+                menuDelUsuario.Add(btnStock);
+                menuDelUsuario.Add(btnProductos);
+                menuDelUsuario.Add(btnCategorias);
+                menuDelUsuario.Add(btnBackup);
+
+                ResaltarBotonActivo(btnDashboard);
+                AbrirFormularioEnPanel<FrmDashboard>();
+            }
+
 
             int yPos = 110;
             int btnHeight = 45;
@@ -431,6 +462,15 @@ namespace AorusMarket.Formularios
 
             if (resp == DialogResult.Yes)
             {
+                // Limpiamos la caché al cerrar sesión para que el próximo usuario entre con todo en blanco
+                foreach (var form in formulariosCacheados.Values)
+                {
+                    form.Close();
+                }
+                formulariosCacheados.Clear();
+
+                Auditoria.Registrar("Cierre de sesión", "Sesión");
+
                 SesionActual.CerrarSesion();
                 this.Hide();
                 FrmLogin login = new FrmLogin();

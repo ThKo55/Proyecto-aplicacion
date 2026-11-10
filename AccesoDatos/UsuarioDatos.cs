@@ -36,15 +36,11 @@ namespace AorusMarket.AccesoDatos
                             string passGuardada = dr["password"].ToString();
                             bool passwordValida = false;
 
-                            // Verificamos si la contraseña está encriptada con BCrypt ($2a$, $2b$, $2y$)
+                            // Solo se aceptan contraseñas con hash BCrypt
                             if (passGuardada.StartsWith("$2"))
                             {
-                                passwordValida = BCrypt.Net.BCrypt.Verify(password, passGuardada);
-                            }
-                            else
-                            {
-                                // Fallback para usuarios viejos con texto plano (ej: '1234')
-                                passwordValida = (password == passGuardada);
+                                try { passwordValida = BCrypt.Net.BCrypt.Verify(password, passGuardada); }
+                                catch { passwordValida = false; }
                             }
 
                             if (passwordValida)
@@ -71,6 +67,10 @@ namespace AorusMarket.AccesoDatos
             }
             return obj;
         }
+
+
+
+
 
         public List<ComboUsuario> ObtenerPerfiles()
         {

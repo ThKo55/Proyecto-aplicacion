@@ -33,28 +33,21 @@ namespace AorusMarket.Negocio
                 return false;
             }
 
-            if (obj.IdCategoria == 0)
-            {
-                bool resultado = _categoriaDatos.Insertar(obj);
-                if (!resultado) mensaje = "No se pudo insertar la categoría.";
-                return resultado;
-            }
+            bool nuevo = obj.IdCategoria == 0;
+            bool resultado = nuevo ? _categoriaDatos.Insertar(obj) : _categoriaDatos.Editar(obj);
+            if (!resultado)
+                mensaje = nuevo ? "No se pudo insertar la categoría." : "No se pudo actualizar la categoría.";
             else
-            {
-                bool resultado = _categoriaDatos.Editar(obj);
-                if (!resultado) mensaje = "No se pudo actualizar la categoría.";
-                return resultado;
-            }
+                Auditoria.Registrar(nuevo ? "Alta de categoría" : "Modificación de categoría", "Categoría", obj.Nombre);
+            return resultado;
         }
 
         public bool Eliminar(int id, out string mensaje)
         {
             mensaje = string.Empty;
             bool resultado = _categoriaDatos.Eliminar(id);
-            if (!resultado)
-            {
-                mensaje = "Ocurrió un error al intentar eliminar la categoría.";
-            }
+            if (resultado) Auditoria.Registrar("Baja de categoría", "Categoría", $"Id {id}");   // ajustá texto/entidad en cada una
+            else mensaje = "...";   // lo que ya tenías
             return resultado;
         }
     }

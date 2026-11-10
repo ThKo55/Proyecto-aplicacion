@@ -82,23 +82,31 @@ namespace AorusMarket.Negocio
                 if (string.IsNullOrWhiteSpace(obj.Password) || obj.Password.Length < 4)
                 { mensaje = "La Contraseña es obligatoria para nuevos usuarios (mínimo 4 caracteres)."; return false; }
 
-                // Hasheamos la contraseña antes de insertar
                 obj.Password = BCrypt.Net.BCrypt.HashPassword(obj.Password);
-                return _usuarioDatos.Insertar(obj);
+                bool ok = _usuarioDatos.Insertar(obj);
+                if (ok)
+                    Auditoria.Registrar("Alta de usuario", "Usuario",
+                        $"{obj.Nombre} {obj.Apellido} | DNI {obj.Dni} | Perfil #{obj.IdPerfil} | Sucursal #{obj.IdSucursal}");
+                return ok;
             }
             else
             {
-                if (!string.IsNullOrWhiteSpace(obj.Password))
+                bool cambioClave = !string.IsNullOrWhiteSpace(obj.Password);
+                if (cambioClave)
                 {
                     if (obj.Password.Length < 4)
                     {
                         mensaje = "La nueva contraseña debe tener al menos 4 caracteres.";
                         return false;
                     }
-                    // Si completó el campo al editar, la hasheamos; si lo dejó vacío, Editar no lo toma.
                     obj.Password = BCrypt.Net.BCrypt.HashPassword(obj.Password);
                 }
-                return _usuarioDatos.Editar(obj);
+
+                bool ok = _usuarioDatos.Editar(obj);
+                if (ok)
+                    Auditoria.Registrar("Modificación de usuario", "Usuario",
+                        $"{obj.Nombre} {obj.Apellido} | DNI {obj.Dni} | Perfil #{obj.IdPerfil}" + (cambioClave ? " | Cambió contraseña" : ""));
+                return ok;
             }
         }
 
@@ -113,7 +121,9 @@ namespace AorusMarket.Negocio
                 return false;
             }
 
-            return _usuarioDatos.Eliminar(id);
+            bool ok = _usuarioDatos.Eliminar(id);
+            if (ok) Auditoria.Registrar("Baja de usuario", "Usuario", $"Id {id}");
+            return ok;
         }
     }
 }

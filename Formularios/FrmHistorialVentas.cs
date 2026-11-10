@@ -68,7 +68,7 @@ namespace AorusMarket.Formularios
             btnAnular = EstiloApp.CrearBoton("ANULAR VENTA", new Point(x + 580, y + 10), 160, EstiloApp.RojoNeon);
             btnAnular.Click += BtnAnular_Click;
             // CORRECCIÓN: Oculta el botón Anular si no es Admin (Perfil 1)
-            btnAnular.Visible = (SesionActual.IdPerfil == 1);
+            btnAnular.Visible = (SesionActual.IdPerfil == 1 || SesionActual.IdPerfil == 4);
             this.Controls.Add(btnAnular);
 
             y += 60;
@@ -125,7 +125,7 @@ namespace AorusMarket.Formularios
             dgvHistorial.Rows.Clear();
             cmbProductosVendidos.Items.Clear();
 
-            int idUsuarioFiltro = Utilidades.SesionActual.IdPerfil == 1 ? 0 : Utilidades.SesionActual.IdUsuario;
+            int idUsuarioFiltro = (Utilidades.SesionActual.IdPerfil == 1 || Utilidades.SesionActual.IdPerfil == 4) ? 0 : Utilidades.SesionActual.IdUsuario;
             var lista = _ventaNegocio.ListarHistorial(dtpDesde.Value, dtpHasta.Value, idUsuarioFiltro);
 
             foreach (var item in lista)

@@ -1,59 +1,135 @@
-﻿using AorusMarket.Entidades;
+﻿using System;
 using System.Data;
 using System.Data.SqlClient;
+using AorusMarket.Entidades;
 
 namespace AorusMarket.AccesoDatos
 {
     public class BackupDatos
     {
-        // 1. Procedimiento para registrar la solicitud
-        public bool RegistrarSolicitud(BackupSolicitud solicitud)
+        public ConfigBackup ObtenerConfig()
         {
-            // Usamos tu método ObtenerConexion() que lee del App.config
-            using (SqlConnection conexion = Conexion.ObtenerConexion())
-            {
-                SqlCommand cmd = new SqlCommand("SP_RegistrarSolicitudBackup", conexion);
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.AddWithValue("@SolicitanteId", solicitud.SolicitanteId);
-                cmd.Parameters.AddWithValue("@FechaProgramada", solicitud.FechaProgramada);
+            ConfigBackup cfg = new ConfigBackup();
 
-                conexion.Open();
-                int filasAfectadas = cmd.ExecuteNonQuery();
-                return filasAfectadas > 0;
+            using (SqlConnection cn = Conexion.ObtenerConexion())
+            using (SqlCommand cmd = new SqlCommand(
+                @"SELECT activo, tipo_destino, ruta_destino, hora_programada,
+                         cantidad_a_conservar, ultimo_backup
+                  FROM configuracion_backup WHERE id = 1", cn))
+            {
+                cn.Open();
+                using (SqlDataReader dr = cmd.ExecuteReader())
+                {
+                    if (dr.Read())
+                    {
+                        cfg.Activo = Convert.ToBoolean(dr["activo"]);
+                        cfg.TipoDestino = dr["tipo_destino"].ToString();
+
+                        string ruta = dr["ruta_destino"].ToString();
+                        if (!string.IsNullOrWhiteSpace(ruta)) cfg.RutaDestino = ruta;
+
+                        cfg.HoraProgramada = dr["hora_programada"].ToString();
+                        cfg.CantidadAConservar = Convert.ToInt32(dr["cantidad_a_conservar"]);
+                        cfg.UltimoBackup = dr["ultimo_backup"] == DBNull.Value
+                            ? (DateTime?)null
+                            : Convert.ToDateTime(dr["ultimo_backup"]);
+                    }
+                }
+            }
+            return cfg;
+        }
+
+        public void GuardarConfig(ConfigBackup c)
+        {
+            const string sql = @"
+                IF EXISTS (SELECT 1 FROM configuracion_backup WHERE id = 1)
+                    UPDATE configuracion_backup
+                       SET activo = @activo, tipo_destino = @tipo, ruta_destino = @ruta,
+                           hora_programada = @hora, cantidad_a_conservar = @cant
+                     WHERE id = 1
+                ELSE
+                    INSERT INTO configuracion_backup
+                        (id, activo, tipo_destino, ruta_destino, hora_programada, cantidad_a_conservar)
+                    VALUES (1, @activo, @tipo, @ruta, @hora, @cant)";
+
+            using (SqlConnection cn = Conexion.ObtenerConexion())
+            using (SqlCommand cmd = new SqlCommand(sql, cn))
+            {
+                cmd.Parameters.AddWithValue("@activo", c.Activo);
+                cmd.Parameters.AddWithValue("@tipo", c.TipoDestino);
+                cmd.Parameters.AddWithValue("@ruta", c.RutaDestino ?? string.Empty);
+                cmd.Parameters.AddWithValue("@hora", c.HoraProgramada);
+                cmd.Parameters.AddWithValue("@cant", c.CantidadAConservar);
+                cn.Open();
+                cmd.ExecuteNonQuery();
             }
         }
 
-        // 2. Procedimiento para aprobar y ejecutar
-        public bool EjecutarBackup(int idSolicitud, int aprobadorId, string ruta)
+        public void ActualizarUltimoBackup(DateTime fecha)
         {
-            // Usamos tu método ObtenerConexion()
-            using (SqlConnection conexion = Conexion.ObtenerConexion())
+            using (SqlConnection cn = Conexion.ObtenerConexion())
+            using (SqlCommand cmd = new SqlCommand(
+                "UPDATE configuracion_backup SET ultimo_backup = @f WHERE id = 1", cn))
             {
-                SqlCommand cmd = new SqlCommand("SP_AprobarYEjecutarBackup", conexion);
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.AddWithValue("@IdSolicitud", idSolicitud);
-                cmd.Parameters.AddWithValue("@AprobadorId", aprobadorId);
-                cmd.Parameters.AddWithValue("@RutaArchivo", ruta);
-
-                conexion.Open();
-                int filasAfectadas = cmd.ExecuteNonQuery();
-                return filasAfectadas > 0;
+                cmd.Parameters.AddWithValue("@f", fecha);
+                cn.Open();
+                cmd.ExecuteNonQuery();
             }
         }
 
-        // 3. Método para listar pendientes
-        public DataTable ListarPendientes()
+        // Registra en backup_registro cada backup / restauración
+        public void RegistrarOperacion(string tipo, string origen, string archivo,
+                                       int? idSolicitante, int? idAprobador,
+                                       string estado, string detalle)
+        {
+            const string sql = @"
+                INSERT INTO backup_registro
+                    (tipo_operacion, origen, archivo, id_usuario_solicitante,
+                     id_usuario_aprobador, estado, detalle)
+                VALUES (@tipo, @origen, @archivo, @sol, @apr, @estado, @detalle)";
+
+            using (SqlConnection cn = Conexion.ObtenerConexion())
+            using (SqlCommand cmd = new SqlCommand(sql, cn))
+            {
+                cmd.Parameters.AddWithValue("@tipo", tipo);
+                cmd.Parameters.AddWithValue("@origen", origen);
+                cmd.Parameters.AddWithValue("@archivo", (object)Recortar(archivo, 500) ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@sol", idSolicitante.HasValue ? (object)idSolicitante.Value : DBNull.Value);
+                cmd.Parameters.AddWithValue("@apr", idAprobador.HasValue ? (object)idAprobador.Value : DBNull.Value);
+                cmd.Parameters.AddWithValue("@estado", estado);
+                cmd.Parameters.AddWithValue("@detalle", (object)Recortar(detalle, 500) ?? DBNull.Value);
+                cn.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        public DataTable ListarRegistro()
         {
             DataTable tabla = new DataTable();
-            // Usamos tu método ObtenerConexion()
-            using (SqlConnection conexion = Conexion.ObtenerConexion())
+            const string sql = @"
+                SELECT TOP 200
+                       r.fecha AS Fecha, r.tipo_operacion AS Tipo, r.origen AS Origen,
+                       r.estado AS Estado,
+                       ISNULL(us.nombre + ' ' + us.apellido, 'Sistema') AS Solicitante,
+                       ISNULL(ua.nombre + ' ' + ua.apellido, '-') AS Aprobador,
+                       r.archivo AS Archivo, r.detalle AS Detalle
+                FROM backup_registro r
+                LEFT JOIN usuario us ON r.id_usuario_solicitante = us.id_usuario
+                LEFT JOIN usuario ua ON r.id_usuario_aprobador = ua.id_usuario
+                ORDER BY r.fecha DESC";
+
+            using (SqlConnection cn = Conexion.ObtenerConexion())
+            using (SqlDataAdapter da = new SqlDataAdapter(sql, cn))
             {
-                SqlCommand cmd = new SqlCommand("SP_ListarBackupsPendientes", conexion);
-                cmd.CommandType = CommandType.StoredProcedure;
-                SqlDataAdapter da = new SqlDataAdapter(cmd);
                 da.Fill(tabla);
             }
             return tabla;
+        }
+
+        private static string Recortar(string texto, int max)
+        {
+            if (string.IsNullOrEmpty(texto)) return null;
+            return texto.Length <= max ? texto : texto.Substring(0, max);
         }
     }
 }

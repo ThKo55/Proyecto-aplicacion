@@ -61,16 +61,21 @@ namespace AorusMarket.Negocio
             if (listaExistente.Any(c => c.Email.ToLower() == obj.Email.ToLower() && c.IdCliente != obj.IdCliente))
             { mensaje = "El Email ingresado ya se encuentra registrado en el sistema."; return false; }
 
-            if (obj.IdCliente == 0)
-                return _clienteDatos.Insertar(obj);
-            else
-                return _clienteDatos.Editar(obj);
+            bool nuevo = obj.IdCliente == 0;
+            bool resultado = nuevo ? _clienteDatos.Insertar(obj) : _clienteDatos.Editar(obj);
+            if (resultado)
+                Auditoria.Registrar(nuevo ? "Alta de cliente" : "Modificación de cliente", "Cliente",
+                    $"{obj.Nombre} {obj.Apellido} | DNI {obj.Dni}");
+            return resultado;
         }
 
+        // ClienteNegocio.Eliminar (reemplazalo entero):
         public bool Eliminar(int id, out string mensaje)
         {
             mensaje = string.Empty;
-            return _clienteDatos.Eliminar(id);
+            bool resultado = _clienteDatos.Eliminar(id);
+            if (resultado) Auditoria.Registrar("Baja de cliente", "Cliente", $"Id {id}");
+            return resultado;
         }
     }
 }

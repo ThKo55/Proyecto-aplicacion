@@ -28,11 +28,13 @@ namespace AorusMarket.Negocio
 
             bool respuesta = _ventaDatos.ConfirmarVenta(objVenta);
             if (!respuesta)
-            {
                 mensaje = "Ocurrió un error crítico al intentar registrar la venta en la base de datos.";
-            }
+            else
+                Auditoria.Registrar("Venta confirmada", "Venta",
+                    $"Venta #{objVenta.IdVenta} | Total: {objVenta.Total:0.00} | Pago: {objVenta.MetodoPago} | Sucursal #{objVenta.IdSucursal}");
+
             return respuesta;
-         
+
         }
 
         // 3. Listar el Historial
@@ -61,9 +63,9 @@ namespace AorusMarket.Negocio
             bool respuesta = _ventaDatos.AnularVenta(idVenta, idUsuarioAuditoria);
 
             if (!respuesta)
-            {
                 mensaje = "Ocurrió un error al intentar anular la venta y devolver el stock.";
-            }
+            else
+                Auditoria.Registrar("Venta anulada", "Venta", $"Venta #{idVenta} anulada y stock devuelto");
 
             return respuesta;
         }

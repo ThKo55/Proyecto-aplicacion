@@ -40,28 +40,21 @@ namespace AorusMarket.Negocio
                 return false;
             }
 
-            if (obj.IdSucursal == 0)
-            {
-                bool resultado = _sucursalDatos.Insertar(obj);
-                if (!resultado) mensaje = "No se pudo insertar la sucursal. Verifique la conexión.";
-                return resultado;
-            }
+            bool nuevo = obj.IdSucursal == 0;
+            bool resultado = nuevo ? _sucursalDatos.Insertar(obj) : _sucursalDatos.Editar(obj);
+            if (!resultado)
+                mensaje = nuevo ? "No se pudo insertar la sucursal. Verifique la conexión." : "No se pudo actualizar la sucursal.";
             else
-            {
-                bool resultado = _sucursalDatos.Editar(obj);
-                if (!resultado) mensaje = "No se pudo actualizar la sucursal.";
-                return resultado;
-            }
+                Auditoria.Registrar(nuevo ? "Alta de sucursal" : "Modificación de sucursal", "Sucursal", obj.Nombre);
+            return resultado;
         }
 
         public bool Eliminar(int id, out string mensaje)
         {
             mensaje = string.Empty;
             bool resultado = _sucursalDatos.Eliminar(id);
-            if (!resultado)
-            {
-                mensaje = "Ocurrió un error al intentar eliminar la sucursal.";
-            }
+            if (resultado) Auditoria.Registrar("Baja de categoría", "Categoría", $"Id {id}");   // ajustá texto/entidad en cada una
+            else mensaje = "...";   // lo que ya tenías
             return resultado;
         }
     }

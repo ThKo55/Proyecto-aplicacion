@@ -7,6 +7,7 @@ namespace AorusMarket.Entidades
     {
         public int IdProducto { get; set; }
         public int IdStockSucursal { get; set; }
+        public string CodigoBarras { get; set; }
         public string Nombre { get; set; }
         public decimal Precio { get; set; }
         public int StockDisponible { get; set; }

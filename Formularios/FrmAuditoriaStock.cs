@@ -61,6 +61,10 @@ namespace AorusMarket.Formularios
             btnBuscar.Click += BtnBuscar_Click;
             this.Controls.Add(btnBuscar);
 
+            CyberButton btnAcciones = EstiloApp.CrearBoton("VER AUDITORÍA DE ACCIONES", new Point(x + 660, y + 10), 260, EstiloApp.Gris);
+            btnAcciones.Click += (s, e) => { using (var f = new FrmAuditoriaAcciones()) f.ShowDialog(this); };
+            this.Controls.Add(btnAcciones);
+
             y += 60;
             dgvAuditoria = new DataGridView
             {

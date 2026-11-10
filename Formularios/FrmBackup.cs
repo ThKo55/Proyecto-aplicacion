@@ -6,6 +6,7 @@ using System;
 using System.Drawing;
 using System.IO;
 using WinForms = System.Windows.Forms;
+using System.Threading.Tasks;
 
 namespace AorusMarket.Formularios
 {
@@ -17,9 +18,10 @@ namespace AorusMarket.Formularios
         private WinForms.CheckBox chkAutomatico;
         private WinForms.DateTimePicker dtpHoraAuto;
         private WinForms.DataGridView dgvBackupsLocales;
-        private WinForms.Timer timerAuto;
-        private DateTime ultimaEjecucion = DateTime.MinValue;
 
+        private ConfigBackup _config;
+        private CyberButton btnGuardarConfig;
+        private const bool RequierePerfilDistinto = true; // true = Admin <-> Gerente; false = cualquier Admin/Gerente distinto
         private BackupNegocio _backupNegocio = new BackupNegocio();
 
         public FrmBackup()
@@ -30,7 +32,7 @@ namespace AorusMarket.Formularios
             this.Text = "Gestión de Backups y Seguridad";
             this.MinimumSize = new Size(950, 600);
             ConstruirInterfaz();
-            ConfigurarTimer();
+            CargarConfiguracion();
         }
 
         private void ConstruirInterfaz()
@@ -104,6 +106,10 @@ namespace AorusMarket.Formularios
             btnCrearBackup.Click += BtnCrearBackup_Click;
             this.Controls.Add(btnCrearBackup);
 
+            btnGuardarConfig = EstiloApp.CrearBoton("GUARDAR CONFIG.", new Point(margenX + 670, y), 180, EstiloApp.Gris);
+            btnGuardarConfig.Click += BtnGuardarConfig_Click;
+            this.Controls.Add(btnGuardarConfig);
+
             y += 60;
 
             // FILA 3: HISTORIAL DE BACKUPS (GRILLA RESPONSIVA)
@@ -143,27 +149,7 @@ namespace AorusMarket.Formularios
             CargarListaBackupsLocales();
         }
 
-        private void ConfigurarTimer()
-        {
-            timerAuto = new WinForms.Timer();
-            timerAuto.Interval = 30000;
-            timerAuto.Tick += TimerAuto_Tick;
-            timerAuto.Start();
-        }
 
-        private void TimerAuto_Tick(object sender, EventArgs e)
-        {
-            if (!chkAutomatico.Checked) return;
-
-            DateTime ahora = DateTime.Now;
-            TimeSpan horaProg = dtpHoraAuto.Value.TimeOfDay;
-
-            if (ahora.Hour == horaProg.Hours && ahora.Minute == horaProg.Minutes && ultimaEjecucion.Date != ahora.Date)
-            {
-                ultimaEjecucion = ahora.Date;
-                EjecutarProcesoBackup(false);
-            }
-        }
 
         private void AplicarDisenoSobrioGrid(WinForms.DataGridView grid)
         {
@@ -232,109 +218,179 @@ namespace AorusMarket.Formularios
             dgvBackupsLocales.ClearSelection();
         }
 
-        private void BtnCrearBackup_Click(object sender, EventArgs e)
+
+
+
+        private string ObtenerRuta()
         {
-            EjecutarProcesoBackup(true);
+            return string.IsNullOrWhiteSpace(txtRutaDestino.Text) ? txtRutaDestino.TextButton : txtRutaDestino.Text;
         }
 
-        private void EjecutarProcesoBackup(bool mostrarMensajes)
+        private void CargarConfiguracion()
         {
-            string ruta = string.IsNullOrWhiteSpace(txtRutaDestino.Text) ? txtRutaDestino.TextButton : txtRutaDestino.Text;
-
-            if (!Directory.Exists(ruta))
+            try
             {
-                try { Directory.CreateDirectory(ruta); }
-                catch
+                _config = _backupNegocio.ObtenerConfig();
+
+                int idx = cmbDestino.Items.IndexOf(_config.TipoDestino);
+                cmbDestino.SelectedIndex = idx >= 0 ? idx : 0;
+
+                txtRutaDestino.Text = _config.RutaDestino;
+                txtRutaDestino.TextButton = _config.RutaDestino;
+                chkAutomatico.Checked = _config.Activo;
+
+                TimeSpan h;
+                if (TimeSpan.TryParse(_config.HoraProgramada, out h))
+                    dtpHoraAuto.Value = DateTime.Today.Add(h);
+
+                CargarListaBackupsLocales();
+            }
+            catch (Exception ex)
+            {
+                _config = new ConfigBackup();
+                WinForms.MessageBox.Show("No se pudo cargar la configuración de backup: " + ex.Message,
+                    "Aviso", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
+            }
+        }
+
+        private void BtnGuardarConfig_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                ConfigBackup cfg = new ConfigBackup
                 {
-                    if (mostrarMensajes)
-                        WinForms.MessageBox.Show("La ruta no es válida o no tiene permisos.", "Error", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
-                    return;
+                    Activo = chkAutomatico.Checked,
+                    TipoDestino = cmbDestino.SelectedItem.ToString(),
+                    RutaDestino = ObtenerRuta(),
+                    HoraProgramada = dtpHoraAuto.Value.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture),
+                    CantidadAConservar = _config != null ? _config.CantidadAConservar : 5,
+                    UltimoBackup = _config != null ? _config.UltimoBackup : null
+                };
+
+                _backupNegocio.GuardarConfig(cfg);
+                _config = cfg;
+                BackupScheduler.RecargarConfig();
+
+                WinForms.MessageBox.Show("Configuración de backup guardada.", "Éxito",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                WinForms.MessageBox.Show("Error al guardar la configuración: " + ex.Message, "Error",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
+            }
+        }
+
+        // BACKUP LIBRE: sin autorización, cualquier usuario, en cualquier momento
+        private async void BtnCrearBackup_Click(object sender, EventArgs e)
+        {
+            btnCrearBackup.Enabled = false;
+
+            string carpeta = ObtenerRuta();
+            string destino = cmbDestino.SelectedItem.ToString();
+            int conservar = _config != null ? _config.CantidadAConservar : 5;
+
+            try
+            {
+                var res = await Task.Run(() =>
+                {
+                    string msg, ruta;
+                    bool ok = _backupNegocio.CrearBackup(carpeta, destino, conservar, "Manual", out msg, out ruta);
+                    return new { ok, msg, ruta };
+                });
+
+                CargarListaBackupsLocales();
+
+                if (res.ok)
+                {
+                    string texto = $"Respaldo generado con éxito en:\n{res.ruta}";
+                    if (!string.IsNullOrEmpty(res.msg)) texto += "\n\n" + res.msg;
+                    WinForms.MessageBox.Show(texto, "Éxito", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
+                }
+                else
+                {
+                    WinForms.MessageBox.Show("Error al generar el backup: " + res.msg, "Error",
+                        WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
                 }
             }
-
-            string nombreArchivo = $"AorusMarket_{DateTime.Now:yyyyMMdd_HHmmss}.bak";
-            string rutaCompleta = Path.Combine(ruta, nombreArchivo);
-
-            string mensaje;
-            bool exito = _backupNegocio.GenerarRespaldo(rutaCompleta, cmbDestino.SelectedItem.ToString(), out mensaje);
-
-            if (exito)
+            finally
             {
-                CargarListaBackupsLocales();
-                if (mostrarMensajes)
-                    WinForms.MessageBox.Show($"Respaldo generado con éxito en:\n{rutaCompleta}", "Éxito", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
-            }
-            else
-            {
-                if (mostrarMensajes)
-                    WinForms.MessageBox.Show("Error al generar el backup: " + mensaje, "Error", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
+                btnCrearBackup.Enabled = true;
             }
         }
 
-        // ==============================================================
-        // MÉTODO DE VALIDACIÓN CRUZADA (MODAL)
-        // ==============================================================
-        private bool SolicitarAutorizacionCruzada()
+        // SOLO LA RESTAURACIÓN pide aprobación de un segundo usuario (Admin <-> Gerente)
+        private bool SolicitarAutorizacionCruzada(out Usuario aprobador)
         {
             bool autorizado = false;
+            Usuario aprobadorLocal = null;
 
             using (WinForms.Form frmAuth = new WinForms.Form())
             {
-                frmAuth.Text = "Autorización de Gerencia Requerida";
-                frmAuth.Size = new Size(420, 240);
+                frmAuth.Text = "Autorización requerida para restaurar";
+                frmAuth.Size = new Size(430, 260);
                 frmAuth.StartPosition = WinForms.FormStartPosition.CenterParent;
                 frmAuth.FormBorderStyle = WinForms.FormBorderStyle.FixedDialog;
                 frmAuth.MaximizeBox = false;
                 frmAuth.MinimizeBox = false;
                 frmAuth.BackColor = Color.FromArgb(18, 18, 18);
 
+                string textoInfo = RequierePerfilDistinto
+                    ? "CONTROL CRUZADO: debe autorizar un usuario con el\notro perfil (Administrador ↔ Gerente)."
+                    : "CONTROL CRUZADO: debe autorizar otro usuario\nAdministrador o Gerente.";
+
                 WinForms.Label lblInfo = new WinForms.Label()
                 {
-                    Text = "CONTROL CRUZADO: Un administrador distinto\ndebe autorizar la restauración de la base de datos.",
+                    Text = textoInfo,
                     ForeColor = Color.WhiteSmoke,
                     Location = new Point(20, 20),
                     AutoSize = true,
                     Font = new Font("Segoe UI", 9F, FontStyle.Bold)
                 };
 
-                WinForms.Label lblEmail = new WinForms.Label() { Text = "Email del Admin:", ForeColor = Color.LightGray, Location = new Point(20, 70), AutoSize = true };
-                WinForms.TextBox txtEmail = new WinForms.TextBox() { Location = new Point(140, 67), Width = 230, BackColor = Color.FromArgb(28, 28, 28), ForeColor = Color.White, BorderStyle = WinForms.BorderStyle.FixedSingle };
+                WinForms.Label lblEmail = new WinForms.Label() { Text = "Email:", ForeColor = Color.LightGray, Location = new Point(20, 80), AutoSize = true };
+                WinForms.TextBox txtEmail = new WinForms.TextBox() { Location = new Point(140, 77), Width = 240, BackColor = Color.FromArgb(28, 28, 28), ForeColor = Color.White, BorderStyle = WinForms.BorderStyle.FixedSingle };
 
-                WinForms.Label lblPass = new WinForms.Label() { Text = "Contraseña:", ForeColor = Color.LightGray, Location = new Point(20, 110), AutoSize = true };
-                WinForms.TextBox txtPass = new WinForms.TextBox() { Location = new Point(140, 107), Width = 230, BackColor = Color.FromArgb(28, 28, 28), ForeColor = Color.White, PasswordChar = '●', BorderStyle = WinForms.BorderStyle.FixedSingle };
+                WinForms.Label lblPass = new WinForms.Label() { Text = "Contraseña:", ForeColor = Color.LightGray, Location = new Point(20, 120), AutoSize = true };
+                WinForms.TextBox txtPass = new WinForms.TextBox() { Location = new Point(140, 117), Width = 240, BackColor = Color.FromArgb(28, 28, 28), ForeColor = Color.White, PasswordChar = '●', BorderStyle = WinForms.BorderStyle.FixedSingle };
 
-                WinForms.Button btnConfirmar = new WinForms.Button() { Text = "AUTORIZAR", Location = new Point(140, 150), Width = 110, BackColor = EstiloApp.RojoNeon, ForeColor = Color.White, FlatStyle = WinForms.FlatStyle.Flat };
-                WinForms.Button btnCancelar = new WinForms.Button() { Text = "CANCELAR", Location = new Point(260, 150), Width = 110, BackColor = EstiloApp.Gris, ForeColor = Color.White, FlatStyle = WinForms.FlatStyle.Flat };
-
+                WinForms.Button btnConfirmar = new WinForms.Button() { Text = "AUTORIZAR", Location = new Point(140, 165), Width = 115, BackColor = EstiloApp.RojoNeon, ForeColor = Color.White, FlatStyle = WinForms.FlatStyle.Flat };
+                WinForms.Button btnCancelar = new WinForms.Button() { Text = "CANCELAR", Location = new Point(265, 165), Width = 115, BackColor = EstiloApp.Gris, ForeColor = Color.White, FlatStyle = WinForms.FlatStyle.Flat };
                 btnConfirmar.FlatAppearance.BorderSize = 0;
                 btnCancelar.FlatAppearance.BorderSize = 0;
 
                 btnConfirmar.Click += (s, e) =>
                 {
-                    UsuarioNegocio un = new UsuarioNegocio();
                     string msjError;
+                    Usuario u = new UsuarioNegocio().Login(txtEmail.Text, txtPass.Text, out msjError);
 
-                    Usuario adminAuth = un.Login(txtEmail.Text, txtPass.Text, out msjError);
-
-                    if (adminAuth != null)
+                    if (u == null)
                     {
-                        if (adminAuth.IdPerfil != 1)
-                        {
-                            WinForms.MessageBox.Show("Permiso denegado. El usuario ingresado debe tener perfil de Administrador.", "Acceso Denegado", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
-                        }
-                        else if (adminAuth.IdUsuario == SesionActual.IdUsuario)
-                        {
-                            WinForms.MessageBox.Show("Control Cruzado: El aprobador no puede ser el mismo usuario que está solicitando la restauración.", "Violación de Seguridad", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Stop);
-                        }
-                        else
-                        {
-                            autorizado = true;
-                            frmAuth.Close();
-                        }
+                        WinForms.MessageBox.Show(msjError, "Error de credenciales",
+                            WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    if (u.IdPerfil != 1 && u.IdPerfil != 4)
+                    {
+                        WinForms.MessageBox.Show("Permiso denegado. El autorizante debe ser Administrador o Gerente.",
+                            "Acceso Denegado", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
+                    }
+                    else if (u.IdUsuario == SesionActual.IdUsuario)
+                    {
+                        WinForms.MessageBox.Show("Control Cruzado: el autorizante no puede ser el mismo usuario que solicita la restauración.",
+                            "Violación de Seguridad", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Stop);
+                    }
+                    else if (RequierePerfilDistinto && u.IdPerfil == SesionActual.IdPerfil)
+                    {
+                        WinForms.MessageBox.Show("La autorización debe provenir del otro perfil (Administrador ↔ Gerente).",
+                            "Perfil no válido", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
                     }
                     else
                     {
-                        WinForms.MessageBox.Show(msjError, "Error de credenciales", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
+                        aprobadorLocal = u;
+                        autorizado = true;
+                        frmAuth.Close();
                     }
                 };
 
@@ -347,63 +403,61 @@ namespace AorusMarket.Formularios
                 frmAuth.Controls.Add(txtPass);
                 frmAuth.Controls.Add(btnConfirmar);
                 frmAuth.Controls.Add(btnCancelar);
+                frmAuth.AcceptButton = btnConfirmar;
 
                 frmAuth.ShowDialog();
             }
+
+            aprobador = aprobadorLocal;
             return autorizado;
         }
 
-        // ==============================================================
-        // EJECUCIÓN DE RESTAURACIÓN CON VALIDACIÓN PREVIA
-        // ==============================================================
         private void BtnRestaurarBackup_Click(object sender, EventArgs e)
         {
             if (dgvBackupsLocales.CurrentRow == null)
             {
-                WinForms.MessageBox.Show("Seleccione un archivo de respaldo local de la tabla para restaurar.", "Aviso", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
+                WinForms.MessageBox.Show("Seleccione un archivo de respaldo de la tabla para restaurar.", "Aviso",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
                 return;
             }
 
-            string archivoSeleccionado = dgvBackupsLocales.CurrentRow.Cells["Ruta"].Value.ToString();
+            string archivo = dgvBackupsLocales.CurrentRow.Cells["Ruta"].Value.ToString();
+            string nombre = dgvBackupsLocales.CurrentRow.Cells["Archivo"].Value.ToString();
 
-            WinForms.DialogResult alertaCritica = WinForms.MessageBox.Show(
-                "¡ATENCIÓN ACCIÓN CRÍTICA!\n\n" +
-                "Restaurar la base de datos sobrescribirá toda la información actual por el estado del archivo seleccionado.\n\n" +
-                "¿Confirma que posee autorización gerencial para ejecutar esta restauración?",
-                "Control Cruzado de Seguridad",
-                WinForms.MessageBoxButtons.YesNo,
-                WinForms.MessageBoxIcon.Stop);
+            if (WinForms.MessageBox.Show(
+                    $"Se reemplazará TODA la información actual por la del archivo:\n{nombre}\n\n" +
+                    "Antes se guardará automáticamente una copia del estado actual (PreRestore_...).\n\n¿Desea continuar?",
+                    "Restaurar base de datos",
+                    WinForms.MessageBoxButtons.YesNo, WinForms.MessageBoxIcon.Warning) != WinForms.DialogResult.Yes)
+                return;
 
-            if (alertaCritica == WinForms.DialogResult.No) return;
-
-            WinForms.DialogResult confirmacionFinal = WinForms.MessageBox.Show(
-                "Esta acción es irreversible y reiniciará el sistema.\n\n¿Está absolutamente seguro?",
-                "Última Advertencia",
-                WinForms.MessageBoxButtons.YesNo,
-                WinForms.MessageBoxIcon.Warning);
-
-            if (confirmacionFinal == WinForms.DialogResult.Yes)
+            Usuario aprobador;
+            if (!SolicitarAutorizacionCruzada(out aprobador))
             {
-                // Validación Modal de Control Cruzado
-                if (!SolicitarAutorizacionCruzada())
-                {
-                    WinForms.MessageBox.Show("Restauración cancelada. No se obtuvo la autorización cruzada de seguridad.", "Operación Abortada", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
-                    return;
-                }
+                WinForms.MessageBox.Show("Restauración cancelada. No se obtuvo la autorización cruzada.", "Operación abortada",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
+                return;
+            }
 
-                string mensaje;
-                bool restaurado = _backupNegocio.RestaurarBaseDatos(archivoSeleccionado, out mensaje);
+            WinForms.Cursor.Current = WinForms.Cursors.WaitCursor;
+            string mensaje;
+            bool ok = _backupNegocio.Restaurar(archivo, SesionActual.IdUsuario, aprobador.IdUsuario, out mensaje);
+            WinForms.Cursor.Current = WinForms.Cursors.Default;
 
-                if (restaurado)
-                {
-                    WinForms.MessageBox.Show("Sistema restaurado con éxito. La aplicación se reiniciará.", "Éxito", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
-                    WinForms.Application.Restart();
-                }
-                else
-                {
-                    WinForms.MessageBox.Show("Error en la restauración: " + mensaje, "Error Crítico", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
-                }
+            if (ok)
+            {
+                WinForms.MessageBox.Show("Sistema restaurado con éxito. La aplicación se reiniciará.", "Éxito",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Information);
+                WinForms.Application.Restart();
+            }
+            else
+            {
+                WinForms.MessageBox.Show(mensaje, "Error en la restauración",
+                    WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
             }
         }
+
+
+
     }
 }

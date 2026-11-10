@@ -100,7 +100,7 @@ namespace AorusMarket.AccesoDatos
 
                     if (idStockExistente > 0)
                     {
-                        string updateQuery = "UPDATE stock_sucursal SET cantidad = @cant, precio = @prec, stock_minimo = @min WHERE id_stock_sucursal = @idStock";
+                        string updateQuery = "UPDATE stock_sucursal SET cantidad = @cant, precio = @prec, stock_minimo = @min, activo = 1 WHERE id_stock_sucursal = @idStock";
                         SqlCommand cmdUpdate = new SqlCommand(updateQuery, oConexion, transaccion);
                         cmdUpdate.Parameters.AddWithValue("@cant", obj.Cantidad);
                         cmdUpdate.Parameters.AddWithValue("@prec", obj.Precio);
@@ -148,7 +148,8 @@ namespace AorusMarket.AccesoDatos
             return respuesta;
         }
 
-        public bool Eliminar(int idStock)
+        // Baja lógica: el registro deja de verse, pero se conserva todo el historial de movimientos
+        public bool Eliminar(int idStock, int idUsuario)
         {
             using (SqlConnection oConexion = Conexion.ObtenerConexion())
             {
@@ -156,10 +157,39 @@ namespace AorusMarket.AccesoDatos
                 SqlTransaction tx = oConexion.BeginTransaction();
                 try
                 {
-                    new SqlCommand("DELETE FROM movimiento_stock WHERE id_stock_sucursal = " + idStock, oConexion, tx).ExecuteNonQuery();
-                    bool resp = new SqlCommand("DELETE FROM stock_sucursal WHERE id_stock_sucursal = " + idStock, oConexion, tx).ExecuteNonQuery() > 0;
+                    int cantidadActual;
+                    using (SqlCommand cmdSel = new SqlCommand(
+                        "SELECT cantidad FROM stock_sucursal WHERE id_stock_sucursal = @id AND activo = 1", oConexion, tx))
+                    {
+                        cmdSel.Parameters.AddWithValue("@id", idStock);
+                        object res = cmdSel.ExecuteScalar();
+                        if (res == null) { tx.Rollback(); return false; }
+                        cantidadActual = Convert.ToInt32(res);
+                    }
+
+                    using (SqlCommand cmdUpd = new SqlCommand(
+                        "UPDATE stock_sucursal SET activo = 0, cantidad = 0 WHERE id_stock_sucursal = @id", oConexion, tx))
+                    {
+                        cmdUpd.Parameters.AddWithValue("@id", idStock);
+                        cmdUpd.ExecuteNonQuery();
+                    }
+
+                    // Si había unidades, queda registrado que salieron por la baja
+                    if (cantidadActual != 0)
+                    {
+                        using (SqlCommand cmdMov = new SqlCommand(
+                            @"INSERT INTO movimiento_stock (id_stock_sucursal, cantidad_variacion, tipo_movimiento, id_usuario)
+                      VALUES (@id, @var, 'Baja de Stock', @usr)", oConexion, tx))
+                        {
+                            cmdMov.Parameters.AddWithValue("@id", idStock);
+                            cmdMov.Parameters.AddWithValue("@var", -cantidadActual);
+                            cmdMov.Parameters.AddWithValue("@usr", idUsuario);
+                            cmdMov.ExecuteNonQuery();
+                        }
+                    }
+
                     tx.Commit();
-                    return resp;
+                    return true;
                 }
                 catch { tx.Rollback(); return false; }
             }
@@ -178,7 +208,7 @@ namespace AorusMarket.AccesoDatos
                     INNER JOIN producto p ON ss.id_producto = p.id_producto
                     INNER JOIN sucursal s ON ss.id_sucursal = s.id_sucursal
                     INNER JOIN usuario u ON m.id_usuario = u.id_usuario
-                    WHERE CAST(m.fecha AS DATE) BETWEEN @desde AND @hasta
+                    WHERE p.activo = 1 AND s.activo = 1 AND ss.activo = 1"";
                     ORDER BY m.fecha DESC";
 
                 SqlCommand cmd = new SqlCommand(query, oConexion);
@@ -214,7 +244,8 @@ namespace AorusMarket.AccesoDatos
             int cantidad = 0;
             using (SqlConnection conexion = Conexion.ObtenerConexion())
             {
-                string query = "SELECT ISNULL(cantidad, 0) FROM stock_sucursal WHERE id_producto = @idProducto AND id_sucursal = @idSucursal";
+                string query = "SELECT ISNULL(cantidad, 0) FROM stock_sucursal WHERE id_producto = @idProducto AND id_sucursal = @idSucursal AND activo = 1";
+
                 SqlCommand cmd = new SqlCommand(query, conexion);
                 cmd.Parameters.AddWithValue("@idProducto", idProducto);
                 cmd.Parameters.AddWithValue("@idSucursal", idSucursal);
@@ -231,7 +262,7 @@ namespace AorusMarket.AccesoDatos
                 string query = @"
                     SELECT id_producto, ISNULL(cantidad, 0) AS StockActual, ISNULL(stock_minimo, 10) AS StockMinimo
                     FROM stock_sucursal
-                    WHERE id_producto = @idProducto AND id_sucursal = @idSucursal";
+                    WHERE id_producto = @idProducto AND id_sucursal = @idSucursal AND activo = 1";
 
                 SqlCommand cmd = new SqlCommand(query, conexion);
                 cmd.Parameters.AddWithValue("@idProducto", idProducto);

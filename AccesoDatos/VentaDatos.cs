@@ -13,17 +13,19 @@ namespace AorusMarket.AccesoDatos
             List<BusquedaProducto> lista = new List<BusquedaProducto>();
             using (SqlConnection oConexion = Conexion.ObtenerConexion())
             {
-                string query = @"
-                    SELECT p.id_producto, ss.id_stock_sucursal, p.nombre, ss.precio, ss.cantidad
+                const string query = @"
+                    SELECT p.id_producto, ss.id_stock_sucursal, p.codigo_barras, p.nombre, ss.precio, ss.cantidad
                     FROM producto p
                     INNER JOIN stock_sucursal ss ON p.id_producto = ss.id_producto
                     WHERE ss.id_sucursal = @idSucursal 
+                      AND ss.activo = 1
                       AND p.activo = 1 
-                      AND p.nombre LIKE @texto";
+                      AND (p.codigo_barras = @textoExacto OR p.nombre LIKE @textoParcial)";
 
                 SqlCommand cmd = new SqlCommand(query, oConexion);
                 cmd.Parameters.AddWithValue("@idSucursal", idSucursal);
-                cmd.Parameters.AddWithValue("@texto", "%" + texto + "%");
+                cmd.Parameters.AddWithValue("@textoExacto", texto.Trim());
+                cmd.Parameters.AddWithValue("@textoParcial", "%" + texto.Trim() + "%");
 
                 try
                 {
@@ -36,6 +38,7 @@ namespace AorusMarket.AccesoDatos
                             {
                                 IdProducto = Convert.ToInt32(dr["id_producto"]),
                                 IdStockSucursal = Convert.ToInt32(dr["id_stock_sucursal"]),
+                                CodigoBarras = dr["codigo_barras"] != DBNull.Value ? dr["codigo_barras"].ToString() : "",
                                 Nombre = dr["nombre"].ToString(),
                                 Precio = Convert.ToDecimal(dr["precio"]),
                                 StockDisponible = Convert.ToInt32(dr["cantidad"])
@@ -57,7 +60,7 @@ namespace AorusMarket.AccesoDatos
                 SqlTransaction transaccion = oConexion.BeginTransaction();
                 try
                 {
-                    string queryVenta = @"
+                    const string queryVenta = @"
                         INSERT INTO venta (total, metodo_pago, id_cliente, id_usuario, id_sucursal) 
                         OUTPUT INSERTED.id_venta
                         VALUES (@total, @metodo, @cliente, @usuario, @sucursal)";
@@ -72,31 +75,33 @@ namespace AorusMarket.AccesoDatos
                     int idVentaGenerado = Convert.ToInt32(cmdVenta.ExecuteScalar());
                     objVenta.IdVenta = idVentaGenerado;
 
+                    const string paramCant = "@cant";
+
                     foreach (var item in objVenta.Detalles)
                     {
-                        string queryDetalle = "INSERT INTO detalleVenta (id_venta, id_producto, cantidad, precio_unitario, subtotal) VALUES (@idVenta, @idProd, @cant, @precio, @subt)";
+                        const string queryDetalle = "INSERT INTO detalleVenta (id_venta, id_producto, cantidad, precio_unitario, subtotal) VALUES (@idVenta, @idProd, @cant, @precio, @subt)";
                         SqlCommand cmdDetalle = new SqlCommand(queryDetalle, oConexion, transaccion);
                         cmdDetalle.Parameters.AddWithValue("@idVenta", idVentaGenerado);
                         cmdDetalle.Parameters.AddWithValue("@idProd", item.IdProducto);
-                        cmdDetalle.Parameters.AddWithValue("@cant", item.Cantidad);
+                        cmdDetalle.Parameters.AddWithValue(paramCant, item.Cantidad);
                         cmdDetalle.Parameters.AddWithValue("@precio", item.PrecioUnitario);
                         cmdDetalle.Parameters.AddWithValue("@subt", item.Subtotal);
                         cmdDetalle.ExecuteNonQuery();
 
-                        string queryStock = @"
+                        const string queryStock = @"
                             UPDATE stock_sucursal SET cantidad = cantidad - @cant 
                             OUTPUT INSERTED.id_stock_sucursal
-                            WHERE id_producto = @idProd AND id_sucursal = @sucursal AND cantidad >= @cant";
+                            WHERE id_producto = @idProd AND id_sucursal = @sucursal AND activo = 1 AND cantidad >= @cant";
                         SqlCommand cmdStock = new SqlCommand(queryStock, oConexion, transaccion);
-                        cmdStock.Parameters.AddWithValue("@cant", item.Cantidad);
+                        cmdStock.Parameters.AddWithValue(paramCant, item.Cantidad);
                         cmdStock.Parameters.AddWithValue("@idProd", item.IdProducto);
                         cmdStock.Parameters.AddWithValue("@sucursal", objVenta.IdSucursal);
 
                         object resStock = cmdStock.ExecuteScalar();
-                        if (resStock == null) throw new Exception("Stock insuficiente durante la confirmación.");
-                        int idStockSucursal = Convert.ToInt32(resStock);
+                        // SOLUCIÓN IDE0270 y S112: Manejo limpio de nulo sin 'throw new Exception'
+                        int idStockSucursal = Convert.ToInt32(resStock ?? throw new InvalidOperationException("Stock insuficiente durante la confirmación."));
 
-                        string queryAuditoria = "INSERT INTO movimiento_stock (id_stock_sucursal, cantidad_variacion, tipo_movimiento, id_usuario) VALUES (@idStock, @variacion, 'Venta', @usuario)";
+                        const string queryAuditoria = "INSERT INTO movimiento_stock (id_stock_sucursal, cantidad_variacion, tipo_movimiento, id_usuario) VALUES (@idStock, @variacion, 'Venta', @usuario)";
                         SqlCommand cmdAuditoria = new SqlCommand(queryAuditoria, oConexion, transaccion);
                         cmdAuditoria.Parameters.AddWithValue("@idStock", idStockSucursal);
                         cmdAuditoria.Parameters.AddWithValue("@variacion", -item.Cantidad);
@@ -134,11 +139,7 @@ namespace AorusMarket.AccesoDatos
                     INNER JOIN usuario u ON v.id_usuario = u.id_usuario
                     WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta ";
 
-                if (idUsuarioFiltro > 0)
-                {
-                    query += " AND v.id_usuario = @idUsr";
-                }
-
+                if (idUsuarioFiltro > 0) query += " AND v.id_usuario = @idUsr";
                 query += " ORDER BY v.fecha DESC";
 
                 SqlCommand cmd = new SqlCommand(query, oConexion);
@@ -177,7 +178,7 @@ namespace AorusMarket.AccesoDatos
             List<DetalleHistorial> lista = new List<DetalleHistorial>();
             using (SqlConnection oConexion = Conexion.ObtenerConexion())
             {
-                string query = @"
+                const string query = @"
                     SELECT p.nombre, dv.cantidad, dv.precio_unitario, dv.subtotal
                     FROM detalleVenta dv
                     INNER JOIN producto p ON dv.id_producto = p.id_producto
@@ -217,7 +218,7 @@ namespace AorusMarket.AccesoDatos
                 SqlTransaction transaccion = oConexion.BeginTransaction();
                 try
                 {
-                    string qVenta = "SELECT id_sucursal, estado FROM venta WHERE id_venta = @id";
+                    const string qVenta = "SELECT id_sucursal, estado FROM venta WHERE id_venta = @id";
                     SqlCommand cmdVenta = new SqlCommand(qVenta, oConexion, transaccion);
                     cmdVenta.Parameters.AddWithValue("@id", idVenta);
 
@@ -232,14 +233,15 @@ namespace AorusMarket.AccesoDatos
                         }
                     }
 
-                    if (estado == 2) throw new Exception("La venta ya se encuentra anulada.");
+                    // SOLUCIÓN S112: Se usa InvalidOperationException
+                    if (estado == 2) throw new InvalidOperationException("La venta ya se encuentra anulada.");
 
-                    string qUpdate = "UPDATE venta SET estado = 2 WHERE id_venta = @id";
+                    const string qUpdate = "UPDATE venta SET estado = 2 WHERE id_venta = @id";
                     SqlCommand cmdUpdate = new SqlCommand(qUpdate, oConexion, transaccion);
                     cmdUpdate.Parameters.AddWithValue("@id", idVenta);
                     cmdUpdate.ExecuteNonQuery();
 
-                    string qDetalle = "SELECT id_producto, cantidad FROM detalleVenta WHERE id_venta = @id";
+                    const string qDetalle = "SELECT id_producto, cantidad FROM detalleVenta WHERE id_venta = @id";
                     SqlCommand cmdDetalle = new SqlCommand(qDetalle, oConexion, transaccion);
                     cmdDetalle.Parameters.AddWithValue("@id", idVenta);
 
@@ -258,10 +260,10 @@ namespace AorusMarket.AccesoDatos
 
                     foreach (var d in detalles)
                     {
-                        string qStock = @"
-                            UPDATE stock_sucursal SET cantidad = cantidad + @cant 
-                            OUTPUT INSERTED.id_stock_sucursal
-                            WHERE id_producto = @idProd AND id_sucursal = @idSuc";
+                        const string qStock = @"
+                        UPDATE stock_sucursal SET cantidad = cantidad + @cant, activo = 1 
+                        OUTPUT INSERTED.id_stock_sucursal
+                        WHERE id_producto = @idProd AND id_sucursal = @idSuc";
 
                         SqlCommand cmdStock = new SqlCommand(qStock, oConexion, transaccion);
                         cmdStock.Parameters.AddWithValue("@cant", d.Cantidad);
@@ -273,7 +275,7 @@ namespace AorusMarket.AccesoDatos
                         {
                             int idStockSucursal = Convert.ToInt32(objStock);
 
-                            string qMov = @"
+                            const string qMov = @"
                                 INSERT INTO movimiento_stock (id_stock_sucursal, cantidad_variacion, tipo_movimiento, id_usuario) 
                                 VALUES (@idStock, @cant, 'Anulación', @idUsr)";
                             SqlCommand cmdMov = new SqlCommand(qMov, oConexion, transaccion);

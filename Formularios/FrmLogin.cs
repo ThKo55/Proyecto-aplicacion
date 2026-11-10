@@ -246,6 +246,8 @@ namespace AorusMarket.Formularios
             if (usuarioLogueado == null)
             {
                 lblMensaje.Text = mensajeError;
+                if (!string.IsNullOrEmpty(correo))
+                    Auditoria.RegistrarComo(null, correo, "Intento de login fallido", "Sesión", null);
                 return;
             }
 
@@ -255,6 +257,7 @@ namespace AorusMarket.Formularios
             Utilidades.SesionActual.NombrePerfil = usuarioLogueado.NombrePerfil;
             Utilidades.SesionActual.IdSucursal = usuarioLogueado.IdSucursal;
             Utilidades.SesionActual.NombreSucursal = usuarioLogueado.NombreSucursal;
+            Auditoria.Registrar("Inicio de sesión", "Sesión");
 
             this.Hide();
             MDIParent1 mdi = new MDIParent1();

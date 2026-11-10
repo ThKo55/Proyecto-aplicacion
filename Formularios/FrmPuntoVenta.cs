@@ -11,6 +11,14 @@ namespace AorusMarket.Formularios
 {
     public partial class FrmPuntoVenta : Form
     {
+        // Constantes para limpiar los mensajes de literales repetidos (S1192)
+        private const string ColIdProducto = "IdProducto";
+        private const string ColProducto = "Producto";
+        private const string ColCantidad = "Cantidad";
+        private const string ColSubtotal = "Subtotal";
+        private const string ColPrecioUnit = "PrecioUnitario";
+        private const string TituloAviso = "Aviso";
+
         private CyberTextBox txtBuscar;
         private DataGridView dgvBusqueda;
         private DataGridView dgvCarrito;
@@ -18,16 +26,15 @@ namespace AorusMarket.Formularios
         private Label lblTotal;
         private CyberButton btnAgregar, btnQuitar, btnConfirmar, btnCancelar;
 
-        private StockNegocio _stockNegocio = new StockNegocio();
-        private VentaNegocio _ventaNegocio = new VentaNegocio();
+        // Marcados como readonly para solucionar (IDE0044)
+        private readonly StockNegocio _stockNegocio = new StockNegocio();
+        private readonly VentaNegocio _ventaNegocio = new VentaNegocio();
 
         private decimal totalAcumulado = 0;
 
         public FrmPuntoVenta()
         {
             InitializeComponent();
-
-            // CORRECCIÓN: Evita el desborde al maximizar
             this.ClientSize = new Size(1150, 700);
             this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Punto de Venta";
@@ -47,18 +54,15 @@ namespace AorusMarket.Formularios
 
             int leftX = 30;
 
-            AddLabelSobrio("BUSCAR PRODUCTO (nombre)", new Point(leftX, 70));
+            AddLabelSobrio("BUSCAR PRODUCTO (cód. barras o nombre)", new Point(leftX, 70));
 
             txtBuscar = EstiloApp.CrearTextBox(new Point(leftX, 90), 200);
-
-            // CORRECCIÓN: Búsqueda ágil con tecla ENTER
             txtBuscar.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) BtnBuscar_Click(s, e); };
-
             this.Controls.Add(txtBuscar);
 
-            CyberButton btnBuscar = EstiloApp.CrearBoton("BUSCAR", new Point(leftX + 210, 89), 100, EstiloApp.Gris);
-            btnBuscar.Click += BtnBuscar_Click;
-            this.Controls.Add(btnBuscar);
+            CyberButton btnBuscarApp = EstiloApp.CrearBoton("BUSCAR", new Point(leftX + 210, 89), 100, EstiloApp.Gris);
+            btnBuscarApp.Click += BtnBuscar_Click;
+            this.Controls.Add(btnBuscarApp);
 
             btnAgregar = EstiloApp.CrearBoton("AGREGAR AL CARRITO", new Point(leftX + 320, 89), 180, EstiloApp.Verde);
             btnAgregar.Click += BtnAgregar_Click;
@@ -71,19 +75,23 @@ namespace AorusMarket.Formularios
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Bottom
             };
 
-            dgvBusqueda.Columns.Add("IdProducto", "IdProducto");
-            dgvBusqueda.Columns.Add("Producto", "Producto");
+            dgvBusqueda.Columns.Add(ColIdProducto, ColIdProducto);
+            dgvBusqueda.Columns.Add(ColProducto, ColProducto);
             dgvBusqueda.Columns.Add("Precio", "Precio");
             dgvBusqueda.Columns.Add("Disponible", "Stock Disp.");
-
-            var colCantidad = new DataGridViewTextBoxColumn { Name = "Cantidad", HeaderText = "Cant. a Vender" };
-            dgvBusqueda.Columns.Add(colCantidad);
-            dgvBusqueda.Columns["IdProducto"].Visible = false;
-
-            foreach (DataGridViewColumn c in dgvBusqueda.Columns)
-                if (c.Name != "Cantidad") c.ReadOnly = true;
+            dgvBusqueda.Columns.Add(new DataGridViewTextBoxColumn { Name = ColCantidad, HeaderText = "Cant. a Vender" });
+            dgvBusqueda.Columns[ColIdProducto].Visible = false;
 
             EstiloApp.EstilizarGrid(dgvBusqueda);
+
+            // SOLUCIÓN AL BUG MANUAL: Deshacer el ReadOnly global y habilitar edición on click
+            dgvBusqueda.ReadOnly = false;
+            foreach (DataGridViewColumn c in dgvBusqueda.Columns)
+            {
+                if (c.Name != ColCantidad) c.ReadOnly = true;
+            }
+            dgvBusqueda.EditMode = DataGridViewEditMode.EditOnEnter;
+
             this.Controls.Add(dgvBusqueda);
 
             int rightX = 530;
@@ -103,12 +111,12 @@ namespace AorusMarket.Formularios
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
 
-            dgvCarrito.Columns.Add("IdProducto", "IdProducto");
-            dgvCarrito.Columns.Add("Producto", "Producto");
-            dgvCarrito.Columns.Add("Cantidad", "Cantidad");
-            dgvCarrito.Columns.Add("PrecioUnitario", "Precio Unit.");
-            dgvCarrito.Columns.Add("Subtotal", "Subtotal");
-            dgvCarrito.Columns["IdProducto"].Visible = false;
+            dgvCarrito.Columns.Add(ColIdProducto, ColIdProducto);
+            dgvCarrito.Columns.Add(ColProducto, ColProducto);
+            dgvCarrito.Columns.Add(ColCantidad, ColCantidad);
+            dgvCarrito.Columns.Add(ColPrecioUnit, "Precio Unit.");
+            dgvCarrito.Columns.Add(ColSubtotal, ColSubtotal);
+            dgvCarrito.Columns[ColIdProducto].Visible = false;
 
             EstiloApp.EstilizarGrid(dgvCarrito);
             this.Controls.Add(dgvCarrito);
@@ -161,7 +169,6 @@ namespace AorusMarket.Formularios
             cmbCliente.DataSource = clientes;
             cmbCliente.DisplayMember = "InfoBusqueda";
             cmbCliente.ValueMember = "IdCliente";
-
             cmbCliente.DropDownStyle = ComboBoxStyle.DropDown;
             cmbCliente.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
             cmbCliente.AutoCompleteSource = AutoCompleteSource.ListItems;
@@ -169,77 +176,65 @@ namespace AorusMarket.Formularios
 
         private void BtnBuscar_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtBuscar.TextButton))
+            string textoBusqueda = string.IsNullOrWhiteSpace(txtBuscar.TextButton) ? txtBuscar.Text : txtBuscar.TextButton;
+            textoBusqueda = textoBusqueda?.Trim();
+
+            if (string.IsNullOrEmpty(textoBusqueda))
             {
-                MessageBox.Show("Escriba el nombre del producto a buscar.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Escriba el código de barras o nombre a buscar.", TituloAviso, MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
             dgvBusqueda.Rows.Clear();
-            var resultados = _ventaNegocio.BuscarProducto(txtBuscar.TextButton, SesionActual.IdSucursal);
+            var resultados = _ventaNegocio.BuscarProducto(textoBusqueda, SesionActual.IdSucursal);
+
+            if (resultados.Count == 1 && resultados[0].CodigoBarras == textoBusqueda)
+            {
+                AgregarAlCarritoDirecto(resultados[0], 1);
+                EstiloApp.EscribirTexto(txtBuscar, "");
+                txtBuscar.Focus();
+                return;
+            }
 
             foreach (var r in resultados)
             {
-                dgvBusqueda.Rows.Add(r.IdProducto, r.Nombre, r.Precio, r.StockDisponible, "");
+                dgvBusqueda.Rows.Add(r.IdProducto, r.Nombre, r.Precio, r.StockDisponible, "1");
             }
             dgvBusqueda.ClearSelection();
         }
 
-        private void BtnAgregar_Click(object sender, EventArgs e)
+        private void AgregarAlCarritoDirecto(BusquedaProducto producto, int cantidadAInsertar)
         {
-            if (dgvBusqueda.CurrentRow == null)
-            {
-                MessageBox.Show("Seleccione un producto de la búsqueda", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            var fila = dgvBusqueda.CurrentRow;
-            string cantIngresadaStr = fila.Cells["Cantidad"].Value?.ToString();
-
-            if (!int.TryParse(cantIngresadaStr, out int cantIngresada) || cantIngresada <= 0)
-            {
-                MessageBox.Show("Ingrese una cantidad válida mayor a 0 en la grilla.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            int idProd = Convert.ToInt32(fila.Cells["IdProducto"].Value);
-            int stockDispGrilla = Convert.ToInt32(fila.Cells["Disponible"].Value);
-
             int cantidadYaEnCarrito = 0;
             foreach (DataGridViewRow row in dgvCarrito.Rows)
             {
-                if (Convert.ToInt32(row.Cells["IdProducto"].Value) == idProd)
+                if (Convert.ToInt32(row.Cells[ColIdProducto].Value) == producto.IdProducto)
                 {
-                    cantidadYaEnCarrito += Convert.ToInt32(row.Cells["Cantidad"].Value);
+                    cantidadYaEnCarrito += Convert.ToInt32(row.Cells[ColCantidad].Value);
                 }
             }
 
-            int cantidadTotalDeseada = cantIngresada + cantidadYaEnCarrito;
+            int cantidadTotalDeseada = cantidadAInsertar + cantidadYaEnCarrito;
 
-            if (cantidadTotalDeseada > stockDispGrilla)
+            if (cantidadTotalDeseada > producto.StockDisponible)
             {
-                MessageBox.Show($"No hay stock suficiente.\nTienes {stockDispGrilla} disponibles y estás intentando vender un total de {cantidadTotalDeseada}.", "Stock Insuficiente", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show($"No hay stock suficiente. Tienes {producto.StockDisponible} disponibles.", "Stock Insuficiente", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            if (!_stockNegocio.HayStockSuficiente(idProd, SesionActual.IdSucursal, cantidadTotalDeseada))
+            if (!_stockNegocio.HayStockSuficiente(producto.IdProducto, SesionActual.IdSucursal, cantidadTotalDeseada))
             {
-                MessageBox.Show("El stock en la base de datos ya no es suficiente (quizás otra caja acaba de venderlo).", "Error de Stock", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("El stock en la base de datos ya no es suficiente.", "Error de Stock", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            string nombre = fila.Cells["Producto"].Value.ToString();
-            decimal precio = Convert.ToDecimal(fila.Cells["Precio"].Value);
-            decimal subtotalAgregar = precio * cantIngresada;
-
-            // CORRECCIÓN: En lugar de crear otra fila, actualizamos la cantidad si el producto ya está en el carrito
             bool existe = false;
             foreach (DataGridViewRow row in dgvCarrito.Rows)
             {
-                if (Convert.ToInt32(row.Cells["IdProducto"].Value) == idProd)
+                if (Convert.ToInt32(row.Cells[ColIdProducto].Value) == producto.IdProducto)
                 {
-                    row.Cells["Cantidad"].Value = cantidadTotalDeseada;
-                    row.Cells["Subtotal"].Value = cantidadTotalDeseada * precio;
+                    row.Cells[ColCantidad].Value = cantidadTotalDeseada;
+                    row.Cells[ColSubtotal].Value = cantidadTotalDeseada * producto.Precio;
                     existe = true;
                     break;
                 }
@@ -247,16 +242,39 @@ namespace AorusMarket.Formularios
 
             if (!existe)
             {
-                dgvCarrito.Rows.Add(idProd, nombre, cantIngresada, precio, subtotalAgregar);
+                dgvCarrito.Rows.Add(producto.IdProducto, producto.Nombre, cantidadAInsertar, producto.Precio, producto.Precio * cantidadAInsertar);
             }
 
-            fila.Cells["Cantidad"].Value = "";
             RecalcularTotal();
+        }
 
-            if (_stockNegocio.StockEsCritico(idProd, SesionActual.IdSucursal))
+        private void BtnAgregar_Click(object sender, EventArgs e)
+        {
+            if (dgvBusqueda.CurrentRow == null)
             {
-                MessageBox.Show("¡ALERTA! El stock de este producto ha llegado a su nivel mínimo. Considere reponer.", "Stock Bajo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Seleccione un producto de la búsqueda", TituloAviso, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
             }
+
+            var fila = dgvBusqueda.CurrentRow;
+            string cantIngresadaStr = fila.Cells[ColCantidad].Value?.ToString();
+
+            if (!int.TryParse(cantIngresadaStr, out int cantIngresada) || cantIngresada <= 0)
+            {
+                MessageBox.Show("Ingrese una cantidad válida mayor a 0 en la grilla.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            BusquedaProducto bp = new BusquedaProducto()
+            {
+                IdProducto = Convert.ToInt32(fila.Cells[ColIdProducto].Value),
+                Nombre = fila.Cells[ColProducto].Value.ToString(),
+                Precio = Convert.ToDecimal(fila.Cells["Precio"].Value),
+                StockDisponible = Convert.ToInt32(fila.Cells["Disponible"].Value)
+            };
+
+            AgregarAlCarritoDirecto(bp, cantIngresada);
+            fila.Cells[ColCantidad].Value = "";
         }
 
         private void BtnQuitar_Click(object sender, EventArgs e)
@@ -273,51 +291,109 @@ namespace AorusMarket.Formularios
             totalAcumulado = 0;
             foreach (DataGridViewRow fila in dgvCarrito.Rows)
             {
-                if (fila.Cells["Subtotal"].Value != null)
+                if (fila.Cells[ColSubtotal].Value != null)
                 {
-                    totalAcumulado += Convert.ToDecimal(fila.Cells["Subtotal"].Value);
+                    totalAcumulado += Convert.ToDecimal(fila.Cells[ColSubtotal].Value);
                 }
             }
             lblTotal.Text = $"TOTAL: {totalAcumulado:C2}";
         }
 
-        private void BtnConfirmar_Click(object sender, EventArgs e)
+        private decimal PedirMontoEfectivo(decimal totalVenta)
         {
+            System.Windows.Forms.Form prompt = new System.Windows.Forms.Form()
+            {
+                Width = 350,
+                Height = 200,
+                FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog,
+                Text = "Cobro en Efectivo",
+                StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen,
+                BackColor = Color.FromArgb(18, 18, 18),
+                ForeColor = Color.White,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            System.Windows.Forms.Label textLabel = new System.Windows.Forms.Label() { Left = 20, Top = 20, Width = 300, Text = $"Total de la venta: {totalVenta:C2}\nIngrese el monto entregado por el cliente:" };
+            System.Windows.Forms.TextBox textBox = new System.Windows.Forms.TextBox() { Left = 20, Top = 70, Width = 290, Font = new Font("Segoe UI", 14F) };
+            System.Windows.Forms.Button confirmation = new System.Windows.Forms.Button() { Text = "Calcular", Left = 210, Top = 120, Width = 100, BackColor = Color.FromArgb(40, 167, 69), FlatStyle = FlatStyle.Flat };
+
+            decimal montoIngresado = -1;
+
+            confirmation.Click += (sender, e) => {
+                if (decimal.TryParse(textBox.Text, out montoIngresado)) { prompt.Close(); }
+                else { MessageBox.Show("Ingrese un número válido.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            };
+
+            textBox.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) confirmation.PerformClick(); };
+
+            prompt.Controls.Add(textBox);
+            prompt.Controls.Add(confirmation);
+            prompt.Controls.Add(textLabel);
+            prompt.ShowDialog();
+
+            return montoIngresado;
+        }
+
+        // SOLUCIÓN A COMPLEJIDAD COGNITIVA (S3776): Se extrajo la validación inicial
+        private bool ValidarPreVenta(out string metodoSeleccionado)
+        {
+            metodoSeleccionado = string.Empty;
             if (dgvCarrito.Rows.Count == 0)
             {
-                MessageBox.Show("El carrito está vacío.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                MessageBox.Show("El carrito está vacío.", TituloAviso, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
             }
 
             if (cmbMetodoPago.SelectedIndex == -1)
             {
-                MessageBox.Show("Seleccione un método de pago.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                MessageBox.Show("Seleccione un método de pago.", TituloAviso, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
             }
 
-            DialogResult dialogo = MessageBox.Show(
-                $"¿Confirmar venta por un total de {totalAcumulado:C2}?\n\nVerifique el vuelto antes de continuar.",
-                "Doble Validación de Venta",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question);
+            metodoSeleccionado = cmbMetodoPago.SelectedItem.ToString();
+            return true;
+        }
 
-            if (dialogo == DialogResult.No) return;
+        private bool ValidarEfectivoOConfirmar(string metodoSeleccionado)
+        {
+            if (metodoSeleccionado == "Efectivo")
+            {
+                decimal montoAbonado = PedirMontoEfectivo(totalAcumulado);
+                if (montoAbonado == -1) return false;
+
+                if (montoAbonado < totalAcumulado)
+                {
+                    MessageBox.Show("El monto ingresado es menor al total de la venta.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+
+                decimal vuelto = montoAbonado - totalAcumulado;
+                return MessageBox.Show($"Total a cobrar: {totalAcumulado:C2}\nAbona con: {montoAbonado:C2}\n\nSU VUELTO ES: {vuelto:C2}\n\n¿Confirmar venta?", "Verificación", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
+            }
+
+            return MessageBox.Show($"¿Confirmar venta por un total de {totalAcumulado:C2}?", "Validación", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
+        }
+
+        private void BtnConfirmar_Click(object sender, EventArgs e)
+        {
+            if (!ValidarPreVenta(out string metodoSeleccionado)) return;
+            if (!ValidarEfectivoOConfirmar(metodoSeleccionado)) return;
 
             if (totalAcumulado > 50000)
             {
-                DialogResult dialogoGerente = MessageBox.Show(
-                    "Esta venta supera el límite de $50,000. ¿Desea continuar de todas formas?",
-                    "Autorización Requerida",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning);
-
-                if (dialogoGerente == DialogResult.No) return;
+                if (MessageBox.Show("Esta venta supera el límite de $50,000. ¿Desea continuar de todas formas?", "Autorización Requerida", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.No) return;
             }
 
+            ProcesarCierreVenta(metodoSeleccionado);
+        }
+
+        private void ProcesarCierreVenta(string metodoSeleccionado)
+        {
             Venta nuevaVenta = new Venta()
             {
                 Total = totalAcumulado,
-                MetodoPago = cmbMetodoPago.SelectedItem?.ToString(),
+                MetodoPago = metodoSeleccionado,
                 IdUsuario = SesionActual.IdUsuario,
                 IdSucursal = SesionActual.IdSucursal,
                 IdCliente = Convert.ToInt32(cmbCliente.SelectedValue) == 0 ? (int?)null : Convert.ToInt32(cmbCliente.SelectedValue)
@@ -327,42 +403,33 @@ namespace AorusMarket.Formularios
             {
                 nuevaVenta.Detalles.Add(new DetalleVenta()
                 {
-                    IdProducto = Convert.ToInt32(fila.Cells["IdProducto"].Value),
-                    Cantidad = Convert.ToInt32(fila.Cells["Cantidad"].Value),
-                    PrecioUnitario = Convert.ToDecimal(fila.Cells["PrecioUnitario"].Value)
+                    IdProducto = Convert.ToInt32(fila.Cells[ColIdProducto].Value),
+                    Cantidad = Convert.ToInt32(fila.Cells[ColCantidad].Value),
+                    PrecioUnitario = Convert.ToDecimal(fila.Cells[ColPrecioUnit].Value)
                 });
             }
 
-            string mensaje;
-            bool resultado = _ventaNegocio.ConfirmarVenta(nuevaVenta, out mensaje);
-
-            if (resultado)
+            if (_ventaNegocio.ConfirmarVenta(nuevaVenta, out string mensaje))
             {
                 MessageBox.Show("¡Venta procesada con éxito!", "AorusMarket", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                var resp = MessageBox.Show("¿Desea generar y descargar la Factura en PDF ahora?", "Factura", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                if (resp == DialogResult.Yes)
+                if (MessageBox.Show("¿Desea generar y descargar la Factura en PDF ahora?", "Factura", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                 {
                     List<DetalleHistorial> detallesPdf = new List<DetalleHistorial>();
                     foreach (DataGridViewRow row in dgvCarrito.Rows)
                     {
                         detallesPdf.Add(new DetalleHistorial()
                         {
-                            NombreProducto = row.Cells["Producto"].Value.ToString(),
-                            Cantidad = Convert.ToInt32(row.Cells["Cantidad"].Value),
-                            PrecioUnitario = Convert.ToDecimal(row.Cells["PrecioUnitario"].Value),
-                            SubTotal = Convert.ToDecimal(row.Cells["Subtotal"].Value)
+                            NombreProducto = row.Cells[ColProducto].Value.ToString(),
+                            Cantidad = Convert.ToInt32(row.Cells[ColCantidad].Value),
+                            PrecioUnitario = Convert.ToDecimal(row.Cells[ColPrecioUnit].Value),
+                            SubTotal = Convert.ToDecimal(row.Cells[ColSubtotal].Value)
                         });
                     }
 
                     string nombreCliente = cmbCliente.Text.Contains("-") ? cmbCliente.Text.Split('-')[1].Trim() : "Consumidor Final";
-
-                    // CORRECCIÓN: El ticket ahora lleva el Nombre Real del cajero y el Nro de Ticket correcto
-                    string nombreCajero = SesionActual.NombreCompleto;
-
-                    GeneradorFactura.GenerarPDF(nuevaVenta.IdVenta, DateTime.Now.ToString("dd/MM/yyyy HH:mm"), nombreCliente, nombreCajero, nuevaVenta.Total, nuevaVenta.MetodoPago, detallesPdf, true);
+                    GeneradorFactura.GenerarPDF(nuevaVenta.IdVenta, DateTime.Now.ToString("dd/MM/yyyy HH:mm"), nombreCliente, SesionActual.NombreCompleto, nuevaVenta.Total, nuevaVenta.MetodoPago, detallesPdf, true);
                 }
-
                 LimpiarVenta();
             }
             else

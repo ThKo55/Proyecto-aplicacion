@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using AorusMarket.AccesoDatos;
 using AorusMarket.Entidades;
+using AorusMarket.Utilidades;
 
 namespace AorusMarket.Negocio
 {
@@ -58,7 +59,11 @@ namespace AorusMarket.Negocio
             };
 
             bool resultado = _stockDatos.Guardar(obj, idUsuario);
-            if (!resultado) mensaje = "Ocurrió un error en la base de datos al intentar guardar el stock.";
+            if (!resultado)
+                mensaje = "Ocurrió un error en la base de datos al intentar guardar el stock.";
+            else
+                Auditoria.Registrar("Ajuste de stock / precio", "Stock",
+                    $"Producto #{obj.IdProducto} | Sucursal #{obj.IdSucursal} | Cant: {cantidad} | Precio: {precio:0.00} | Mín: {stockMinimo}");
 
             return resultado;
         }
@@ -66,8 +71,13 @@ namespace AorusMarket.Negocio
         public bool Eliminar(int idStock, out string mensaje)
         {
             mensaje = string.Empty;
-            bool resultado = _stockDatos.Eliminar(idStock);
-            if (!resultado) mensaje = "Error: Es posible que este registro de stock esté vinculado a detalles de ventas.";
+            bool resultado = _stockDatos.Eliminar(idStock, SesionActual.IdUsuario);
+
+            if (resultado)
+                Auditoria.Registrar("Baja de stock", "Stock", $"Registro de stock #{idStock} dado de baja (se conserva el historial)");
+            else
+                mensaje = "No se pudo dar de baja el registro de stock (puede que ya no exista).";
+
             return resultado;
         }
 
