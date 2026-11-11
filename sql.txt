@@ -1,0 +1,1179 @@
+USE [master];
+GO
+
+-- Si la base ya existe, desconecta usuarios activos y la elimina para recrearla limpia
+IF EXISTS (SELECT name FROM sys.databases WHERE name = N'SuperMercadoDB')
+BEGIN
+    ALTER DATABASE [SuperMercadoDB] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+    DROP DATABASE [SuperMercadoDB];
+END
+GO
+
+-- Crea la base usando la configuración y carpetas por defecto de tu propio SQL Server
+CREATE DATABASE [SuperMercadoDB];
+GO
+
+USE [SuperMercadoDB];
+GO
+
+/****** Objeto: Table [dbo].[auditoria_acciones] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[auditoria_acciones](
+	[id_auditoria] [int] IDENTITY(1,1) NOT NULL,
+	[fecha] [datetime] NOT NULL,
+	[id_usuario] [int] NULL,
+	[usuario] [varchar](150) NULL,
+	[accion] [varchar](60) NOT NULL,
+	[entidad] [varchar](60) NOT NULL,
+	[detalle] [varchar](500) NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[id_auditoria] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Objeto: Table [dbo].[backup_registro] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[backup_registro](
+	[id_backup] [int] IDENTITY(1,1) NOT NULL,
+	[tipo_operacion] [varchar](20) NOT NULL,
+	[origen] [varchar](20) NOT NULL,
+	[archivo] [varchar](500) NULL,
+	[fecha] [datetime] NOT NULL,
+	[id_usuario_solicitante] [int] NULL,
+	[id_usuario_aprobador] [int] NULL,
+	[estado] [varchar](20) NOT NULL,
+	[detalle] [varchar](500) NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[id_backup] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Objeto: Table [dbo].[categoria] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[categoria](
+	[id_categoria] [int] IDENTITY(1,1) NOT NULL,
+	[nombre] [varchar](100) NOT NULL,
+	[descripcion] [varchar](255) NULL,
+	[activo] [bit] NOT NULL,
+ CONSTRAINT [PK__categori__CD54BC5ACA12DE80] PRIMARY KEY CLUSTERED 
+(
+	[id_categoria] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Objeto: Table [dbo].[cliente] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[cliente](
+	[id_cliente] [int] IDENTITY(1,1) NOT NULL,
+	[nombre] [varchar](100) NOT NULL,
+	[apellido] [varchar](100) NOT NULL,
+	[dni] [varchar](20) NULL,
+	[telefono] [varchar](30) NULL,
+	[email] [varchar](150) NULL,
+	[activo] [bit] NOT NULL,
+	[id_direccion] [int] NULL,
+	[fecha_nacimiento] [date] NULL,
+	[cuil_cuit] [varchar](20) NULL,
+ CONSTRAINT [PK__cliente__677F38F577FF0DBB] PRIMARY KEY CLUSTERED 
+(
+	[id_cliente] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Objeto: Table [dbo].[configuracion_backup] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[configuracion_backup](
+	[id] [int] NOT NULL,
+	[activo] [bit] NOT NULL,
+	[tipo_destino] [varchar](60) NOT NULL,
+	[ruta_destino] [varchar](400) NOT NULL,
+	[hora_programada] [varchar](5) NOT NULL,
+	[cantidad_a_conservar] [int] NOT NULL,
+	[ultimo_backup] [datetime] NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Objeto: Table [dbo].[detalleVenta] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[detalleVenta](
+	[id_detalle] [int] IDENTITY(1,1) NOT NULL,
+	[id_venta] [int] NOT NULL,
+	[id_producto] [int] NOT NULL,
+	[cantidad] [int] NOT NULL,
+	[precio_unitario] [decimal](10, 2) NOT NULL,
+	[subtotal] [decimal](10, 2) NOT NULL,
+ CONSTRAINT [PK__detalleV__4F1332DE6770C4E4] PRIMARY KEY CLUSTERED 
+(
+	[id_detalle] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Objeto: Table [dbo].[direccion] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[direccion](
+	[id_direccion] [int] IDENTITY(1,1) NOT NULL,
+	[calle] [varchar](150) NULL,
+	[altura] [varchar](20) NULL,
+ CONSTRAINT [PK__direccio__25C35D07EE1A9FCC] PRIMARY KEY CLUSTERED 
+(
+	[id_direccion] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Objeto: Table [dbo].[historial_backups] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[historial_backups](
+	[id_backup] [int] IDENTITY(1,1) NOT NULL,
+	[id_usuario_solicitante] [int] NOT NULL,
+	[id_usuario_aprobador] [int] NULL,
+	[estado] [varchar](50) NOT NULL,
+	[fecha_solicitud] [datetime] NOT NULL,
+	[fecha_programada] [datetime] NOT NULL,
+	[fecha_ejecucion] [datetime] NULL,
+	[ruta_archivo] [varchar](255) NULL,
+	[mensaje_error] [varchar](max) NULL,
+ CONSTRAINT [PK_historial_backups] PRIMARY KEY CLUSTERED 
+(
+	[id_backup] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+GO
+
+/****** Objeto: Table [dbo].[movimiento_stock] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[movimiento_stock](
+	[id_movimiento] [int] IDENTITY(1,1) NOT NULL,
+	[id_stock_sucursal] [int] NOT NULL,
+	[cantidad_variacion] [int] NOT NULL,
+	[tipo_movimiento] [varchar](50) NOT NULL,
+	[fecha] [datetime] NOT NULL,
+	[id_usuario] [int] NOT NULL,
+ CONSTRAINT [PK__movimien__2A071C2426B18C2C] PRIMARY KEY CLUSTERED 
+(
+	[id_movimiento] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Objeto: Table [dbo].[perfil] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[perfil](
+	[id_perfil] [int] IDENTITY(1,1) NOT NULL,
+	[nombre] [varchar](50) NOT NULL,
+	[descripcion] [varchar](255) NULL,
+ CONSTRAINT [PK__perfil__1D1C87682033F40E] PRIMARY KEY CLUSTERED 
+(
+	[id_perfil] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Objeto: Table [dbo].[producto] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[producto](
+	[id_producto] [int] IDENTITY(1,1) NOT NULL,
+	[codigo_barras] [varchar](50) NULL,
+	[nombre] [varchar](150) NOT NULL,
+	[marca] [varchar](100) NULL,
+	[descripcion] [varchar](255) NULL,
+	[unidad_medida] [varchar](20) NULL,
+	[id_categoria] [int] NOT NULL,
+	[activo] [bit] NOT NULL,
+ CONSTRAINT [PK__producto__FF341C0D4234521B] PRIMARY KEY CLUSTERED 
+(
+	[id_producto] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Objeto: Table [dbo].[stock_sucursal] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[stock_sucursal](
+	[id_stock_sucursal] [int] IDENTITY(1,1) NOT NULL,
+	[id_producto] [int] NOT NULL,
+	[id_sucursal] [int] NOT NULL,
+	[cantidad] [int] NOT NULL,
+	[precio] [decimal](10, 2) NOT NULL,
+	[stock_minimo] [int] NOT NULL,
+	[activo] [bit] NOT NULL,
+ CONSTRAINT [PK__stock_su__55F8F360CA528160] PRIMARY KEY CLUSTERED 
+(
+	[id_stock_sucursal] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Objeto: Table [dbo].[sucursal] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[sucursal](
+	[id_sucursal] [int] IDENTITY(1,1) NOT NULL,
+	[nombre] [varchar](100) NOT NULL,
+	[direccion] [varchar](200) NULL,
+	[telefono] [varchar](30) NULL,
+	[activo] [bit] NOT NULL,
+ CONSTRAINT [PK__sucursal__4C75801353422512] PRIMARY KEY CLUSTERED 
+(
+	[id_sucursal] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Objeto: Table [dbo].[usuario] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[usuario](
+	[id_usuario] [int] IDENTITY(1,1) NOT NULL,
+	[nombre] [varchar](100) NOT NULL,
+	[apellido] [varchar](100) NOT NULL,
+	[email] [varchar](150) NOT NULL,
+	[password] [varchar](255) NOT NULL,
+	[telefono] [varchar](30) NULL,
+	[direccion] [varchar](200) NULL,
+	[fecha_nacimiento] [date] NULL,
+	[id_perfil] [int] NOT NULL,
+	[id_sucursal] [int] NOT NULL,
+	[activo] [bit] NOT NULL,
+	[id_direccion] [int] NULL,
+	[dni] [varchar](20) NULL,
+ CONSTRAINT [PK__usuario__4E3E04ADE4FF92AC] PRIMARY KEY CLUSTERED 
+(
+	[id_usuario] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Objeto: Table [dbo].[venta] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[venta](
+	[id_venta] [int] IDENTITY(1,1) NOT NULL,
+	[fecha] [datetime] NOT NULL,
+	[total] [decimal](10, 2) NOT NULL,
+	[metodo_pago] [varchar](50) NOT NULL,
+	[estado] [tinyint] NOT NULL,
+	[id_cliente] [int] NULL,
+	[id_usuario] [int] NOT NULL,
+	[id_sucursal] [int] NOT NULL,
+ CONSTRAINT [PK__venta__459533BFD3E64C2E] PRIMARY KEY CLUSTERED 
+(
+	[id_venta] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+-- =========================================================================
+-- INSERTS DE DATOS
+-- =========================================================================
+
+SET IDENTITY_INSERT [dbo].[auditoria_acciones] ON 
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (1, CAST(N'2026-11-09T20:41:27.440' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (2, CAST(N'2026-11-09T20:43:18.973' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (3, CAST(N'2026-11-09T20:44:01.743' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (4, CAST(N'2026-11-09T21:56:03.360' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (5, CAST(N'2026-11-09T21:56:31.920' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (6, CAST(N'2026-11-09T21:56:40.447' AS DateTime), 3, N'Pedro Rodriguez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (7, CAST(N'2026-11-09T21:57:01.083' AS DateTime), 3, N'Pedro Rodriguez', N'Cierre de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (8, CAST(N'2026-11-09T22:00:53.297' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (9, CAST(N'2026-11-09T22:02:04.070' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (10, CAST(N'2026-11-09T22:08:51.720' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (11, CAST(N'2026-11-09T22:09:39.030' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (12, CAST(N'2026-11-09T22:10:31.433' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (13, CAST(N'2026-11-09T22:11:08.140' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (14, CAST(N'2026-11-09T22:11:41.977' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (15, CAST(N'2026-11-09T22:12:12.097' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (16, CAST(N'2026-11-09T22:12:37.167' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (17, CAST(N'2026-11-09T22:13:03.880' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (18, CAST(N'2026-11-09T22:13:17.380' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (19, CAST(N'2026-11-09T22:13:31.367' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (20, CAST(N'2026-11-09T22:22:16.700' AS DateTime), NULL, N'venta', N'Inicio de sesión fallido', N'Sesión', N'Credenciales incorrectas o usuario inactivo')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (21, CAST(N'2026-11-09T22:22:19.090' AS DateTime), 2, N'Maria Gomez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (22, CAST(N'2026-11-09T22:22:39.617' AS DateTime), 2, N'Maria Gomez', N'Venta', N'Venta', N'N° 1 - total XDR15,000.00 - Efectivo')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (23, CAST(N'2026-11-09T22:23:16.160' AS DateTime), 2, N'Maria Gomez', N'Cierre de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (24, CAST(N'2026-11-09T22:27:27.970' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (25, CAST(N'2026-11-09T22:31:39.337' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (26, CAST(N'2026-11-09T22:32:19.050' AS DateTime), 2, N'Maria Gomez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (27, CAST(N'2026-11-09T22:32:50.237' AS DateTime), 2, N'Maria Gomez', N'Venta', N'Venta', N'N° 2 - total XDR30,000.00 - Efectivo')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (28, CAST(N'2026-11-09T22:34:33.230' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (29, CAST(N'2026-11-09T22:34:35.877' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (30, CAST(N'2026-11-09T22:34:38.260' AS DateTime), 2, N'Maria Gomez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (31, CAST(N'2026-11-09T22:35:05.627' AS DateTime), 2, N'Maria Gomez', N'Venta', N'Venta', N'N° 3 - total XDR30,000.00 - Débito')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (32, CAST(N'2026-11-09T22:37:48.187' AS DateTime), 2, N'Maria Gomez', N'Venta', N'Venta', N'N° 4 - total XDR22,500.00 - Efectivo')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (33, CAST(N'2026-11-09T22:38:59.547' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (34, CAST(N'2026-11-09T22:40:21.177' AS DateTime), 1, N'Juan Perez', N'Alta', N'Usuario', N'ener@gmail.com (perfil 1)')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (35, CAST(N'2026-11-09T22:45:01.083' AS DateTime), 2, N'Maria Gomez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (36, CAST(N'2026-11-09T22:45:21.377' AS DateTime), 2, N'Maria Gomez', N'Venta', N'Venta', N'N° 5 - total XDR9,000.00 - Efectivo')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (37, CAST(N'2026-11-09T23:39:28.127' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (38, CAST(N'2026-11-10T00:13:14.233' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', N'')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (39, CAST(N'2026-11-10T08:04:02.570' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (40, CAST(N'2026-11-10T08:06:30.513' AS DateTime), 1, N'Juan Perez', N'Alta de usuario', N'Usuario', N'luis enrique | DNI 12345678 | Perfil #4 | Sucursal #1')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (41, CAST(N'2026-11-10T08:06:39.717' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (42, CAST(N'2026-11-10T08:06:48.253' AS DateTime), 7, N'luis enrique', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (43, CAST(N'2026-11-10T08:07:12.187' AS DateTime), 7, N'luis enrique', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (44, CAST(N'2026-11-10T15:04:53.550' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (45, CAST(N'2026-11-10T15:05:53.610' AS DateTime), 1, N'Juan Perez', N'Ajuste de stock / precio', N'Stock', N'Producto #1 | Sucursal #1 | Cant: 200 | Precio: 1500,00 | Mín: 10')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (46, CAST(N'2026-11-10T15:09:45.903' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (47, CAST(N'2026-11-10T15:11:16.120' AS DateTime), 1, N'Juan Perez', N'Backup automático - Completado', N'Backup', N'C:\AorusMarket\Backups\AorusMarket_20261110_151116.bak')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (48, CAST(N'2026-11-10T15:11:39.047' AS DateTime), 1, N'Juan Perez', N'Backup manual - Completado', N'Backup', N'C:\AorusMarket\Backups\AorusMarket_20261110_151138.bak')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (49, CAST(N'2026-11-10T15:11:58.597' AS DateTime), 1, N'Juan Perez', N'Backup manual - Completado', N'Backup', N'C:\AorusMarket\Backups\AorusMarket_20261110_151158.bak')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (50, CAST(N'2026-11-10T15:17:57.803' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (51, CAST(N'2026-11-10T15:18:31.560' AS DateTime), 1, N'Juan Perez', N'Backup manual - Completado', N'Backup', N'C:\AorusMarket\Backups\AorusMarket_20261110_151803.bak')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (52, CAST(N'2026-11-10T15:18:47.713' AS DateTime), 1, N'Juan Perez', N'Backup manual - Completado', N'Backup', N'C:\AorusMarket\Backups\AorusMarket_20261110_151843.bak')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (53, CAST(N'2026-11-10T15:19:27.720' AS DateTime), 1, N'Juan Perez', N'Backup manual - Completado', N'Backup', N'C:\AorusMarket\Backups\AorusMarket_20261110_151924.bak')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (54, CAST(N'2026-11-10T15:22:46.790' AS DateTime), 1, N'Juan Perez', N'Restauración manual - Completado', N'Backup', N'C:\AorusMarket\Backups\PreRestore_AorusMarket_20261110_152056.bak')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (55, CAST(N'2026-11-10T15:22:51.120' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (56, CAST(N'2026-11-10T15:23:06.733' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (57, CAST(N'2026-11-10T15:23:13.607' AS DateTime), NULL, N'123@gmail.com', N'Intento de login fallido', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (58, CAST(N'2026-11-10T15:23:19.930' AS DateTime), 7, N'luis enrique', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (59, CAST(N'2026-11-10T15:23:38.117' AS DateTime), 7, N'luis enrique', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (60, CAST(N'2026-11-10T15:40:03.640' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (61, CAST(N'2026-11-10T15:40:59.000' AS DateTime), 1, N'Juan Perez', N'Ajuste de stock / precio', N'Stock', N'Producto #4 | Sucursal #1 | Cant: 180 | Precio: 2500,00 | Mín: 10')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (62, CAST(N'2026-11-10T15:49:00.607' AS DateTime), 7, N'luis enrique', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (63, CAST(N'2026-11-10T16:03:08.303' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (64, CAST(N'2026-11-10T16:14:55.303' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (65, CAST(N'2026-11-10T16:15:31.293' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (66, CAST(N'2026-11-10T16:17:09.547' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (67, CAST(N'2026-11-10T16:22:10.360' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (68, CAST(N'2026-11-10T16:25:36.253' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (69, CAST(N'2026-11-10T16:28:50.350' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (70, CAST(N'2026-11-10T16:29:36.920' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (71, CAST(N'2026-11-10T16:32:48.143' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (72, CAST(N'2026-11-10T16:38:21.810' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (73, CAST(N'2026-11-10T16:48:46.870' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (74, CAST(N'2026-11-10T17:00:08.150' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (75, CAST(N'2026-11-10T17:04:29.963' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (76, CAST(N'2026-11-10T17:05:30.103' AS DateTime), 1, N'Juan Perez', N'Backup automático - Completado', N'Backup', N'C:\AorusMarket\Backups\AorusMarket_20261110_170530.bak')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (77, CAST(N'2026-11-10T17:06:06.953' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (78, CAST(N'2026-11-10T17:06:53.303' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (79, CAST(N'2026-11-10T17:07:18.437' AS DateTime), 1, N'Juan Perez', N'Backup automático - Completado', N'Backup', N'C:\AorusMarket\Backups\AorusMarket_20261110_170718.bak')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (80, CAST(N'2026-11-10T17:13:30.617' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (81, CAST(N'2026-11-10T17:14:00.740' AS DateTime), 1, N'Juan Perez', N'Backup automático - Completado', N'Backup', N'C:\AorusMarket\Backups\AorusMarket_20261110_171400.bak')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (82, CAST(N'2026-11-10T17:14:43.710' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (83, CAST(N'2026-11-10T17:14:51.780' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (84, CAST(N'2026-11-10T17:15:21.870' AS DateTime), 1, N'Juan Perez', N'Backup automático - Completado', N'Backup', N'C:\AorusMarket\Backups\AorusMarket_20261110_171521.bak')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (85, CAST(N'2026-11-10T17:17:16.607' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (86, CAST(N'2026-11-10T17:17:19.253' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (87, CAST(N'2026-11-10T17:18:09.347' AS DateTime), 1, N'Juan Perez', N'Backup automático - Completado', N'Backup', N'C:\AorusMarket\Backups\AorusMarket_20261110_171809.bak')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (88, CAST(N'2026-11-10T17:18:22.513' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (89, CAST(N'2026-11-10T17:18:30.007' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (90, CAST(N'2026-11-10T17:19:04.567' AS DateTime), 1, N'Juan Perez', N'Backup automático - Completado', N'Backup', N'C:\AorusMarket\Backups\AorusMarket_20261110_171900.bak')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (91, CAST(N'2026-11-10T17:19:51.673' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (92, CAST(N'2026-11-10T17:20:45.303' AS DateTime), 2, N'Maria Gomez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (93, CAST(N'2026-11-10T21:06:02.773' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (94, CAST(N'2026-11-10T21:06:33.080' AS DateTime), 1, N'Juan Perez', N'Backup automático - Completado', N'Backup', N'C:\AorusMarket\Backups\AorusMarket_20261110_210632.bak')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (95, CAST(N'2026-11-10T21:07:15.680' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (96, CAST(N'2026-11-10T21:07:19.357' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (97, CAST(N'2026-11-10T21:28:32.643' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (98, CAST(N'2026-11-10T22:03:32.437' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (99, CAST(N'2026-11-10T22:03:58.980' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (100, CAST(N'2026-11-10T22:04:05.400' AS DateTime), 7, N'luis enrique', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (101, CAST(N'2026-11-10T22:04:31.070' AS DateTime), 7, N'luis enrique', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (102, CAST(N'2026-11-10T22:08:11.663' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (103, CAST(N'2026-11-10T22:08:14.630' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (104, CAST(N'2026-11-10T22:08:16.740' AS DateTime), 2, N'Maria Gomez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (105, CAST(N'2026-11-10T22:09:04.830' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (106, CAST(N'2026-11-10T22:09:15.537' AS DateTime), 1, N'Juan Perez', N'Ajuste de stock / precio', N'Stock', N'Producto #1 | Sucursal #1 | Cant: 0 | Precio: 1500,00 | Mín: 10')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (107, CAST(N'2026-11-10T22:09:44.957' AS DateTime), 1, N'Juan Perez', N'Ajuste de stock / precio', N'Stock', N'Producto #1 | Sucursal #1 | Cant: 200 | Precio: 1500,00 | Mín: 10')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (108, CAST(N'2026-11-10T22:10:30.483' AS DateTime), 1, N'Juan Perez', N'Alta de producto', N'Producto', N'pepe')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (109, CAST(N'2026-11-10T22:10:54.927' AS DateTime), 1, N'Juan Perez', N'Modificación de producto', N'Producto', N'pepe')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (110, CAST(N'2026-11-10T22:10:59.627' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (111, CAST(N'2026-11-10T22:11:03.377' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (112, CAST(N'2026-11-10T22:11:31.283' AS DateTime), 1, N'Juan Perez', N'Modificación de producto', N'Producto', N'pepe')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (113, CAST(N'2026-11-10T22:12:14.860' AS DateTime), 1, N'Juan Perez', N'Ajuste de stock / precio', N'Stock', N'Producto #7 | Sucursal #1 | Cant: 100 | Precio: 3000,00 | Mín: 10')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (114, CAST(N'2026-11-10T22:12:27.587' AS DateTime), 1, N'Juan Perez', N'Ajuste de stock / precio', N'Stock', N'Producto #7 | Sucursal #1 | Cant: 20 | Precio: 3000,00 | Mín: 10')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (115, CAST(N'2026-11-10T22:12:46.127' AS DateTime), 1, N'Juan Perez', N'Baja de stock', N'Stock', N'Registro de stock #13 dado de baja (se conserva el historial)')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (116, CAST(N'2026-11-10T22:13:14.867' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (117, CAST(N'2026-11-10T22:13:18.353' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (118, CAST(N'2026-11-10T22:14:33.147' AS DateTime), 2, N'Maria Gomez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (119, CAST(N'2026-11-10T22:26:33.047' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (120, CAST(N'2026-11-10T22:33:06.680' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (121, CAST(N'2026-11-10T22:42:15.243' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (122, CAST(N'2026-11-10T22:43:22.267' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (123, CAST(N'2026-11-10T22:43:44.297' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (124, CAST(N'2026-11-10T22:51:10.033' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (125, CAST(N'2026-11-10T22:55:18.987' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (126, CAST(N'2026-11-10T22:57:41.413' AS DateTime), 1, N'Juan Perez', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (127, CAST(N'2026-11-10T22:57:43.710' AS DateTime), 2, N'Maria Gomez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (128, CAST(N'2026-11-10T22:58:11.880' AS DateTime), 2, N'Maria Gomez', N'Venta confirmada', N'Venta', N'Venta #6 | Total: 4500,00 | Pago: Débito | Sucursal #1')
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (129, CAST(N'2026-11-10T22:58:25.633' AS DateTime), 2, N'Maria Gomez', N'Cierre de sesión', N'Sesión', NULL)
+GO
+INSERT [dbo].[auditoria_acciones] ([id_auditoria], [fecha], [id_usuario], [usuario], [accion], [entidad], [detalle]) VALUES (130, CAST(N'2026-11-10T22:58:28.573' AS DateTime), 1, N'Juan Perez', N'Inicio de sesión', N'Sesión', NULL)
+GO
+SET IDENTITY_INSERT [dbo].[auditoria_acciones] OFF
+GO
+
+SET IDENTITY_INSERT [dbo].[backup_registro] ON 
+GO
+INSERT [dbo].[backup_registro] ([id_backup], [tipo_operacion], [origen], [archivo], [fecha], [id_usuario_solicitante], [id_usuario_aprobador], [estado], [detalle]) VALUES (1, N'Backup', N'Manual', N'AorusMarket_20261109_224118.bak', CAST(N'2026-11-09T22:41:18.757' AS DateTime), 1, 6, N'Error', N'Error al generar el respaldo: Cannot open backup device ''C:\Users\Bruni\OneDrive\Desktop\FACU\TALLER DE PROGRAMACION 2\AorusMarket_20261109_224118.bak''. Operating system error 5(Acceso denegado.).
+BACKUP DATABASE is terminating abnormally.')
+GO
+INSERT [dbo].[backup_registro] ([id_backup], [tipo_operacion], [origen], [archivo], [fecha], [id_usuario_solicitante], [id_usuario_aprobador], [estado], [detalle]) VALUES (2, N'Backup', N'Automático', N'C:\AorusMarket\Backups\AorusMarket_20261110_151116.bak', CAST(N'2026-11-10T15:11:16.117' AS DateTime), 1, NULL, N'Completado', NULL)
+GO
+INSERT [dbo].[backup_registro] ([id_backup], [tipo_operacion], [origen], [archivo], [fecha], [id_usuario_solicitante], [id_usuario_aprobador], [estado], [detalle]) VALUES (3, N'Backup', N'Manual', N'C:\AorusMarket\Backups\AorusMarket_20261110_151138.bak', CAST(N'2026-11-10T15:11:39.047' AS DateTime), 1, NULL, N'Completado', N'Backup local creado. Aviso Drive: Falta el archivo credentials.json en la carpeta del sistema.')
+GO
+INSERT [dbo].[backup_registro] ([id_backup], [tipo_operacion], [origen], [archivo], [fecha], [id_usuario_solicitante], [id_usuario_aprobador], [estado], [detalle]) VALUES (4, N'Backup', N'Manual', N'C:\AorusMarket\Backups\AorusMarket_20261110_151158.bak', CAST(N'2026-11-10T15:11:58.597' AS DateTime), 1, NULL, N'Completado', N'Backup local creado. Aviso Drive: Falta el archivo credentials.json en la carpeta del sistema.')
+GO
+INSERT [dbo].[backup_registro] ([id_backup], [tipo_operacion], [origen], [archivo], [fecha], [id_usuario_solicitante], [id_usuario_aprobador], [estado], [detalle]) VALUES (5, N'Backup', N'Manual', N'C:\AorusMarket\Backups\AorusMarket_20261110_151803.bak', CAST(N'2026-11-10T15:18:31.557' AS DateTime), 1, NULL, N'Completado', NULL)
+GO
+INSERT [dbo].[backup_registro] ([id_backup], [tipo_operacion], [origen], [archivo], [fecha], [id_usuario_solicitante], [id_usuario_aprobador], [estado], [detalle]) VALUES (6, N'Backup', N'Manual', N'C:\AorusMarket\Backups\AorusMarket_20261110_151843.bak', CAST(N'2026-11-10T15:18:47.710' AS DateTime), 1, NULL, N'Completado', NULL)
+GO
+INSERT [dbo].[backup_registro] ([id_backup], [tipo_operacion], [origen], [archivo], [fecha], [id_usuario_solicitante], [id_usuario_aprobador], [estado], [detalle]) VALUES (7, N'Backup', N'Manual', N'C:\AorusMarket\Backups\AorusMarket_20261110_151924.bak', CAST(N'2026-11-10T15:19:27.720' AS DateTime), 1, NULL, N'Completado', NULL)
+GO
+INSERT [dbo].[backup_registro] ([id_backup], [tipo_operacion], [origen], [archivo], [fecha], [id_usuario_solicitante], [id_usuario_aprobador], [estado], [detalle]) VALUES (8, N'Restauración', N'Manual', N'C:\AorusMarket\Backups\PreRestore_AorusMarket_20261110_152056.bak', CAST(N'2026-11-10T15:22:46.790' AS DateTime), 1, 7, N'Completado', NULL)
+GO
+INSERT [dbo].[backup_registro] ([id_backup], [tipo_operacion], [origen], [archivo], [fecha], [id_usuario_solicitante], [id_usuario_aprobador], [estado], [detalle]) VALUES (9, N'Backup', N'Automático', N'C:\AorusMarket\Backups\AorusMarket_20261110_170530.bak', CAST(N'2026-11-10T17:05:30.103' AS DateTime), 1, NULL, N'Completado', NULL)
+GO
+INSERT [dbo].[backup_registro] ([id_backup], [tipo_operacion], [origen], [archivo], [fecha], [id_usuario_solicitante], [id_usuario_aprobador], [estado], [detalle]) VALUES (10, N'Backup', N'Automático', N'C:\AorusMarket\Backups\AorusMarket_20261110_170718.bak', CAST(N'2026-11-10T17:07:18.433' AS DateTime), 1, NULL, N'Completado', NULL)
+GO
+INSERT [dbo].[backup_registro] ([id_backup], [tipo_operacion], [origen], [archivo], [fecha], [id_usuario_solicitante], [id_usuario_aprobador], [estado], [detalle]) VALUES (11, N'Backup', N'Automático', N'C:\AorusMarket\Backups\AorusMarket_20261110_171400.bak', CAST(N'2026-11-10T17:14:00.740' AS DateTime), 1, NULL, N'Completado', NULL)
+GO
+INSERT [dbo].[backup_registro] ([id_backup], [tipo_operacion], [origen], [archivo], [fecha], [id_usuario_solicitante], [id_usuario_aprobador], [estado], [detalle]) VALUES (12, N'Backup', N'Automático', N'C:\AorusMarket\Backups\AorusMarket_20261110_171521.bak', CAST(N'2026-11-10T17:15:21.870' AS DateTime), 1, NULL, N'Completado', NULL)
+GO
+INSERT [dbo].[backup_registro] ([id_backup], [tipo_operacion], [origen], [archivo], [fecha], [id_usuario_solicitante], [id_usuario_aprobador], [estado], [detalle]) VALUES (13, N'Backup', N'Automático', N'C:\AorusMarket\Backups\AorusMarket_20261110_171809.bak', CAST(N'2026-11-10T17:18:09.343' AS DateTime), 1, NULL, N'Completado', NULL)
+GO
+INSERT [dbo].[backup_registro] ([id_backup], [tipo_operacion], [origen], [archivo], [fecha], [id_usuario_solicitante], [id_usuario_aprobador], [estado], [detalle]) VALUES (14, N'Backup', N'Automático', N'C:\AorusMarket\Backups\AorusMarket_20261110_171900.bak', CAST(N'2026-11-10T17:19:04.560' AS DateTime), 1, NULL, N'Completado', NULL)
+GO
+INSERT [dbo].[backup_registro] ([id_backup], [tipo_operacion], [origen], [archivo], [fecha], [id_usuario_solicitante], [id_usuario_aprobador], [estado], [detalle]) VALUES (15, N'Backup', N'Automático', N'C:\AorusMarket\Backups\AorusMarket_20261110_210632.bak', CAST(N'2026-11-10T21:06:33.077' AS DateTime), 1, NULL, N'Completado', NULL)
+GO
+SET IDENTITY_INSERT [dbo].[backup_registro] OFF
+GO
+
+SET IDENTITY_INSERT [dbo].[categoria] ON 
+GO
+INSERT [dbo].[categoria] ([id_categoria], [nombre], [descripcion], [activo]) VALUES (1, N'Almacén', N'Productos de góndola y secos', 1)
+GO
+INSERT [dbo].[categoria] ([id_categoria], [nombre], [descripcion], [activo]) VALUES (2, N'Bebidas', N'Gaseosas, aguas y jugos', 1)
+GO
+INSERT [dbo].[categoria] ([id_categoria], [nombre], [descripcion], [activo]) VALUES (3, N'Lácteos', N'Leches, yogures y quesos', 1)
+GO
+INSERT [dbo].[categoria] ([id_categoria], [nombre], [descripcion], [activo]) VALUES (4, N'Limpieza', N'Artículos de limpieza del hogar', 1)
+GO
+SET IDENTITY_INSERT [dbo].[categoria] OFF
+GO
+
+SET IDENTITY_INSERT [dbo].[cliente] ON 
+GO
+INSERT [dbo].[cliente] ([id_cliente], [nombre], [apellido], [dni], [telefono], [email], [activo], [id_direccion], [fecha_nacimiento], [cuil_cuit]) VALUES (1, N'Carlos', N'Gomez', N'28334455', N'3794112233', N'carlos.g@gmail.com', 1, 1, NULL, NULL)
+GO
+INSERT [dbo].[cliente] ([id_cliente], [nombre], [apellido], [dni], [telefono], [email], [activo], [id_direccion], [fecha_nacimiento], [cuil_cuit]) VALUES (2, N'Laura', N'Fernandez', N'31223344', N'3794223344', N'laura_f@hotmail.com', 1, 1, NULL, NULL)
+GO
+INSERT [dbo].[cliente] ([id_cliente], [nombre], [apellido], [dni], [telefono], [email], [activo], [id_direccion], [fecha_nacimiento], [cuil_cuit]) VALUES (3, N'Martin', N'Perez', N'35445566', N'3794334455', N'martin.perez@yahoo.com', 1, 1, NULL, NULL)
+GO
+INSERT [dbo].[cliente] ([id_cliente], [nombre], [apellido], [dni], [telefono], [email], [activo], [id_direccion], [fecha_nacimiento], [cuil_cuit]) VALUES (4, N'Sofia', N'Lopez', N'40112233', N'3794445566', N'sofia.lopez99@gmail.com', 1, 1, NULL, NULL)
+GO
+INSERT [dbo].[cliente] ([id_cliente], [nombre], [apellido], [dni], [telefono], [email], [activo], [id_direccion], [fecha_nacimiento], [cuil_cuit]) VALUES (5, N'Roberto', N'Gimenez', N'25888999', N'3794555555', N'roberto.g@gmail.com', 1, 4, CAST(N'1980-11-05' AS Date), N'20-25888999-3')
+GO
+INSERT [dbo].[cliente] ([id_cliente], [nombre], [apellido], [dni], [telefono], [email], [activo], [id_direccion], [fecha_nacimiento], [cuil_cuit]) VALUES (6, N'Camila', N'Sosa', N'40123123', N'3794666666', N'cami.sosa@hotmail.com', 1, 5, CAST(N'1999-02-18' AS Date), N'27-40123123-8')
+GO
+INSERT [dbo].[cliente] ([id_cliente], [nombre], [apellido], [dni], [telefono], [email], [activo], [id_direccion], [fecha_nacimiento], [cuil_cuit]) VALUES (7, N'Javier', N'Toledo', N'38777666', N'3794777777', N'javi.toledo@yahoo.com', 1, 6, CAST(N'1995-09-30' AS Date), N'20-38777666-1')
+GO
+SET IDENTITY_INSERT [dbo].[cliente] OFF
+GO
+
+INSERT [dbo].[configuracion_backup] ([id], [activo], [tipo_destino], [ruta_destino], [hora_programada], [cantidad_a_conservar], [ultimo_backup]) VALUES (1, 1, N'Carpeta Interna / PC', N'C:\AorusMarket\Backups\', N'21:06', 5, CAST(N'2026-11-10T21:06:33.080' AS DateTime))
+GO
+
+SET IDENTITY_INSERT [dbo].[detalleVenta] ON 
+GO
+INSERT [dbo].[detalleVenta] ([id_detalle], [id_venta], [id_producto], [cantidad], [precio_unitario], [subtotal]) VALUES (1, 1, 1, 10, CAST(1500.00 AS Decimal(10, 2)), CAST(15000.00 AS Decimal(10, 2)))
+GO
+INSERT [dbo].[detalleVenta] ([id_detalle], [id_venta], [id_producto], [cantidad], [precio_unitario], [subtotal]) VALUES (2, 2, 2, 10, CAST(1500.00 AS Decimal(10, 2)), CAST(15000.00 AS Decimal(10, 2)))
+GO
+INSERT [dbo].[detalleVenta] ([id_detalle], [id_venta], [id_producto], [cantidad], [precio_unitario], [subtotal]) VALUES (3, 2, 4, 10, CAST(1500.00 AS Decimal(10, 2)), CAST(15000.00 AS Decimal(10, 2)))
+GO
+INSERT [dbo].[detalleVenta] ([id_detalle], [id_venta], [id_producto], [cantidad], [precio_unitario], [subtotal]) VALUES (4, 3, 3, 10, CAST(1500.00 AS Decimal(10, 2)), CAST(15000.00 AS Decimal(10, 2)))
+GO
+INSERT [dbo].[detalleVenta] ([id_detalle], [id_venta], [id_producto], [cantidad], [precio_unitario], [subtotal]) VALUES (5, 3, 4, 10, CAST(1500.00 AS Decimal(10, 2)), CAST(15000.00 AS Decimal(10, 2)))
+GO
+INSERT [dbo].[detalleVenta] ([id_detalle], [id_venta], [id_producto], [cantidad], [precio_unitario], [subtotal]) VALUES (6, 4, 5, 5, CAST(1500.00 AS Decimal(10, 2)), CAST(7500.00 AS Decimal(10, 2)))
+GO
+INSERT [dbo].[detalleVenta] ([id_detalle], [id_venta], [id_producto], [cantidad], [precio_unitario], [subtotal]) VALUES (7, 4, 3, 10, CAST(1500.00 AS Decimal(10, 2)), CAST(15000.00 AS Decimal(10, 2)))
+GO
+INSERT [dbo].[detalleVenta] ([id_detalle], [id_venta], [id_producto], [cantidad], [precio_unitario], [subtotal]) VALUES (8, 5, 1, 3, CAST(1500.00 AS Decimal(10, 2)), CAST(4500.00 AS Decimal(10, 2)))
+GO
+INSERT [dbo].[detalleVenta] ([id_detalle], [id_venta], [id_producto], [cantidad], [precio_unitario], [subtotal]) VALUES (9, 5, 2, 3, CAST(1500.00 AS Decimal(10, 2)), CAST(4500.00 AS Decimal(10, 2)))
+GO
+INSERT [dbo].[detalleVenta] ([id_detalle], [id_venta], [id_producto], [cantidad], [precio_unitario], [subtotal]) VALUES (10, 6, 1, 3, CAST(1500.00 AS Decimal(10, 2)), CAST(4500.00 AS Decimal(10, 2)))
+GO
+SET IDENTITY_INSERT [dbo].[detalleVenta] OFF
+GO
+
+SET IDENTITY_INSERT [dbo].[direccion] ON 
+GO
+INSERT [dbo].[direccion] ([id_direccion], [calle], [altura]) VALUES (1, N'Av. Principal', N'100')
+GO
+INSERT [dbo].[direccion] ([id_direccion], [calle], [altura]) VALUES (2, N'Av. 3 de Abril', N'1500')
+GO
+INSERT [dbo].[direccion] ([id_direccion], [calle], [altura]) VALUES (3, N'Junin', N'850')
+GO
+INSERT [dbo].[direccion] ([id_direccion], [calle], [altura]) VALUES (4, N'San Martin', N'1200')
+GO
+INSERT [dbo].[direccion] ([id_direccion], [calle], [altura]) VALUES (5, N'Mendoza', N'950')
+GO
+INSERT [dbo].[direccion] ([id_direccion], [calle], [altura]) VALUES (6, N'Av. Maipu', N'2200')
+GO
+INSERT [dbo].[direccion] ([id_direccion], [calle], [altura]) VALUES (7, N'pepe12', N'30')
+GO
+INSERT [dbo].[direccion] ([id_direccion], [calle], [altura]) VALUES (8, N'los pepe', N'120')
+GO
+SET IDENTITY_INSERT [dbo].[direccion] OFF
+GO
+
+SET IDENTITY_INSERT [dbo].[movimiento_stock] ON 
+GO
+INSERT [dbo].[movimiento_stock] ([id_movimiento], [id_stock_sucursal], [cantidad_variacion], [tipo_movimiento], [fecha], [id_usuario]) VALUES (1, 1, -10, N'Venta', CAST(N'2026-11-09T22:22:39.617' AS DateTime), 2)
+GO
+INSERT [dbo].[movimiento_stock] ([id_movimiento], [id_stock_sucursal], [cantidad_variacion], [tipo_movimiento], [fecha], [id_usuario]) VALUES (2, 2, -10, N'Venta', CAST(N'2026-11-09T22:32:50.237' AS DateTime), 2)
+GO
+INSERT [dbo].[movimiento_stock] ([id_movimiento], [id_stock_sucursal], [cantidad_variacion], [tipo_movimiento], [fecha], [id_usuario]) VALUES (3, 4, -10, N'Venta', CAST(N'2026-11-09T22:32:50.237' AS DateTime), 2)
+GO
+INSERT [dbo].[movimiento_stock] ([id_movimiento], [id_stock_sucursal], [cantidad_variacion], [tipo_movimiento], [fecha], [id_usuario]) VALUES (4, 3, -10, N'Venta', CAST(N'2026-11-09T22:35:05.623' AS DateTime), 2)
+GO
+INSERT [dbo].[movimiento_stock] ([id_movimiento], [id_stock_sucursal], [cantidad_variacion], [tipo_movimiento], [fecha], [id_usuario]) VALUES (5, 4, -10, N'Venta', CAST(N'2026-11-09T22:35:05.623' AS DateTime), 2)
+GO
+INSERT [dbo].[movimiento_stock] ([id_movimiento], [id_stock_sucursal], [cantidad_variacion], [tipo_movimiento], [fecha], [id_usuario]) VALUES (6, 5, -5, N'Venta', CAST(N'2026-11-09T22:37:48.183' AS DateTime), 2)
+GO
+INSERT [dbo].[movimiento_stock] ([id_movimiento], [id_stock_sucursal], [cantidad_variacion], [tipo_movimiento], [fecha], [id_usuario]) VALUES (7, 3, -10, N'Venta', CAST(N'2026-11-09T22:37:48.183' AS DateTime), 2)
+GO
+INSERT [dbo].[movimiento_stock] ([id_movimiento], [id_stock_sucursal], [cantidad_variacion], [tipo_movimiento], [fecha], [id_usuario]) VALUES (8, 1, -3, N'Venta', CAST(N'2026-11-09T22:45:21.373' AS DateTime), 2)
+GO
+INSERT [dbo].[movimiento_stock] ([id_movimiento], [id_stock_sucursal], [cantidad_variacion], [tipo_movimiento], [fecha], [id_usuario]) VALUES (9, 2, -3, N'Venta', CAST(N'2026-11-09T22:45:21.373' AS DateTime), 2)
+GO
+INSERT [dbo].[movimiento_stock] ([id_movimiento], [id_stock_sucursal], [cantidad_variacion], [tipo_movimiento], [fecha], [id_usuario]) VALUES (10, 1, 13, N'Ajuste Manual', CAST(N'2026-11-10T15:05:53.610' AS DateTime), 1)
+GO
+INSERT [dbo].[movimiento_stock] ([id_movimiento], [id_stock_sucursal], [cantidad_variacion], [tipo_movimiento], [fecha], [id_usuario]) VALUES (11, 1, -200, N'Ajuste Manual', CAST(N'2026-11-10T22:09:15.537' AS DateTime), 1)
+GO
+INSERT [dbo].[movimiento_stock] ([id_movimiento], [id_stock_sucursal], [cantidad_variacion], [tipo_movimiento], [fecha], [id_usuario]) VALUES (12, 1, 200, N'Ajuste Manual', CAST(N'2026-11-10T22:09:44.953' AS DateTime), 1)
+GO
+INSERT [dbo].[movimiento_stock] ([id_movimiento], [id_stock_sucursal], [cantidad_variacion], [tipo_movimiento], [fecha], [id_usuario]) VALUES (13, 13, 100, N'Ajuste Manual', CAST(N'2026-11-10T22:12:14.860' AS DateTime), 1)
+GO
+INSERT [dbo].[movimiento_stock] ([id_movimiento], [id_stock_sucursal], [cantidad_variacion], [tipo_movimiento], [fecha], [id_usuario]) VALUES (14, 13, -80, N'Ajuste Manual', CAST(N'2026-11-10T22:12:27.583' AS DateTime), 1)
+GO
+INSERT [dbo].[movimiento_stock] ([id_movimiento], [id_stock_sucursal], [cantidad_variacion], [tipo_movimiento], [fecha], [id_usuario]) VALUES (15, 13, -20, N'Baja de Stock', CAST(N'2026-11-10T22:12:46.127' AS DateTime), 1)
+GO
+INSERT [dbo].[movimiento_stock] ([id_movimiento], [id_stock_sucursal], [cantidad_variacion], [tipo_movimiento], [fecha], [id_usuario]) VALUES (16, 1, -3, N'Venta', CAST(N'2026-11-10T22:58:11.880' AS DateTime), 2)
+GO
+SET IDENTITY_INSERT [dbo].[movimiento_stock] OFF
+GO
+
+SET IDENTITY_INSERT [dbo].[perfil] ON 
+GO
+INSERT [dbo].[perfil] ([id_perfil], [nombre], [descripcion]) VALUES (1, N'Administrador', N'Acceso total al sistema')
+GO
+INSERT [dbo].[perfil] ([id_perfil], [nombre], [descripcion]) VALUES (2, N'Cajero', N'Solo acceso a Punto de Venta')
+GO
+INSERT [dbo].[perfil] ([id_perfil], [nombre], [descripcion]) VALUES (3, N'Gestor de Stock', N'Acceso a inventario y productos')
+GO
+INSERT [dbo].[perfil] ([id_perfil], [nombre], [descripcion]) VALUES (4, N'Gerente', NULL)
+GO
+SET IDENTITY_INSERT [dbo].[perfil] OFF
+GO
+
+SET IDENTITY_INSERT [dbo].[producto] ON 
+GO
+INSERT [dbo].[producto] ([id_producto], [codigo_barras], [nombre], [marca], [descripcion], [unidad_medida], [id_categoria], [activo]) VALUES (1, N'7791234567890', N'Yerba Mate 1Kg', N'Playadito', N'Yerba mate suave con palo', N'Unidad', 1, 1)
+GO
+INSERT [dbo].[producto] ([id_producto], [codigo_barras], [nombre], [marca], [descripcion], [unidad_medida], [id_categoria], [activo]) VALUES (2, N'7790000111222', N'Arroz Oro 1Kg', N'Gallo', N'Arroz parboil que no se pasa', N'Unidad', 1, 1)
+GO
+INSERT [dbo].[producto] ([id_producto], [codigo_barras], [nombre], [marca], [descripcion], [unidad_medida], [id_categoria], [activo]) VALUES (3, N'7793333444555', N'Fideos Tallarines 500g', N'Matarazzo', N'Fideos de sémola', N'Unidad', 1, 1)
+GO
+INSERT [dbo].[producto] ([id_producto], [codigo_barras], [nombre], [marca], [descripcion], [unidad_medida], [id_categoria], [activo]) VALUES (4, N'7796666777888', N'Gaseosa Sabor Cola 2.25L', N'Coca-Cola', N'Gaseosa original', N'Botella', 2, 1)
+GO
+INSERT [dbo].[producto] ([id_producto], [codigo_barras], [nombre], [marca], [descripcion], [unidad_medida], [id_categoria], [activo]) VALUES (5, N'7799999000111', N'Leche Entera 1L', N'La Serenisima', N'Leche entera en sachet', N'Litro', 3, 1)
+GO
+INSERT [dbo].[producto] ([id_producto], [codigo_barras], [nombre], [marca], [descripcion], [unidad_medida], [id_categoria], [activo]) VALUES (6, N'7792222333444', N'Lavandina Clásica 1L', N'Ayudin', N'Lavandina tradicional', N'Botella', 4, 1)
+GO
+INSERT [dbo].[producto] ([id_producto], [codigo_barras], [nombre], [marca], [descripcion], [unidad_medida], [id_categoria], [activo]) VALUES (7, N'321231321231', N'pepe', N'dasd', N'dasdad', N'litro', 2, 1)
+GO
+SET IDENTITY_INSERT [dbo].[producto] OFF
+GO
+
+SET IDENTITY_INSERT [dbo].[stock_sucursal] ON 
+GO
+INSERT [dbo].[stock_sucursal] ([id_stock_sucursal], [id_producto], [id_sucursal], [cantidad], [precio], [stock_minimo], [activo]) VALUES (1, 1, 1, 197, CAST(1500.00 AS Decimal(10, 2)), 10, 1)
+GO
+INSERT [dbo].[stock_sucursal] ([id_stock_sucursal], [id_producto], [id_sucursal], [cantidad], [precio], [stock_minimo], [activo]) VALUES (2, 2, 1, 187, CAST(1500.00 AS Decimal(10, 2)), 10, 1)
+GO
+INSERT [dbo].[stock_sucursal] ([id_stock_sucursal], [id_producto], [id_sucursal], [cantidad], [precio], [stock_minimo], [activo]) VALUES (3, 3, 1, 180, CAST(1500.00 AS Decimal(10, 2)), 10, 1)
+GO
+INSERT [dbo].[stock_sucursal] ([id_stock_sucursal], [id_producto], [id_sucursal], [cantidad], [precio], [stock_minimo], [activo]) VALUES (4, 4, 1, 180, CAST(2500.00 AS Decimal(10, 2)), 10, 1)
+GO
+INSERT [dbo].[stock_sucursal] ([id_stock_sucursal], [id_producto], [id_sucursal], [cantidad], [precio], [stock_minimo], [activo]) VALUES (5, 5, 1, 195, CAST(1500.00 AS Decimal(10, 2)), 10, 1)
+GO
+INSERT [dbo].[stock_sucursal] ([id_stock_sucursal], [id_producto], [id_sucursal], [cantidad], [precio], [stock_minimo], [activo]) VALUES (6, 6, 1, 200, CAST(1500.00 AS Decimal(10, 2)), 10, 1)
+GO
+INSERT [dbo].[stock_sucursal] ([id_stock_sucursal], [id_producto], [id_sucursal], [cantidad], [precio], [stock_minimo], [activo]) VALUES (7, 1, 2, 150, CAST(1650.00 AS Decimal(10, 2)), 10, 1)
+GO
+INSERT [dbo].[stock_sucursal] ([id_stock_sucursal], [id_producto], [id_sucursal], [cantidad], [precio], [stock_minimo], [activo]) VALUES (8, 2, 2, 150, CAST(1650.00 AS Decimal(10, 2)), 10, 1)
+GO
+INSERT [dbo].[stock_sucursal] ([id_stock_sucursal], [id_producto], [id_sucursal], [cantidad], [precio], [stock_minimo], [activo]) VALUES (9, 3, 2, 150, CAST(1650.00 AS Decimal(10, 2)), 10, 1)
+GO
+INSERT [dbo].[stock_sucursal] ([id_stock_sucursal], [id_producto], [id_sucursal], [cantidad], [precio], [stock_minimo], [activo]) VALUES (10, 4, 2, 150, CAST(1650.00 AS Decimal(10, 2)), 10, 1)
+GO
+INSERT [dbo].[stock_sucursal] ([id_stock_sucursal], [id_producto], [id_sucursal], [cantidad], [precio], [stock_minimo], [activo]) VALUES (11, 5, 2, 150, CAST(1650.00 AS Decimal(10, 2)), 10, 1)
+GO
+INSERT [dbo].[stock_sucursal] ([id_stock_sucursal], [id_producto], [id_sucursal], [cantidad], [precio], [stock_minimo], [activo]) VALUES (12, 6, 2, 150, CAST(1650.00 AS Decimal(10, 2)), 10, 1)
+GO
+INSERT [dbo].[stock_sucursal] ([id_stock_sucursal], [id_producto], [id_sucursal], [cantidad], [precio], [stock_minimo], [activo]) VALUES (13, 7, 1, 0, CAST(3000.00 AS Decimal(10, 2)), 10, 0)
+GO
+SET IDENTITY_INSERT [dbo].[stock_sucursal] OFF
+GO
+
+SET IDENTITY_INSERT [dbo].[sucursal] ON 
+GO
+INSERT [dbo].[sucursal] ([id_sucursal], [nombre], [direccion], [telefono], [activo]) VALUES (1, N'Casa Central', N'Junin 1000, Corrientes', N'3794000000', 1)
+GO
+INSERT [dbo].[sucursal] ([id_sucursal], [nombre], [direccion], [telefono], [activo]) VALUES (2, N'Sucursal Norte', N'Av. Armenia 3000, Corrientes', N'3794111111', 1)
+GO
+SET IDENTITY_INSERT [dbo].[sucursal] OFF
+GO
+
+SET IDENTITY_INSERT [dbo].[usuario] ON 
+GO
+INSERT [dbo].[usuario] ([id_usuario], [nombre], [apellido], [email], [password], [telefono], [direccion], [fecha_nacimiento], [id_perfil], [id_sucursal], [activo], [id_direccion], [dni]) VALUES (1, N'Juan', N'Perez', N'admin', N'$2a$11$ZQzzckBRx9VETjnmAlo3yeKzNDHHx6OuQa4buRPLATPUnmTKzLTcS', N'3794556677', N'Placido Martinez 456', CAST(N'1990-05-14' AS Date), 1, 1, 1, 1, N'11111111')
+GO
+INSERT [dbo].[usuario] ([id_usuario], [nombre], [apellido], [email], [password], [telefono], [direccion], [fecha_nacimiento], [id_perfil], [id_sucursal], [activo], [id_direccion], [dni]) VALUES (2, N'Maria', N'Gomez', N'ventas', N'$2a$11$Jn9NQ.3KzQiTys.jzbsKJ.I7e4qgfBX0nfjaSTUwXEX1AajPlFS1K', N'3794998877', N'Av. 3 de Abril 1020', CAST(N'1995-10-22' AS Date), 2, 1, 1, 1, N'11111112')
+GO
+INSERT [dbo].[usuario] ([id_usuario], [nombre], [apellido], [email], [password], [telefono], [direccion], [fecha_nacimiento], [id_perfil], [id_sucursal], [activo], [id_direccion], [dni]) VALUES (3, N'Pedro', N'Rodriguez', N'stock', N'$2a$11$jr1YB7yvKBMmKlwTJLu.suc3jkYdcqjMNxmDSJ3N9bwYujwWjzNA6', N'3794123456', N'Ruta 12 Km 10', CAST(N'1988-03-08' AS Date), 3, 1, 1, 1, N'11111113')
+GO
+INSERT [dbo].[usuario] ([id_usuario], [nombre], [apellido], [email], [password], [telefono], [direccion], [fecha_nacimiento], [id_perfil], [id_sucursal], [activo], [id_direccion], [dni]) VALUES (4, N'Florencia', N'Ramirez', N'flor@aorus.com', N'$2a$11$/uzBG/TCtOxaPU5LQQ1Efe92UZbY1RWWukCe0XIJMeIyLb8k7KTuW', N'3794111111', NULL, CAST(N'1990-04-12' AS Date), 2, 1, 1, 2, N'30111222')
+GO
+INSERT [dbo].[usuario] ([id_usuario], [nombre], [apellido], [email], [password], [telefono], [direccion], [fecha_nacimiento], [id_perfil], [id_sucursal], [activo], [id_direccion], [dni]) VALUES (5, N'Marcos', N'Acosta', N'marcos@aorus.com', N'$2a$11$R/G0MZXdag6oLj18GcC74urWqB8JQXK1AP8LudkyFjLCPGrSWXJVG', N'3794222222', NULL, CAST(N'1992-08-25' AS Date), 3, 2, 1, 3, N'32444555')
+GO
+INSERT [dbo].[usuario] ([id_usuario], [nombre], [apellido], [email], [password], [telefono], [direccion], [fecha_nacimiento], [id_perfil], [id_sucursal], [activo], [id_direccion], [dni]) VALUES (6, N'pepe', N'riquelme', N'ener@gmail.com', N'$2a$11$cRrLiU2aeARohLtnbH.4wuSqDUS4HyBtaYkb9INrhbXyi3fH1HIGi', N'3794353637', NULL, CAST(N'2001-01-01' AS Date), 1, 1, 1, 7, N'22222222')
+GO
+INSERT [dbo].[usuario] ([id_usuario], [nombre], [apellido], [email], [password], [telefono], [direccion], [fecha_nacimiento], [id_perfil], [id_sucursal], [activo], [id_direccion], [dni]) VALUES (7, N'luis', N'enrique', N'123@gmail.com', N'$2a$11$82ErGn5ors76.hyk0v36XOPgkz31PCojl27xc/PfGzUJZj2pFIesa', N'123456789', NULL, CAST(N'2000-11-10' AS Date), 4, 1, 1, 8, N'12345678')
+GO
+SET IDENTITY_INSERT [dbo].[usuario] OFF
+GO
+
+SET IDENTITY_INSERT [dbo].[venta] ON 
+GO
+INSERT [dbo].[venta] ([id_venta], [fecha], [total], [metodo_pago], [estado], [id_cliente], [id_usuario], [id_sucursal]) VALUES (1, CAST(N'2026-11-09T22:22:39.610' AS DateTime), CAST(15000.00 AS Decimal(10, 2)), N'Efectivo', 1, NULL, 2, 1)
+GO
+INSERT [dbo].[venta] ([id_venta], [fecha], [total], [metodo_pago], [estado], [id_cliente], [id_usuario], [id_sucursal]) VALUES (2, CAST(N'2026-11-09T22:32:50.230' AS DateTime), CAST(30000.00 AS Decimal(10, 2)), N'Efectivo', 1, NULL, 2, 1)
+GO
+INSERT [dbo].[venta] ([id_venta], [fecha], [total], [metodo_pago], [estado], [id_cliente], [id_usuario], [id_sucursal]) VALUES (3, CAST(N'2026-11-09T22:35:05.620' AS DateTime), CAST(30000.00 AS Decimal(10, 2)), N'Débito', 1, NULL, 2, 1)
+GO
+INSERT [dbo].[venta] ([id_venta], [fecha], [total], [metodo_pago], [estado], [id_cliente], [id_usuario], [id_sucursal]) VALUES (4, CAST(N'2026-11-09T22:37:48.180' AS DateTime), CAST(22500.00 AS Decimal(10, 2)), N'Efectivo', 1, 5, 2, 1)
+GO
+INSERT [dbo].[venta] ([id_venta], [fecha], [total], [metodo_pago], [estado], [id_cliente], [id_usuario], [id_sucursal]) VALUES (5, CAST(N'2026-11-09T22:45:21.370' AS DateTime), CAST(9000.00 AS Decimal(10, 2)), N'Efectivo', 1, 1, 2, 1)
+GO
+INSERT [dbo].[venta] ([id_venta], [fecha], [total], [metodo_pago], [estado], [id_cliente], [id_usuario], [id_sucursal]) VALUES (6, CAST(N'2026-11-10T22:58:11.873' AS DateTime), CAST(4500.00 AS Decimal(10, 2)), N'Débito', 1, NULL, 2, 1)
+GO
+SET IDENTITY_INSERT [dbo].[venta] OFF
+GO
+
+-- =========================================================================
+-- ÍNDICES Y RESTRICCIONES
+-- =========================================================================
+
+CREATE NONCLUSTERED INDEX [IX_auditoria_acciones_fecha] ON [dbo].[auditoria_acciones]
+(
+	[fecha] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+GO
+
+SET ANSI_PADDING ON
+GO
+ALTER TABLE [dbo].[cliente] ADD CONSTRAINT [UQ__cliente__D87608A753E5C0B9] UNIQUE NONCLUSTERED 
+(
+	[dni] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+GO
+
+SET ANSI_PADDING ON
+GO
+CREATE UNIQUE NONCLUSTERED INDEX [UX_producto_codigo_barras] ON [dbo].[producto]
+(
+	[codigo_barras] ASC
+)
+WHERE ([codigo_barras] IS NOT NULL)
+WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+GO
+
+ALTER TABLE [dbo].[stock_sucursal] ADD CONSTRAINT [UQ_Producto_Sucursal] UNIQUE NONCLUSTERED 
+(
+	[id_producto] ASC,
+	[id_sucursal] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+GO
+
+SET ANSI_PADDING ON
+GO
+ALTER TABLE [dbo].[usuario] ADD CONSTRAINT [UQ__usuario__AB6E6164409BA7C1] UNIQUE NONCLUSTERED 
+(
+	[email] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+GO
+
+SET ANSI_PADDING ON
+GO
+ALTER TABLE [dbo].[usuario] ADD CONSTRAINT [UQ_Usuario_Dni] UNIQUE NONCLUSTERED 
+(
+	[dni] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+GO
+
+-- =========================================================================
+-- VALORES POR DEFECTO
+-- =========================================================================
+
+ALTER TABLE [dbo].[auditoria_acciones] ADD DEFAULT (getdate()) FOR [fecha]
+GO
+ALTER TABLE [dbo].[backup_registro] ADD DEFAULT (getdate()) FOR [fecha]
+GO
+ALTER TABLE [dbo].[categoria] ADD DEFAULT ((1)) FOR [activo]
+GO
+ALTER TABLE [dbo].[cliente] ADD DEFAULT ((1)) FOR [activo]
+GO
+ALTER TABLE [dbo].[configuracion_backup] ADD DEFAULT ((0)) FOR [activo]
+GO
+ALTER TABLE [dbo].[configuracion_backup] ADD DEFAULT ('Carpeta Interna / PC') FOR [tipo_destino]
+GO
+ALTER TABLE [dbo].[configuracion_backup] ADD DEFAULT ('') FOR [ruta_destino]
+GO
+ALTER TABLE [dbo].[configuracion_backup] ADD DEFAULT ('03:00') FOR [hora_programada]
+GO
+ALTER TABLE [dbo].[configuracion_backup] ADD DEFAULT ((5)) FOR [cantidad_a_conservar]
+GO
+ALTER TABLE [dbo].[historial_backups] ADD DEFAULT ('Pendiente') FOR [estado]
+GO
+ALTER TABLE [dbo].[historial_backups] ADD DEFAULT (getdate()) FOR [fecha_solicitud]
+GO
+ALTER TABLE [dbo].[movimiento_stock] ADD DEFAULT (getdate()) FOR [fecha]
+GO
+ALTER TABLE [dbo].[producto] ADD DEFAULT ((1)) FOR [activo]
+GO
+ALTER TABLE [dbo].[stock_sucursal] ADD DEFAULT ((0)) FOR [cantidad]
+GO
+ALTER TABLE [dbo].[stock_sucursal] ADD DEFAULT ((10)) FOR [stock_minimo]
+GO
+ALTER TABLE [dbo].[stock_sucursal] ADD CONSTRAINT [DF_stock_sucursal_activo] DEFAULT ((1)) FOR [activo]
+GO
+ALTER TABLE [dbo].[sucursal] ADD DEFAULT ((1)) FOR [activo]
+GO
+ALTER TABLE [dbo].[usuario] ADD DEFAULT ((1)) FOR [activo]
+GO
+ALTER TABLE [dbo].[venta] ADD DEFAULT (getdate()) FOR [fecha]
+GO
+ALTER TABLE [dbo].[venta] ADD DEFAULT ((1)) FOR [estado]
+GO
+
+-- =========================================================================
+-- CLAVES FORÁNEAS (FOREIGN KEYS)
+-- =========================================================================
+
+ALTER TABLE [dbo].[cliente] WITH CHECK ADD CONSTRAINT [FK_Cliente_Dir] FOREIGN KEY([id_direccion])
+REFERENCES [dbo].[direccion] ([id_direccion])
+GO
+ALTER TABLE [dbo].[cliente] CHECK CONSTRAINT [FK_Cliente_Dir]
+GO
+
+ALTER TABLE [dbo].[detalleVenta] WITH CHECK ADD CONSTRAINT [FK__detalleVe__id_pr__72C60C4A] FOREIGN KEY([id_producto])
+REFERENCES [dbo].[producto] ([id_producto])
+GO
+ALTER TABLE [dbo].[detalleVenta] CHECK CONSTRAINT [FK__detalleVe__id_pr__72C60C4A]
+GO
+
+ALTER TABLE [dbo].[detalleVenta] WITH CHECK ADD CONSTRAINT [FK__detalleVe__id_ve__71D1E811] FOREIGN KEY([id_venta])
+REFERENCES [dbo].[venta] ([id_venta])
+GO
+ALTER TABLE [dbo].[detalleVenta] CHECK CONSTRAINT [FK__detalleVe__id_ve__71D1E811]
+GO
+
+ALTER TABLE [dbo].[historial_backups] WITH CHECK ADD CONSTRAINT [FK_backup_aprobador] FOREIGN KEY([id_usuario_aprobador])
+REFERENCES [dbo].[usuario] ([id_usuario])
+GO
+ALTER TABLE [dbo].[historial_backups] CHECK CONSTRAINT [FK_backup_aprobador]
+GO
+
+ALTER TABLE [dbo].[historial_backups] WITH CHECK ADD CONSTRAINT [FK_backup_solicitante] FOREIGN KEY([id_usuario_solicitante])
+REFERENCES [dbo].[usuario] ([id_usuario])
+GO
+ALTER TABLE [dbo].[historial_backups] CHECK CONSTRAINT [FK_backup_solicitante]
+GO
+
+ALTER TABLE [dbo].[movimiento_stock] WITH CHECK ADD CONSTRAINT [FK__movimient__id_st__6383C8BA] FOREIGN KEY([id_stock_sucursal])
+REFERENCES [dbo].[stock_sucursal] ([id_stock_sucursal])
+GO
+ALTER TABLE [dbo].[movimiento_stock] CHECK CONSTRAINT [FK__movimient__id_st__6383C8BA]
+GO
+
+ALTER TABLE [dbo].[movimiento_stock] WITH CHECK ADD CONSTRAINT [FK__movimient__id_us__6477ECF3] FOREIGN KEY([id_usuario])
+REFERENCES [dbo].[usuario] ([id_usuario])
+GO
+ALTER TABLE [dbo].[movimiento_stock] CHECK CONSTRAINT [FK__movimient__id_us__6477ECF3]
+GO
+
+ALTER TABLE [dbo].[producto] WITH CHECK ADD CONSTRAINT [FK__producto__id_cat__59FA5E80] FOREIGN KEY([id_categoria])
+REFERENCES [dbo].[categoria] ([id_categoria])
+GO
+ALTER TABLE [dbo].[producto] CHECK CONSTRAINT [FK__producto__id_cat__59FA5E80]
+GO
+
+ALTER TABLE [dbo].[stock_sucursal] WITH CHECK ADD CONSTRAINT [FK__stock_suc__id_pr__5EBF139D] FOREIGN KEY([id_producto])
+REFERENCES [dbo].[producto] ([id_producto])
+GO
+ALTER TABLE [dbo].[stock_sucursal] CHECK CONSTRAINT [FK__stock_suc__id_pr__5EBF139D]
+GO
+
+ALTER TABLE [dbo].[stock_sucursal] WITH CHECK ADD CONSTRAINT [FK__stock_suc__id_su__5FB337D6] FOREIGN KEY([id_sucursal])
+REFERENCES [dbo].[sucursal] ([id_sucursal])
+GO
+ALTER TABLE [dbo].[stock_sucursal] CHECK CONSTRAINT [FK__stock_suc__id_su__5FB337D6]
+GO
+
+ALTER TABLE [dbo].[usuario] WITH CHECK ADD CONSTRAINT [FK__usuario__id_perf__5165187F] FOREIGN KEY([id_perfil])
+REFERENCES [dbo].[perfil] ([id_perfil])
+GO
+ALTER TABLE [dbo].[usuario] CHECK CONSTRAINT [FK__usuario__id_perf__5165187F]
+GO
+
+ALTER TABLE [dbo].[usuario] WITH CHECK ADD CONSTRAINT [FK__usuario__id_sucu__52593CB8] FOREIGN KEY([id_sucursal])
+REFERENCES [dbo].[sucursal] ([id_sucursal])
+GO
+ALTER TABLE [dbo].[usuario] CHECK CONSTRAINT [FK__usuario__id_sucu__52593CB8]
+GO
+
+ALTER TABLE [dbo].[usuario] WITH CHECK ADD CONSTRAINT [FK_Usuario_Dir] FOREIGN KEY([id_direccion])
+REFERENCES [dbo].[direccion] ([id_direccion])
+GO
+ALTER TABLE [dbo].[usuario] CHECK CONSTRAINT [FK_Usuario_Dir]
+GO
+
+ALTER TABLE [dbo].[venta] WITH CHECK ADD CONSTRAINT [FK__venta__id_client__6D0D32F4] FOREIGN KEY([id_cliente])
+REFERENCES [dbo].[cliente] ([id_cliente])
+GO
+ALTER TABLE [dbo].[venta] CHECK CONSTRAINT [FK__venta__id_client__6D0D32F4]
+GO
+
+ALTER TABLE [dbo].[venta] WITH CHECK ADD CONSTRAINT [FK__venta__id_sucurs__6EF57B66] FOREIGN KEY([id_sucursal])
+REFERENCES [dbo].[sucursal] ([id_sucursal])
+GO
+ALTER TABLE [dbo].[venta] CHECK CONSTRAINT [FK__venta__id_sucurs__6EF57B66]
+GO
+
+ALTER TABLE [dbo].[venta] WITH CHECK ADD CONSTRAINT [FK__venta__id_usuari__6E01572D] FOREIGN KEY([id_usuario])
+REFERENCES [dbo].[usuario] ([id_usuario])
+GO
+ALTER TABLE [dbo].[venta] CHECK CONSTRAINT [FK__venta__id_usuari__6E01572D]
+GO
+
+-- =========================================================================
+-- STORED PROCEDURES
+-- =========================================================================
+
+/****** Objeto: StoredProcedure [dbo].[SP_AprobarYEjecutarBackup] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE PROCEDURE [dbo].[SP_AprobarYEjecutarBackup]
+    @IdSolicitud INT,
+    @AprobadorId INT,
+    @RutaArchivo NVARCHAR(255)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @SolicitanteId INT;
+    DECLARE @EstadoActual NVARCHAR(50);
+    
+    SELECT @SolicitanteId = id_usuario_solicitante, @EstadoActual = estado 
+    FROM historial_backups 
+    WHERE id_backup = @IdSolicitud;
+    
+    IF @EstadoActual <> 'Pendiente'
+    BEGIN
+        RAISERROR('La solicitud ya fue procesada o no está pendiente.', 16, 1);
+        RETURN;
+    END
+
+    IF @SolicitanteId = @AprobadorId
+    BEGIN
+        RAISERROR('Claves cruzadas requeridas: El aprobador debe ser un usuario distinto al solicitante.', 16, 1);
+        RETURN;
+    END
+    
+    BEGIN TRY
+        DECLARE @BackupCmd NVARCHAR(MAX) = 
+            'BACKUP DATABASE [SuperMercadoDB] TO DISK = ''' + @RutaArchivo + ''' WITH INIT, STATS = 10';
+            
+        EXEC sp_executesql @BackupCmd;
+        
+        UPDATE historial_backups
+        SET id_usuario_aprobador = @AprobadorId,
+            estado = 'Completado',
+            fecha_ejecucion = GETDATE(),
+            ruta_archivo = @RutaArchivo
+        WHERE id_backup = @IdSolicitud;
+        
+    END TRY
+    BEGIN CATCH
+        UPDATE historial_backups
+        SET estado = 'Fallido',
+            mensaje_error = ERROR_MESSAGE()
+        WHERE id_backup = @IdSolicitud;
+        
+        DECLARE @ErrorMsg NVARCHAR(MAX) = ERROR_MESSAGE();
+        RAISERROR(@ErrorMsg, 16, 1);
+    END CATCH
+END;
+GO
+
+/****** Objeto: StoredProcedure [dbo].[SP_HistorialBackupsRealizados] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE PROCEDURE [dbo].[SP_HistorialBackupsRealizados]
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT 
+        h.id_backup AS Id,
+        us.nombre + ' ' + us.apellido AS Solicitante,
+        ua.nombre + ' ' + ua.apellido AS Aprobador,
+        h.fecha_ejecucion AS FechaEjecucion,
+        h.ruta_archivo AS RutaArchivo,
+        h.estado AS Estado,
+        h.mensaje_error AS MensajeError
+    FROM historial_backups h
+    INNER JOIN usuario us ON h.id_usuario_solicitante = us.id_usuario
+    LEFT JOIN usuario ua ON h.id_usuario_aprobador = ua.id_usuario
+    WHERE h.estado IN ('Completado', 'Fallido')
+    ORDER BY h.fecha_ejecucion DESC;
+END;
+GO
+
+/****** Objeto: StoredProcedure [dbo].[SP_ListarBackupsPendientes] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE PROCEDURE [dbo].[SP_ListarBackupsPendientes]
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT 
+        h.id_backup AS Id,
+        u.nombre + ' ' + u.apellido AS Solicitante,
+        h.fecha_solicitud AS FechaSolicitud,
+        h.fecha_programada AS FechaProgramada,
+        h.estado AS Estado
+    FROM historial_backups h
+    INNER JOIN usuario u ON h.id_usuario_solicitante = u.id_usuario
+    WHERE h.estado = 'Pendiente'
+    ORDER BY h.fecha_programada ASC;
+END;
+GO
+
+/****** Objeto: StoredProcedure [dbo].[SP_RegistrarSolicitudBackup] ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE PROCEDURE [dbo].[SP_RegistrarSolicitudBackup]
+    @SolicitanteId INT,
+    @FechaProgramada DATETIME
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    INSERT INTO historial_backups (id_usuario_solicitante, estado, fecha_solicitud, fecha_programada)
+    VALUES (@SolicitanteId, 'Pendiente', GETDATE(), @FechaProgramada);
+    
+    SELECT SCOPE_IDENTITY() AS NuevoId;
+END;
+GO
+
+USE [master]
+GO
+ALTER DATABASE [SuperMercadoDB] SET READ_WRITE 
+GO
