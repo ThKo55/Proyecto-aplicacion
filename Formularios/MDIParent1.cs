@@ -410,7 +410,8 @@ namespace AorusMarket.Formularios
             {
                 menuDelUsuario.Add(btnPuntoVenta);
                 menuDelUsuario.Add(btnClientes);
-                menuDelUsuario.Add(btnHistorial); 
+                menuDelUsuario.Add(btnHistorial);
+                menuDelUsuario.Add(btnBackup);
 
                 ResaltarBotonActivo(btnPuntoVenta);
                 AbrirFormularioEnPanel<FrmPuntoVenta>();
@@ -420,6 +421,7 @@ namespace AorusMarket.Formularios
                 menuDelUsuario.Add(btnStock);
                 menuDelUsuario.Add(btnProductos);
                 menuDelUsuario.Add(btnCategorias);
+                menuDelUsuario.Add(btnBackup);
 
                 ResaltarBotonActivo(btnStock);
                 AbrirFormularioEnPanel<FrmStock>();
