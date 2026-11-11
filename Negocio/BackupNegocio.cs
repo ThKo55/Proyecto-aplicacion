@@ -18,8 +18,6 @@ namespace AorusMarket.Negocio
     public class BackupNegocio
     {
 
-        private BackupDatos objDatos = new BackupDatos();
-
         public void PurgarBackupsAntiguos(string carpeta, int cantidadMaxima)
         {
             try
@@ -36,11 +34,11 @@ namespace AorusMarket.Negocio
                     var aEliminar = archivos.Skip(cantidadMaxima);
                     foreach (var archivo in aEliminar)
                     {
-                        try { archivo.Delete(); } catch { }
+                        try { archivo.Delete(); } catch (Exception ex) { Logger.Error("StockDatos.Listar", ex); }
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { Logger.Error("StockDatos.Listar", ex); }
         }
 
         public bool SubirAGoogleDrive(string rutaArchivoBak, out string mensaje)
@@ -100,7 +98,12 @@ namespace AorusMarket.Negocio
         private readonly BackupDatos _datos = new BackupDatos();
 
         public ConfigBackup ObtenerConfig() => _datos.ObtenerConfig();
-        public void GuardarConfig(ConfigBackup cfg) => _datos.GuardarConfig(cfg);
+        public void GuardarConfig(ConfigBackup cfg)
+        {
+            if (!Permisos.Tiene(Perfiles.Administrador, Perfiles.Gerente))
+                throw new UnauthorizedAccessException("Su perfil no tiene permiso para modificar la configuración de backup.");
+            _datos.GuardarConfig(cfg);
+        }
         public DataTable ListarRegistro() => _datos.ListarRegistro();
 
         // El registro nunca debe romper la operación principal
@@ -108,7 +111,7 @@ namespace AorusMarket.Negocio
                                      int? idSol, int? idApr, string estado, string detalle)
         {
             try { _datos.RegistrarOperacion(tipo, origen, archivo, idSol, idApr, estado, detalle); }
-            catch { }
+            catch (Exception ex) { Logger.Error("StockDatos.Listar", ex); }
 
             Auditoria.Registrar($"{tipo} {origen.ToLower()} - {estado}", "Backup", archivo);
         }
@@ -156,6 +159,7 @@ namespace AorusMarket.Negocio
         public bool GenerarRespaldo(string rutaCompleta, string tipoDestino, int conservar, out string mensaje)
         {
             mensaje = string.Empty;
+
             try
             {
                 EjecutarBackupSql(rutaCompleta);
@@ -207,7 +211,7 @@ namespace AorusMarket.Negocio
 
             if (ok)
             {
-                try { _datos.ActualizarUltimoBackup(DateTime.Now); } catch { }
+                try { _datos.ActualizarUltimoBackup(DateTime.Now); } catch (Exception ex) { Logger.Error("StockDatos.Listar", ex); }
             }
             return ok;
         }
@@ -216,6 +220,15 @@ namespace AorusMarket.Negocio
         public bool Restaurar(string archivoBak, int idSolicitante, int idAprobador, out string mensaje)
         {
             mensaje = string.Empty;
+
+            if (!Permisos.Requerir("restaurar la base de datos", out mensaje, Perfiles.Administrador, Perfiles.Gerente))
+                return false;
+
+            if (idAprobador <= 0 || idAprobador == idSolicitante)
+            {
+                mensaje = "La restauración requiere la autorización de un segundo usuario.";
+                return false;
+            }
 
             if (!File.Exists(archivoBak))
             {
@@ -293,13 +306,6 @@ namespace AorusMarket.Negocio
                 return false;
             }
         }
-
-        public async Task EjecutarBackupAutomaticoAsync(string rutaDestino)
-        {
-            await objDatos.EjecutarBackupAutomaticoAsync(rutaDestino);
-        }
-
-
 
 
     }

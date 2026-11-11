@@ -41,7 +41,7 @@ namespace AorusMarket.AccesoDatos
                 catch (Exception ex)
                 {
                     lista = new List<Sucursal>(); // Si falla, devuelve lista vacía
-                    Console.WriteLine("Error al listar sucursales: " + ex.Message);
+                    Logger.Error("Error al listar sucursales: ", ex);
                 }
             }
             return lista;
@@ -67,7 +67,7 @@ namespace AorusMarket.AccesoDatos
                 catch (Exception ex)
                 {
                     respuesta = false;
-                    Console.WriteLine("Error al insertar sucursal: " + ex.Message);
+                    Logger.Error("Error al insertar sucursal: ", ex);
                 }
             }
             return respuesta;
@@ -94,7 +94,7 @@ namespace AorusMarket.AccesoDatos
                 catch (Exception ex)
                 {
                     respuesta = false;
-                    Console.WriteLine("Error al editar sucursal: " + ex.Message);
+                    Logger.Error("Error al editar sucursal: ", ex);
                 }
             }
             return respuesta;
@@ -119,7 +119,7 @@ namespace AorusMarket.AccesoDatos
                 catch (Exception ex)
                 {
                     respuesta = false;
-                    Console.WriteLine("Error al eliminar sucursal: " + ex.Message);
+                    Logger.Error("Error al eliminar sucursal: ", ex);
                 }
             }
             return respuesta;

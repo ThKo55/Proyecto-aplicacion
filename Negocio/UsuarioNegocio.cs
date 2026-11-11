@@ -34,6 +34,7 @@ namespace AorusMarket.Negocio
         public bool Guardar(Usuario obj, out string mensaje)
         {
             mensaje = string.Empty;
+            if (!Permisos.Requerir("gestionar usuarios", out mensaje, Perfiles.Administrador)) return false;
 
             if (string.IsNullOrWhiteSpace(obj.Dni) || !Regex.IsMatch(obj.Dni, @"^\d{7,8}$"))
             { mensaje = "El DNI es obligatorio y debe contener entre 7 y 8 números."; return false; }
@@ -121,6 +122,7 @@ namespace AorusMarket.Negocio
         public bool Eliminar(int id, out string mensaje)
         {
             mensaje = string.Empty;
+            if (!Permisos.Requerir("gestionar usuarios", out mensaje, Perfiles.Administrador)) return false;
 
             // Validación: Evitar auto-eliminación
             if (id == SesionActual.IdUsuario)

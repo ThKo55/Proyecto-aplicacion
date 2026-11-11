@@ -46,7 +46,7 @@ namespace AorusMarket.AccesoDatos
                         }
                     }
                 }
-                catch (Exception ex) { Console.WriteLine("Error en buscador: " + ex.Message); }
+                catch (Exception ex) { Logger.Error("Error en buscador: ", ex); }
             }
             return lista;
         }
@@ -116,7 +116,7 @@ namespace AorusMarket.AccesoDatos
                 {
                     transaccion.Rollback();
                     respuesta = false;
-                    Console.WriteLine("Error crítico en Venta: " + ex.Message);
+                    Logger.Error("Error crítico en Venta: ", ex);
                 }
             }
             return respuesta;
@@ -168,7 +168,7 @@ namespace AorusMarket.AccesoDatos
                         }
                     }
                 }
-                catch (Exception ex) { Console.WriteLine("Error al listar historial: " + ex.Message); }
+                catch (Exception ex) { Logger.Error("Error al listar historial: ", ex); }
             }
             return lista;
         }
@@ -204,7 +204,7 @@ namespace AorusMarket.AccesoDatos
                         }
                     }
                 }
-                catch (Exception ex) { Console.WriteLine("Error al listar detalles: " + ex.Message); }
+                catch (Exception ex) { Logger.Error("Error al listar detalles: ", ex); }
             }
             return lista;
         }
@@ -292,7 +292,7 @@ namespace AorusMarket.AccesoDatos
                 catch (Exception ex)
                 {
                     transaccion.Rollback();
-                    Console.WriteLine("Error al anular venta: " + ex.Message);
+                    Logger.Error("Error al anular venta: ", ex);
                 }
             }
             return respuesta;

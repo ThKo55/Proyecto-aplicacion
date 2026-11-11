@@ -1,8 +1,9 @@
-﻿using System;
+﻿using AorusMarket.AccesoDatos;
+using AorusMarket.Entidades;
+using AorusMarket.Utilidades;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using AorusMarket.AccesoDatos;
-using AorusMarket.Entidades;
 
 namespace AorusMarket.Negocio
 {
@@ -18,6 +19,7 @@ namespace AorusMarket.Negocio
         public bool Guardar(Categoria obj, out string mensaje)
         {
             mensaje = string.Empty;
+            if (!Permisos.Requerir("modificar el catálogo y el stock", out mensaje, Perfiles.Administrador, Perfiles.GestorStock, Perfiles.Gerente)) return false;
 
             if (string.IsNullOrWhiteSpace(obj.Nombre))
             {
@@ -45,6 +47,7 @@ namespace AorusMarket.Negocio
         public bool Eliminar(int id, out string mensaje)
         {
             mensaje = string.Empty;
+            if (!Permisos.Requerir("modificar el catálogo y el stock", out mensaje, Perfiles.Administrador, Perfiles.GestorStock, Perfiles.Gerente)) return false;
             bool resultado = _categoriaDatos.Eliminar(id);
             if (resultado) Auditoria.Registrar("Baja de categoría", "Categoría", $"Id {id}");   // ajustá texto/entidad en cada una
             else mensaje = "...";   // lo que ya tenías

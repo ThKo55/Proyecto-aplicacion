@@ -21,7 +21,7 @@ namespace AorusMarket.Negocio
         {
             // La auditoría nunca debe romper la operación principal
             try { _datos.Registrar(idUsuario, usuario, accion, entidad, detalle); }
-            catch { }
+            catch (Exception ex) { Logger.Error("StockDatos.Listar", ex); }
         }
 
         public static DataTable Listar(DateTime desde, DateTime hasta, string entidad)

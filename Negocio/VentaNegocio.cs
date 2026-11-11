@@ -1,7 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using AorusMarket.AccesoDatos;
+﻿using AorusMarket.AccesoDatos;
 using AorusMarket.Entidades;
+using AorusMarket.Utilidades;
+using System;
+using System.Collections.Generic;
 
 namespace AorusMarket.Negocio
 {
@@ -9,6 +10,7 @@ namespace AorusMarket.Negocio
     {
         private VentaDatos _ventaDatos = new VentaDatos();
 
+        public const decimal LimiteVentaSinAutorizacion = 50000m;
         // 1. Buscador de productos
         public List<BusquedaProducto> BuscarProducto(string texto, int idSucursal)
         {
@@ -19,10 +21,17 @@ namespace AorusMarket.Negocio
         public bool ConfirmarVenta(Venta objVenta, out string mensaje)
         {
             mensaje = string.Empty;
+            if (!Permisos.Requerir("registrar ventas", out mensaje, Perfiles.Cajero)) return false;
 
             if (objVenta.Detalles.Count == 0)
             {
                 mensaje = "No se puede confirmar una venta sin productos.";
+                return false;
+            }
+
+            if (objVenta.Total > LimiteVentaSinAutorizacion && !objVenta.IdUsuarioAutoriza.HasValue)
+            {
+                mensaje = "La venta supera el límite y requiere la autorización de un Administrador o Gerente.";
                 return false;
             }
 
@@ -31,7 +40,8 @@ namespace AorusMarket.Negocio
                 mensaje = "Ocurrió un error crítico al intentar registrar la venta en la base de datos.";
             else
                 Auditoria.Registrar("Venta confirmada", "Venta",
-                    $"Venta #{objVenta.IdVenta} | Total: {objVenta.Total:0.00} | Pago: {objVenta.MetodoPago} | Sucursal #{objVenta.IdSucursal}");
+                    $"Venta #{objVenta.IdVenta} | Total: {objVenta.Total:0.00} | Pago: {objVenta.MetodoPago} | Sucursal #{objVenta.IdSucursal}"
+                    + (objVenta.IdUsuarioAutoriza.HasValue ? $" | Autorizó usuario #{objVenta.IdUsuarioAutoriza}" : ""));
 
             return respuesta;
 
@@ -53,6 +63,7 @@ namespace AorusMarket.Negocio
         public bool AnularVenta(int idVenta, string estadoActual, int idUsuarioAuditoria, out string mensaje)
         {
             mensaje = string.Empty;
+            if (!Permisos.Requerir("anular ventas", out mensaje, Perfiles.Administrador, Perfiles.Gerente)) return false;
 
             if (estadoActual == "Anulada")
             {

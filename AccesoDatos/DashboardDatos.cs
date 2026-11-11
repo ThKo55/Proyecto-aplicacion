@@ -34,7 +34,7 @@ namespace AorusMarket.AccesoDatos
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Error al cargar combo sucursales: " + ex.Message);
+                    Logger.Error("Error al cargar combo sucursales: ", ex);
                 }
             }
             return lista;
@@ -89,7 +89,7 @@ namespace AorusMarket.AccesoDatos
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Error en Métricas: " + ex.Message);
+                    Logger.Error("Error en Métricas: ", ex);
                 }
             }
             return metricas;
@@ -143,10 +143,58 @@ namespace AorusMarket.AccesoDatos
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Error al listar ventas recientes: " + ex.Message);
+                    Logger.Error("Error al listar ventas recientes: ", ex);
                 }
             }
             return lista;
         }
+
+
+        public List<AlertaStock> ObtenerAlertasStock(int idSucursal)
+        {
+            List<AlertaStock> lista = new List<AlertaStock>();
+            using (SqlConnection oConexion = Conexion.ObtenerConexion())
+            {
+                string query = @"
+            SELECT p.nombre AS Producto, s.nombre AS Sucursal, ss.cantidad, ss.stock_minimo
+            FROM stock_sucursal ss
+            INNER JOIN producto p ON ss.id_producto = p.id_producto
+            INNER JOIN sucursal s ON ss.id_sucursal = s.id_sucursal
+            WHERE ss.activo = 1 AND p.activo = 1 AND s.activo = 1
+              AND ss.cantidad <= ss.stock_minimo
+              AND (@idSucursal = 0 OR ss.id_sucursal = @idSucursal)
+            ORDER BY (ss.cantidad - ss.stock_minimo), p.nombre";
+
+                SqlCommand cmd = new SqlCommand(query, oConexion);
+                cmd.Parameters.AddWithValue("@idSucursal", idSucursal);
+
+                try
+                {
+                    oConexion.Open();
+                    using (SqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        while (dr.Read())
+                        {
+                            lista.Add(new AlertaStock()
+                            {
+                                Producto = dr["Producto"].ToString(),
+                                Sucursal = dr["Sucursal"].ToString(),
+                                Cantidad = Convert.ToInt32(dr["cantidad"]),
+                                StockMinimo = Convert.ToInt32(dr["stock_minimo"])
+                            });
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error("DashboardDatos.ObtenerAlertasStock", ex);
+                }
+            }
+            return lista;
+        }
+
+
+
+
     }
 }

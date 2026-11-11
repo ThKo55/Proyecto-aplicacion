@@ -18,6 +18,7 @@ namespace AorusMarket.Negocio
         public bool Guardar(string strProd, string strSuc, string strCant, string strPrec, string strMinimo, int idUsuario, out string mensaje)
         {
             mensaje = string.Empty;
+            if (!Permisos.Requerir("modificar el catálogo y el stock", out mensaje, Perfiles.Administrador, Perfiles.GestorStock, Perfiles.Gerente)) return false;
 
             if (string.IsNullOrEmpty(strProd) || string.IsNullOrEmpty(strSuc))
             {
@@ -90,6 +91,7 @@ namespace AorusMarket.Negocio
         public bool Eliminar(int idStock, out string mensaje)
         {
             mensaje = string.Empty;
+            if (!Permisos.Requerir("modificar el catálogo y el stock", out mensaje, Perfiles.Administrador, Perfiles.GestorStock, Perfiles.Gerente)) return false;
             bool resultado = _stockDatos.Eliminar(idStock, SesionActual.IdUsuario);
 
             if (resultado)
@@ -98,12 +100,6 @@ namespace AorusMarket.Negocio
                 mensaje = "No se pudo dar de baja el registro de stock (puede que ya no exista).";
 
             return resultado;
-        }
-
-        public List<MovimientoStock> ListarAuditoria(DateTime desde, DateTime hasta)
-        {
-            if (desde.Date > hasta.Date) return new List<MovimientoStock>();
-            return _stockDatos.ListarMovimientos(desde, hasta);
         }
 
         public bool HayStockSuficiente(int idProducto, int idSucursal, int cantidadSolicitada)

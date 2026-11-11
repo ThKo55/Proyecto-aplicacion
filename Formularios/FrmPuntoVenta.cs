@@ -19,6 +19,7 @@ namespace AorusMarket.Formularios
         private const string ColPrecioUnit = "PrecioUnitario";
         private const string TituloAviso = "Aviso";
 
+        private int? _idAutorizante;
         private CyberTextBox txtBuscar;
         private DataGridView dgvBusqueda;
         private DataGridView dgvCarrito;
@@ -377,15 +378,32 @@ namespace AorusMarket.Formularios
 
         private void BtnConfirmar_Click(object sender, EventArgs e)
         {
+            _idAutorizante = null;
+
             if (!ValidarPreVenta(out string metodoSeleccionado)) return;
+            if (!AutorizarVentaDeMontoAlto()) return;
             if (!ValidarEfectivoOConfirmar(metodoSeleccionado)) return;
 
-            if (totalAcumulado > 50000)
+            ProcesarCierreVenta(metodoSeleccionado);
+        }
+
+        private bool AutorizarVentaDeMontoAlto()
+        {
+            if (totalAcumulado <= VentaNegocio.LimiteVentaSinAutorizacion) return true;
+
+            Usuario aprobador = DialogoAutorizacion.Solicitar(this, "Autorización de venta de monto alto",
+                $"La venta ({totalAcumulado:C2}) supera el límite de {VentaNegocio.LimiteVentaSinAutorizacion:C2}.\nUn Administrador o Gerente debe autorizarla.",
+                false, Perfiles.Administrador, Perfiles.Gerente);
+
+            if (aprobador == null)
             {
-                if (MessageBox.Show("Esta venta supera el límite de $50,000. ¿Desea continuar de todas formas?", "Autorización Requerida", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.No) return;
+                MessageBox.Show("Venta no autorizada. No se registró.", "Autorización requerida",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
             }
 
-            ProcesarCierreVenta(metodoSeleccionado);
+            _idAutorizante = aprobador.IdUsuario;
+            return true;
         }
 
         private void ProcesarCierreVenta(string metodoSeleccionado)
@@ -396,7 +414,8 @@ namespace AorusMarket.Formularios
                 MetodoPago = metodoSeleccionado,
                 IdUsuario = SesionActual.IdUsuario,
                 IdSucursal = SesionActual.IdSucursal,
-                IdCliente = Convert.ToInt32(cmbCliente.SelectedValue) == 0 ? (int?)null : Convert.ToInt32(cmbCliente.SelectedValue)
+                IdCliente = Convert.ToInt32(cmbCliente.SelectedValue) == 0 ? (int?)null : Convert.ToInt32(cmbCliente.SelectedValue),
+                IdUsuarioAutoriza = _idAutorizante
             };
 
             foreach (DataGridViewRow fila in dgvCarrito.Rows)

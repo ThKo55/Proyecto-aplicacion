@@ -1,7 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using AorusMarket.AccesoDatos;
+﻿using AorusMarket.AccesoDatos;
 using AorusMarket.Entidades;
+using AorusMarket.Utilidades;
+using System;
+using System.Collections.Generic;
 
 namespace AorusMarket.Negocio
 {
@@ -11,6 +12,7 @@ namespace AorusMarket.Negocio
 
         private bool FechasValidas(DateTime desde, DateTime hasta)
         {
+            if (!Permisos.Tiene(Perfiles.Administrador, Perfiles.Gerente)) return false;
             return desde.Date <= hasta.Date;
         }
 

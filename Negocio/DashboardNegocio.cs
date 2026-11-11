@@ -1,7 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using AorusMarket.AccesoDatos;
+﻿using AorusMarket.AccesoDatos;
 using AorusMarket.Entidades;
+using AorusMarket.Utilidades;
+using System;
+using System.Collections.Generic;
 
 namespace AorusMarket.Negocio
 {
@@ -18,6 +19,12 @@ namespace AorusMarket.Negocio
         // Procesa los filtros de fechas y delega a Datos
         public MetricasDashboard ObtenerMetricas(int idSucursal, DateTime desde, DateTime hasta, out string mensajeError)
         {
+
+            if (!Permisos.Tiene(Perfiles.Administrador, Perfiles.Gerente))
+            {
+                mensajeError = "Su perfil no tiene permiso para ver el dashboard.";
+                return new MetricasDashboard() { ProductoMasVendido = "-" };
+            }
             mensajeError = string.Empty;
 
             // Validación de lógica de negocio: La fecha DESDE no puede ser mayor a la fecha HASTA
@@ -43,5 +50,13 @@ namespace AorusMarket.Negocio
 
             return _dashboardDatos.ObtenerVentasRecientes(idSucursal, fechaDesdeFormat, fechaHastaFormat);
         }
+
+        public List<AlertaStock> ObtenerAlertasStock(int idSucursal)
+        {
+            if (!Permisos.Tiene(Perfiles.Administrador, Perfiles.Gerente)) return new List<AlertaStock>();
+            return _dashboardDatos.ObtenerAlertasStock(idSucursal);
+        }
+
+
     }
 }

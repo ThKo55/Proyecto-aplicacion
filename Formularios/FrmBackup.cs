@@ -319,97 +319,12 @@ namespace AorusMarket.Formularios
             }
         }
 
-        // SOLO LA RESTAURACIÓN pide aprobación de un segundo usuario (Admin <-> Gerente)
         private bool SolicitarAutorizacionCruzada(out Usuario aprobador)
         {
-            bool autorizado = false;
-            Usuario aprobadorLocal = null;
-
-            using (WinForms.Form frmAuth = new WinForms.Form())
-            {
-                frmAuth.Text = "Autorización requerida para restaurar";
-                frmAuth.Size = new Size(430, 260);
-                frmAuth.StartPosition = WinForms.FormStartPosition.CenterParent;
-                frmAuth.FormBorderStyle = WinForms.FormBorderStyle.FixedDialog;
-                frmAuth.MaximizeBox = false;
-                frmAuth.MinimizeBox = false;
-                frmAuth.BackColor = Color.FromArgb(18, 18, 18);
-
-                string textoInfo = RequierePerfilDistinto
-                    ? "CONTROL CRUZADO: debe autorizar un usuario con el\notro perfil (Administrador ↔ Gerente)."
-                    : "CONTROL CRUZADO: debe autorizar otro usuario\nAdministrador o Gerente.";
-
-                WinForms.Label lblInfo = new WinForms.Label()
-                {
-                    Text = textoInfo,
-                    ForeColor = Color.WhiteSmoke,
-                    Location = new Point(20, 20),
-                    AutoSize = true,
-                    Font = new Font("Segoe UI", 9F, FontStyle.Bold)
-                };
-
-                WinForms.Label lblEmail = new WinForms.Label() { Text = "Email:", ForeColor = Color.LightGray, Location = new Point(20, 80), AutoSize = true };
-                WinForms.TextBox txtEmail = new WinForms.TextBox() { Location = new Point(140, 77), Width = 240, BackColor = Color.FromArgb(28, 28, 28), ForeColor = Color.White, BorderStyle = WinForms.BorderStyle.FixedSingle };
-
-                WinForms.Label lblPass = new WinForms.Label() { Text = "Contraseña:", ForeColor = Color.LightGray, Location = new Point(20, 120), AutoSize = true };
-                WinForms.TextBox txtPass = new WinForms.TextBox() { Location = new Point(140, 117), Width = 240, BackColor = Color.FromArgb(28, 28, 28), ForeColor = Color.White, PasswordChar = '●', BorderStyle = WinForms.BorderStyle.FixedSingle };
-
-                WinForms.Button btnConfirmar = new WinForms.Button() { Text = "AUTORIZAR", Location = new Point(140, 165), Width = 115, BackColor = EstiloApp.RojoNeon, ForeColor = Color.White, FlatStyle = WinForms.FlatStyle.Flat };
-                WinForms.Button btnCancelar = new WinForms.Button() { Text = "CANCELAR", Location = new Point(265, 165), Width = 115, BackColor = EstiloApp.Gris, ForeColor = Color.White, FlatStyle = WinForms.FlatStyle.Flat };
-                btnConfirmar.FlatAppearance.BorderSize = 0;
-                btnCancelar.FlatAppearance.BorderSize = 0;
-
-                btnConfirmar.Click += (s, e) =>
-                {
-                    string msjError;
-                    Usuario u = new UsuarioNegocio().Login(txtEmail.Text, txtPass.Text, out msjError);
-
-                    if (u == null)
-                    {
-                        WinForms.MessageBox.Show(msjError, "Error de credenciales",
-                            WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
-                        return;
-                    }
-
-                    if (u.IdPerfil != 1 && u.IdPerfil != 4)
-                    {
-                        WinForms.MessageBox.Show("Permiso denegado. El autorizante debe ser Administrador o Gerente.",
-                            "Acceso Denegado", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Error);
-                    }
-                    else if (u.IdUsuario == SesionActual.IdUsuario)
-                    {
-                        WinForms.MessageBox.Show("Control Cruzado: el autorizante no puede ser el mismo usuario que solicita la restauración.",
-                            "Violación de Seguridad", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Stop);
-                    }
-                    else if (RequierePerfilDistinto && u.IdPerfil == SesionActual.IdPerfil)
-                    {
-                        WinForms.MessageBox.Show("La autorización debe provenir del otro perfil (Administrador ↔ Gerente).",
-                            "Perfil no válido", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
-                    }
-                    else
-                    {
-                        aprobadorLocal = u;
-                        autorizado = true;
-                        frmAuth.Close();
-                    }
-                };
-
-                btnCancelar.Click += (s, e) => frmAuth.Close();
-
-                frmAuth.Controls.Add(lblInfo);
-                frmAuth.Controls.Add(lblEmail);
-                frmAuth.Controls.Add(txtEmail);
-                frmAuth.Controls.Add(lblPass);
-                frmAuth.Controls.Add(txtPass);
-                frmAuth.Controls.Add(btnConfirmar);
-                frmAuth.Controls.Add(btnCancelar);
-                frmAuth.AcceptButton = btnConfirmar;
-
-                frmAuth.ShowDialog();
-            }
-
-            aprobador = aprobadorLocal;
-            return autorizado;
+            aprobador = DialogoAutorizacion.Solicitar(this, "Autorización para restaurar",
+                "Restaurar reemplaza TODA la información actual por la del respaldo seleccionado.",
+                RequierePerfilDistinto, Perfiles.Administrador, Perfiles.Gerente);
+            return aprobador != null;
         }
 
         private void BtnRestaurarBackup_Click(object sender, EventArgs e)

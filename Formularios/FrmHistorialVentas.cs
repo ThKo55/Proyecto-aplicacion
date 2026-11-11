@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Collections.Generic;
+using System.Linq;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
+using AorusMarket.Entidades;
 using AorusMarket.Negocio;
 
 namespace AorusMarket.Formularios
@@ -11,16 +14,18 @@ namespace AorusMarket.Formularios
     {
         private DateTimePicker dtpDesde, dtpHasta;
         private DataGridView dgvHistorial;
-        private ComboBox cmbProductosVendidos;
-        private CyberButton btnBuscar, btnAnular, btnDescargarFactura;
+        private ComboBox cmbCriterioBusqueda;
+        private CyberTextBox txtBusqueda;
+        private CyberButton btnBuscar, btnAnular;
+
         private int idVentaSeleccionada = 0;
         private string estadoSeleccionado = "";
 
-        private VentaNegocio _ventaNegocio = new VentaNegocio();
+        private readonly VentaNegocio _ventaNegocio = new VentaNegocio();
+        private List<VentaHistorial> listaVentasCache = new List<VentaHistorial>();
 
         public FrmHistorialVentas()
         {
-            // CORRECCIÓN: Evita el desborde al maximizar
             this.ClientSize = new Size(1100, 700);
             this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Historial de Ventas";
@@ -67,25 +72,26 @@ namespace AorusMarket.Formularios
 
             btnAnular = EstiloApp.CrearBoton("ANULAR VENTA", new Point(x + 580, y + 10), 160, EstiloApp.RojoNeon);
             btnAnular.Click += BtnAnular_Click;
-            // CORRECCIÓN: Oculta el botón Anular si no es Admin (Perfil 1)
             btnAnular.Visible = (SesionActual.IdPerfil == 1 || SesionActual.IdPerfil == 4);
             this.Controls.Add(btnAnular);
 
             y += 60;
 
-            AddLabelSobrio("PRODUCTOS DE LA VENTA SELECCIONADA:", new Point(x, y));
-            cmbProductosVendidos = new ComboBox
+            AddLabelSobrio("FILTRAR POR:", new Point(x, y));
+            cmbCriterioBusqueda = new ComboBox
             {
                 Location = new Point(x, y + 20),
-                Size = new Size(580, 30),
+                Size = new Size(150, 30),
                 Font = new Font("Segoe UI", 10F),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
-            this.Controls.Add(cmbProductosVendidos);
+            cmbCriterioBusqueda.Items.AddRange(new object[] { "Nro de Ticket", "Cliente", "Cajero" });
+            cmbCriterioBusqueda.SelectedIndex = 1;
+            this.Controls.Add(cmbCriterioBusqueda);
 
-            btnDescargarFactura = EstiloApp.CrearBoton("DESCARGAR PDF", new Point(x + 600, y + 15), 150, EstiloApp.Gris);
-            btnDescargarFactura.Click += BtnDescargarFactura_Click;
-            this.Controls.Add(btnDescargarFactura);
+            txtBusqueda = EstiloApp.CrearTextBox(new Point(x + 170, y + 20), 410);
+            txtBusqueda.TextChanged += () => TxtBusqueda_TextChanged(null, null);
+            this.Controls.Add(txtBusqueda);
 
             y += 60;
 
@@ -105,15 +111,24 @@ namespace AorusMarket.Formularios
             dgvHistorial.Columns.Add("MetodoPago", "Medio de Pago");
             dgvHistorial.Columns.Add("Estado", "Estado");
 
+            // Botón de Detalle en la Grilla
+            DataGridViewButtonColumn btnDetalle = new DataGridViewButtonColumn();
+            btnDetalle.Name = "ColDetalle";
+            btnDetalle.HeaderText = "Acciones";
+            btnDetalle.Text = "🔍 Ver Detalle";
+            btnDetalle.UseColumnTextForButtonValue = true;
+            dgvHistorial.Columns.Add(btnDetalle);
+
             dgvHistorial.SelectionChanged += DgvHistorial_SelectionChanged;
+            dgvHistorial.CellContentClick += DgvHistorial_CellContentClick;
 
             EstiloApp.EstilizarGrid(dgvHistorial);
             this.Controls.Add(dgvHistorial);
 
-            CargarGrilla();
+            CargarGrillaBase();
         }
 
-        private void CargarGrilla()
+        private void CargarGrillaBase()
         {
             if (dtpDesde.Value.Date > dtpHasta.Value.Date)
             {
@@ -121,12 +136,18 @@ namespace AorusMarket.Formularios
                 return;
             }
 
+            int idUsuarioFiltro = (SesionActual.IdPerfil == 1 || SesionActual.IdPerfil == 4) ? 0 : SesionActual.IdUsuario;
+
+            // Guardamos en memoria para filtrar en tiempo real sin llamar a SQL
+            listaVentasCache = _ventaNegocio.ListarHistorial(dtpDesde.Value, dtpHasta.Value, idUsuarioFiltro);
+
+            ActualizarGrillaVisible(listaVentasCache);
+        }
+
+        private void ActualizarGrillaVisible(List<VentaHistorial> lista)
+        {
             dgvHistorial.SelectionChanged -= DgvHistorial_SelectionChanged;
             dgvHistorial.Rows.Clear();
-            cmbProductosVendidos.Items.Clear();
-
-            int idUsuarioFiltro = (Utilidades.SesionActual.IdPerfil == 1 || Utilidades.SesionActual.IdPerfil == 4) ? 0 : Utilidades.SesionActual.IdUsuario;
-            var lista = _ventaNegocio.ListarHistorial(dtpDesde.Value, dtpHasta.Value, idUsuarioFiltro);
 
             foreach (var item in lista)
             {
@@ -150,53 +171,59 @@ namespace AorusMarket.Formularios
             dgvHistorial.SelectionChanged += DgvHistorial_SelectionChanged;
         }
 
+        private void TxtBusqueda_TextChanged(object sender, EventArgs e)
+        {
+            if (listaVentasCache == null) return;
+
+            string filtro = EstiloApp.LeerTexto(txtBusqueda).ToLower().Trim();
+            string criterio = cmbCriterioBusqueda.SelectedItem.ToString();
+
+            var listaFiltrada = listaVentasCache.Where(v =>
+            {
+                if (string.IsNullOrEmpty(filtro)) return true;
+                switch (criterio)
+                {
+                    case "Nro de Ticket": return v.IdVenta.ToString().Contains(filtro);
+                    case "Cliente": return v.Cliente.ToLower().Contains(filtro);
+                    case "Cajero": return v.Cajero.ToLower().Contains(filtro);
+                    default: return true;
+                }
+            }).ToList();
+
+            ActualizarGrillaVisible(listaFiltrada);
+        }
+
         private void BtnBuscar_Click(object sender, EventArgs e)
         {
-            CargarGrilla();
+            CargarGrillaBase();
         }
 
         private void DgvHistorial_SelectionChanged(object sender, EventArgs e)
         {
-            cmbProductosVendidos.Items.Clear();
-
             if (dgvHistorial.CurrentRow == null) return;
-
             var fila = dgvHistorial.CurrentRow;
             idVentaSeleccionada = Convert.ToInt32(fila.Cells["IdVenta"].Value);
             estadoSeleccionado = fila.Cells["Estado"].Value.ToString();
-
-            var detalles = _ventaNegocio.ObtenerDetallesDeVenta(idVentaSeleccionada);
-
-            foreach (var det in detalles)
-            {
-                string textoCombo = $"{det.Cantidad}x {det.NombreProducto} | Unitario: ${det.PrecioUnitario} | Subtotal: ${det.SubTotal}";
-                cmbProductosVendidos.Items.Add(textoCombo);
-            }
-
-            if (cmbProductosVendidos.Items.Count > 0)
-                cmbProductosVendidos.SelectedIndex = 0;
-            else
-                cmbProductosVendidos.Items.Add("No hay detalles registrados.");
         }
 
-        private void BtnDescargarFactura_Click(object sender, EventArgs e)
+        // Abre el FrmDetalleVenta al hacer clic en el botón de la grilla
+        private void DgvHistorial_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (idVentaSeleccionada == 0)
+            if (e.RowIndex >= 0 && dgvHistorial.Columns[e.ColumnIndex].Name == "ColDetalle")
             {
-                MessageBox.Show("Seleccione una venta de la grilla para descargar su factura.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                var fila = dgvHistorial.Rows[e.RowIndex];
+                int idVenta = Convert.ToInt32(fila.Cells["IdVenta"].Value);
+                string fecha = fila.Cells["Fecha"].Value.ToString();
+                string cliente = fila.Cells["Cliente"].Value.ToString();
+                string cajero = fila.Cells["Cajero"].Value.ToString();
+                decimal total = Convert.ToDecimal(fila.Cells["Total"].Value);
+                string metodoPago = fila.Cells["MetodoPago"].Value.ToString();
+
+                using (FrmDetalleVenta frm = new FrmDetalleVenta(idVenta, fecha, cliente, cajero, total, metodoPago))
+                {
+                    frm.ShowDialog();
+                }
             }
-
-            var fila = dgvHistorial.CurrentRow;
-            string fecha = fila.Cells["Fecha"].Value.ToString();
-            string cliente = fila.Cells["Cliente"].Value.ToString();
-            string cajero = fila.Cells["Cajero"].Value.ToString();
-            decimal total = Convert.ToDecimal(fila.Cells["Total"].Value);
-            string metodoPago = fila.Cells["MetodoPago"].Value.ToString();
-
-            var detallesBD = _ventaNegocio.ObtenerDetallesDeVenta(idVentaSeleccionada);
-
-            Utilidades.GeneradorFactura.GenerarPDF(idVentaSeleccionada, fecha, cliente, cajero, total, metodoPago, detallesBD, true);
         }
 
         private void BtnAnular_Click(object sender, EventArgs e)
@@ -213,12 +240,12 @@ namespace AorusMarket.Formularios
             if (resp == DialogResult.Yes)
             {
                 string mensaje;
-                bool resultado = _ventaNegocio.AnularVenta(idVentaSeleccionada, estadoSeleccionado, Utilidades.SesionActual.IdUsuario, out mensaje);
+                bool resultado = _ventaNegocio.AnularVenta(idVentaSeleccionada, estadoSeleccionado, SesionActual.IdUsuario, out mensaje);
 
                 if (resultado)
                 {
                     MessageBox.Show("Venta anulada con éxito. El stock ha sido restituido.", "Operación Exitosa", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    CargarGrilla();
+                    CargarGrillaBase();
                 }
                 else
                 {

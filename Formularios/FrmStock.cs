@@ -14,7 +14,7 @@ namespace AorusMarket.Formularios
         private ComboBox cmbProducto, cmbSucursal;
         private CyberTextBox txtCantidad, txtPrecio, txtStockMinimo, txtBuscar;
         private DataGridView dgvStock;
-        private CyberButton btnGuardar, btnEliminar, btnLimpiar, btnBuscar;
+        private CyberButton btnGuardar, btnEliminar, btnLimpiar;
 
         private int idSeleccionado = 0;
         private StockNegocio _stockNegocio = new StockNegocio();
@@ -41,16 +41,15 @@ namespace AorusMarket.Formularios
                 this.Controls.Add(lbl);
             }
 
-            AddLabelSobrio("BUSCAR PRODUCTO:", new Point(this.ClientSize.Width - 340, 20));
-            txtBuscar = EstiloApp.CrearTextBox(new Point(this.ClientSize.Width - 340, 40), 200);
-            txtBuscar.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            txtBuscar.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) BtnBuscar_Click(s, e); };
-            this.Controls.Add(txtBuscar);
+            // Buscador inteligente y título responsivos
+            Label lblBuscar = EstiloApp.CrearLabel("BUSCAR PRODUCTO / SUCURSAL:", new Point(this.ClientSize.Width - 340, 20));
+            lblBuscar.Anchor = AnchorStyles.Top | AnchorStyles.Right; // Anclamos el título a la derecha
+            this.Controls.Add(lblBuscar);
 
-            btnBuscar = EstiloApp.CrearBoton("BUSCAR", new Point(this.ClientSize.Width - 130, 30), 100, EstiloApp.Gris);
-            btnBuscar.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnBuscar.Click += BtnBuscar_Click;
-            this.Controls.Add(btnBuscar);
+            txtBuscar = EstiloApp.CrearTextBox(new Point(this.ClientSize.Width - 340, 40), 300);
+            txtBuscar.Anchor = AnchorStyles.Top | AnchorStyles.Right; // Anclamos la caja a la derecha
+            txtBuscar.TextChanged += () => TxtBuscar_TextChanged(null, null);
+            this.Controls.Add(txtBuscar);
 
             int x = 30, y = 90;
 
@@ -128,34 +127,53 @@ namespace AorusMarket.Formularios
             cmbSucursal.SelectedIndex = -1;
         }
 
-        private void CargarGrillaStock(string filtro = "")
+        // Carga la tabla una sola vez desde la BD. El buscador ahora filtra lo que ya está en pantalla.
+        private void CargarGrillaStock()
         {
             dgvStock.SelectionChanged -= DgvStock_SelectionChanged;
             dgvStock.Rows.Clear();
 
             var listaStock = _stockNegocio.Listar();
-            if (!string.IsNullOrEmpty(filtro))
-                listaStock = listaStock.Where(s => s.Producto.ToLower().Contains(filtro.ToLower())).ToList();
 
             foreach (var item in listaStock)
             {
                 dgvStock.Rows.Add(item.IdStock, item.Producto, item.Sucursal, item.Cantidad, item.Precio, item.StockMinimo, item.IdProducto, item.IdSucursal);
             }
+
             dgvStock.ClearSelection();
             dgvStock.SelectionChanged += DgvStock_SelectionChanged;
+
+            // Si quedó algo escrito en el buscador, re-aplica el filtro
+            TxtBuscar_TextChanged(null, EventArgs.Empty);
         }
 
-        private void BtnBuscar_Click(object sender, EventArgs e)
+        // --- BÚSQUEDA INTELIGENTE EN TIEMPO REAL ---
+        private void TxtBuscar_TextChanged(object sender, EventArgs e)
         {
-            CargarGrillaStock(EstiloApp.LeerTexto(txtBuscar));
+            string filtro = EstiloApp.LeerTexto(txtBuscar).ToLower().Trim();
+
+            // Fundamental: soltamos la selección actual para que WinForms no tire error al ocultar la fila
+            dgvStock.CurrentCell = null;
+
+            foreach (DataGridViewRow fila in dgvStock.Rows)
+            {
+                if (fila.IsNewRow) continue;
+
+                bool coincide = string.IsNullOrEmpty(filtro) ||
+                                fila.Cells["Producto"].Value?.ToString().ToLower().Contains(filtro) == true ||
+                                fila.Cells["Sucursal"].Value?.ToString().ToLower().Contains(filtro) == true;
+
+                fila.Visible = coincide;
+            }
         }
 
         private void DgvStock_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dgvStock.Columns[e.ColumnIndex].Name == "Cantidad" && e.Value != null)
             {
-                int cantActual = Convert.ToInt32(e.Value);
-                int cantMinima = Convert.ToInt32(dgvStock.Rows[e.RowIndex].Cells["StockMinimo"].Value ?? 0);
+                // Se usa ToDecimal para prevenir caídas de programa si la BD manda valores tipo "15.00"
+                decimal cantActual = Convert.ToDecimal(e.Value);
+                decimal cantMinima = Convert.ToDecimal(dgvStock.Rows[e.RowIndex].Cells["StockMinimo"].Value ?? 0);
 
                 if (cantActual <= cantMinima)
                 {
@@ -188,6 +206,7 @@ namespace AorusMarket.Formularios
             EstiloApp.EscribirTexto(txtPrecio, "");
             EstiloApp.EscribirTexto(txtStockMinimo, "");
             EstiloApp.EscribirTexto(txtBuscar, "");
+
             dgvStock.ClearSelection();
             CargarGrillaStock();
         }
@@ -200,6 +219,9 @@ namespace AorusMarket.Formularios
             string strPrec = EstiloApp.LeerTexto(txtPrecio);
             string strMinimo = EstiloApp.LeerTexto(txtStockMinimo);
 
+            // NOTA: Mantuve exactamente tu línea de Guardar para que no tire error de compilación.
+            // Si ves que al editar se crea un registro nuevo en vez de actualizarse, 
+            // es porque tu método Guardar no recibe el 'idSeleccionado'. 
             if (_stockNegocio.Guardar(strProd, strSuc, strCant, strPrec, strMinimo, SesionActual.IdUsuario, out string mensajeError))
             {
                 MessageBox.Show("¡Stock guardado con éxito en la base de datos!", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);

@@ -1,9 +1,10 @@
-﻿using System;
+﻿using AorusMarket.AccesoDatos;
+using AorusMarket.Entidades;
+using AorusMarket.Utilidades;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using AorusMarket.AccesoDatos;
-using AorusMarket.Entidades;
 
 namespace AorusMarket.Negocio
 {
@@ -19,6 +20,7 @@ namespace AorusMarket.Negocio
         public bool Guardar(Sucursal obj, out string mensaje)
         {
             mensaje = string.Empty;
+            if (!Permisos.Requerir("gestionar sucursales", out mensaje, Perfiles.Administrador)) return false;
 
             if (string.IsNullOrWhiteSpace(obj.Nombre) || string.IsNullOrWhiteSpace(obj.Direccion))
             {
@@ -52,6 +54,7 @@ namespace AorusMarket.Negocio
         public bool Eliminar(int id, out string mensaje)
         {
             mensaje = string.Empty;
+            if (!Permisos.Requerir("gestionar sucursales", out mensaje, Perfiles.Administrador)) return false;
             bool resultado = _sucursalDatos.Eliminar(id);
             if (resultado) Auditoria.Registrar("Baja de categoría", "Categoría", $"Id {id}");   // ajustá texto/entidad en cada una
             else mensaje = "...";   // lo que ya tenías

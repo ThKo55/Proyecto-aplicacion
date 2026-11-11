@@ -62,7 +62,7 @@ namespace AorusMarket.Formularios
             cmbEntidad.Items.AddRange(new object[]
             {
                 "(Todas)", "Stock", "Venta", "Sesión", "Usuario", "Cliente",
-                "Producto", "Categoría", "Sucursal", "Backup"
+                "Producto", "Categoría", "Sucursal", "Backup", "Seguridad"
             });
             cmbEntidad.SelectedIndex = 0;
             this.Controls.Add(cmbEntidad);

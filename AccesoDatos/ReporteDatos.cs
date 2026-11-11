@@ -35,7 +35,7 @@ namespace AorusMarket.AccesoDatos
                         }
                     }
                 }
-                catch (Exception ex) { Console.WriteLine(ex.Message); }
+                catch (Exception ex) { Logger.Error("ReporteDatos", ex); }
             }
             return lista;
         }
@@ -69,7 +69,7 @@ namespace AorusMarket.AccesoDatos
                         }
                     }
                 }
-                catch (Exception ex) { Console.WriteLine(ex.Message); }
+                catch (Exception ex) { Logger.Error("ReporteDatos", ex); }
             }
             return lista;
         }
@@ -104,7 +104,7 @@ namespace AorusMarket.AccesoDatos
                         }
                     }
                 }
-                catch (Exception ex) { Console.WriteLine(ex.Message); }
+                catch (Exception ex) { Logger.Error("ReporteDatos", ex); }
             }
             return lista;
         }
@@ -139,7 +139,7 @@ namespace AorusMarket.AccesoDatos
                         }
                     }
                 }
-                catch (Exception ex) { Console.WriteLine(ex.Message); }
+                catch (Exception ex) { Logger.Error("ReporteDatos", ex); }
             }
             return lista;
         }
@@ -176,7 +176,7 @@ namespace AorusMarket.AccesoDatos
                         }
                     }
                 }
-                catch (Exception ex) { Console.WriteLine(ex.Message); }
+                catch (Exception ex) { Logger.Error("ReporteDatos", ex); }
             }
             return lista;
         }

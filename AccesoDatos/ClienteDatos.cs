@@ -48,7 +48,7 @@ namespace AorusMarket.AccesoDatos
                         }
                     }
                 }
-                catch (Exception ex) { Console.WriteLine("Error: " + ex.Message); }
+                catch (Exception ex) { Logger.Error("Error: ", ex); }
             }
             return lista;
         }
@@ -83,7 +83,7 @@ namespace AorusMarket.AccesoDatos
                     tx.Commit();
                     respuesta = true;
                 }
-                catch { tx.Rollback(); }
+                catch (Exception ex) { tx.Rollback(); Logger.Error("ClienteDatos.Insertar", ex); }
             }
             return respuesta;
         }
@@ -115,7 +115,7 @@ namespace AorusMarket.AccesoDatos
                     tx.Commit();
                     respuesta = true;
                 }
-                catch { tx.Rollback(); }
+                catch (Exception ex) { tx.Rollback(); Logger.Error("ClienteDatos.Insertar", ex); }
             }
             return respuesta;
         }

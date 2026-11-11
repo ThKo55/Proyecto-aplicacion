@@ -37,6 +37,7 @@ namespace AorusMarket.Entidades
         public int? IdCliente { get; set; }
         public int IdUsuario { get; set; }
         public int IdSucursal { get; set; }
+        public int? IdUsuarioAutoriza { get; set; }
 
         public List<DetalleVenta> Detalles { get; set; } = new List<DetalleVenta>();
     }

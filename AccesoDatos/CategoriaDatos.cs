@@ -41,7 +41,7 @@ namespace AorusMarket.AccesoDatos
                 {
                     // Si hay error, devolvemos una lista vacía y lo registramos
                     lista = new List<Categoria>();
-                    Console.WriteLine("Error en Listar Categorias: " + ex.Message);
+                    Logger.Error("Error en Listar Categorias: ", ex);
                 }
             }
             return lista;
@@ -66,7 +66,7 @@ namespace AorusMarket.AccesoDatos
                 catch (Exception ex)
                 {
                     respuesta = false;
-                    Console.WriteLine("Error al insertar: " + ex.Message);
+                    Logger.Error("Error al insertar: ", ex);
                 }
             }
             return respuesta;
@@ -92,7 +92,7 @@ namespace AorusMarket.AccesoDatos
                 catch (Exception ex)
                 {
                     respuesta = false;
-                    Console.WriteLine("Error al editar: " + ex.Message);
+                    Logger.Error("Error al editar: ", ex);
                 }
             }
             return respuesta;
@@ -117,7 +117,7 @@ namespace AorusMarket.AccesoDatos
                 catch (Exception ex)
                 {
                     respuesta = false;
-                    Console.WriteLine("Error al eliminar: " + ex.Message);
+                    Logger.Error("Error al eliminar: ", ex);
                 }
             }
             return respuesta;

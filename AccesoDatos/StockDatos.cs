@@ -24,7 +24,7 @@ namespace AorusMarket.AccesoDatos
                             lista.Add(new ComboBasico() { Id = Convert.ToInt32(dr[campoId]), Nombre = dr[campoNombre].ToString() });
                     }
                 }
-                catch { }
+                catch (Exception ex) { Logger.Error("StockDatos.Listar", ex); }
             }
             return lista;
         }
@@ -40,7 +40,7 @@ namespace AorusMarket.AccesoDatos
                     FROM stock_sucursal ss
                     INNER JOIN producto p ON ss.id_producto = p.id_producto
                     INNER JOIN sucursal s ON ss.id_sucursal = s.id_sucursal
-                    WHERE p.activo = 1 AND s.activo = 1";
+                    WHERE p.activo = 1 AND s.activo = 1 AND ss.activo = 1";
 
                 SqlCommand cmd = new SqlCommand(query, oConexion);
                 try
@@ -64,7 +64,7 @@ namespace AorusMarket.AccesoDatos
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { Logger.Error("StockDatos.Listar", ex); }
             }
             return lista;
         }
@@ -143,7 +143,7 @@ namespace AorusMarket.AccesoDatos
                     transaccion.Commit();
                     respuesta = true;
                 }
-                catch { transaccion.Rollback(); }
+                catch (Exception ex) { transaccion.Rollback(); Logger.Error("StockDatos.Guardar", ex); }
             }
             return respuesta;
         }
@@ -191,53 +191,10 @@ namespace AorusMarket.AccesoDatos
                     tx.Commit();
                     return true;
                 }
-                catch { tx.Rollback(); return false; }
+                catch (Exception ex) { tx.Rollback(); Logger.Error("StockDatos.Eliminar", ex); return false; }
             }
         }
 
-        public List<MovimientoStock> ListarMovimientos(DateTime desde, DateTime hasta)
-        {
-            List<MovimientoStock> lista = new List<MovimientoStock>();
-            using (SqlConnection oConexion = Conexion.ObtenerConexion())
-            {
-                string query = @"
-                    SELECT m.id_movimiento, m.fecha, p.nombre AS Producto, s.nombre AS Sucursal,
-                           m.cantidad_variacion, m.tipo_movimiento, u.nombre + ' ' + u.apellido AS Usuario
-                    FROM movimiento_stock m
-                    INNER JOIN stock_sucursal ss ON m.id_stock_sucursal = ss.id_stock_sucursal
-                    INNER JOIN producto p ON ss.id_producto = p.id_producto
-                    INNER JOIN sucursal s ON ss.id_sucursal = s.id_sucursal
-                    INNER JOIN usuario u ON m.id_usuario = u.id_usuario
-                    WHERE p.activo = 1 AND s.activo = 1 AND ss.activo = 1"";
-                    ORDER BY m.fecha DESC";
-
-                SqlCommand cmd = new SqlCommand(query, oConexion);
-                cmd.Parameters.AddWithValue("@desde", desde.Date);
-                cmd.Parameters.AddWithValue("@hasta", hasta.Date);
-                try
-                {
-                    oConexion.Open();
-                    using (SqlDataReader dr = cmd.ExecuteReader())
-                    {
-                        while (dr.Read())
-                        {
-                            lista.Add(new MovimientoStock()
-                            {
-                                IdMovimiento = Convert.ToInt32(dr["id_movimiento"]),
-                                Fecha = Convert.ToDateTime(dr["fecha"]).ToString("dd/MM/yyyy HH:mm"),
-                                Producto = dr["Producto"].ToString(),
-                                Sucursal = dr["Sucursal"].ToString(),
-                                CantidadVariacion = Convert.ToInt32(dr["cantidad_variacion"]),
-                                TipoMovimiento = dr["tipo_movimiento"].ToString(),
-                                Usuario = dr["Usuario"].ToString()
-                            });
-                        }
-                    }
-                }
-                catch { }
-            }
-            return lista;
-        }
 
         public int ObtenerStock(int idProducto, int idSucursal)
         {
@@ -249,7 +206,7 @@ namespace AorusMarket.AccesoDatos
                 SqlCommand cmd = new SqlCommand(query, conexion);
                 cmd.Parameters.AddWithValue("@idProducto", idProducto);
                 cmd.Parameters.AddWithValue("@idSucursal", idSucursal);
-                try { conexion.Open(); object res = cmd.ExecuteScalar(); if (res != null) cantidad = Convert.ToInt32(res); } catch { }
+                try { conexion.Open(); object res = cmd.ExecuteScalar(); if (res != null) cantidad = Convert.ToInt32(res); } catch (Exception ex) { Logger.Error("StockDatos.Listar", ex); }
             }
             return cantidad;
         }
@@ -284,7 +241,7 @@ namespace AorusMarket.AccesoDatos
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { Logger.Error("StockDatos.Listar", ex); }
             }
             return p;
         }

@@ -111,6 +111,7 @@
     <Compile Include="AccesoDatos\SucursalDatos.cs" />
     <Compile Include="AccesoDatos\UsuarioDatos.cs" />
     <Compile Include="AccesoDatos\VentaDatos.cs" />
+    <Compile Include="Entidades\AlertaStock.cs" />
     <Compile Include="Entidades\BackupSolicitud.cs" />
     <Compile Include="Entidades\Categoria.cs" />
     <Compile Include="Entidades\Cliente.cs" />
@@ -122,6 +123,7 @@
     <Compile Include="Entidades\Sucursal.cs" />
     <Compile Include="Entidades\Usuario.cs" />
     <Compile Include="Entidades\VentaModelos.cs" />
+    <Compile Include="Formularios\DialogoAutorizacion.cs" />
     <Compile Include="Formularios\FrmBackup.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -133,6 +135,12 @@
     </Compile>
     <Compile Include="Formularios\FrmDetalleAuditoria.Designer.cs">
       <DependentUpon>FrmDetalleAuditoria.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Formularios\FrmDetalleVenta.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Formularios\FrmDetalleVenta.Designer.cs">
+      <DependentUpon>FrmDetalleVenta.cs</DependentUpon>
     </Compile>
     <Compile Include="Formularios\FrmReportes.cs">
       <SubType>Form</SubType>
@@ -211,6 +219,7 @@
     <Compile Include="Negocio\CategoriaNegocio.cs" />
     <Compile Include="Negocio\ClienteNegocio.cs" />
     <Compile Include="Negocio\DashboardNegocio.cs" />
+    <Compile Include="Negocio\Permisos.cs" />
     <Compile Include="Negocio\ProductoNegocio.cs" />
     <Compile Include="Negocio\ReporteNegocio.cs" />
     <Compile Include="Negocio\StockNegocio.cs" />
@@ -221,6 +230,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Utilidades\BackupScheduler.cs" />
     <Compile Include="Utilidades\GeneradorFactura.cs" />
+    <Compile Include="Utilidades\Logger.cs" />
     <Compile Include="Utilidades\SesionActual.cs" />
     <Compile Include="Utilidades\EstiloApp.cs" />
     <Compile Include="Utilidades\Validaciones.cs" />

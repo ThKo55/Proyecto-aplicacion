@@ -43,7 +43,7 @@ namespace AorusMarket.AccesoDatos
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Error al listar productos: " + ex.Message);
+                    Logger.Error("Error al listar productos: ", ex);
                 }
             }
             return lista;
@@ -68,7 +68,7 @@ namespace AorusMarket.AccesoDatos
                     oConexion.Open();
                     respuesta = cmd.ExecuteNonQuery() > 0;
                 }
-                catch (Exception ex) { Console.WriteLine("Error al insertar producto: " + ex.Message); }
+                catch (Exception ex) { Logger.Error("Error al insertar producto: ", ex); }
             }
             return respuesta;
         }
@@ -93,7 +93,7 @@ namespace AorusMarket.AccesoDatos
                     oConexion.Open();
                     respuesta = cmd.ExecuteNonQuery() > 0;
                 }
-                catch (Exception ex) { Console.WriteLine("Error al editar producto: " + ex.Message); }
+                catch (Exception ex) { Logger.Error("Error al editar producto: ", ex); }
             }
             return respuesta;
         }
@@ -109,7 +109,7 @@ namespace AorusMarket.AccesoDatos
                     oConexion.Open();
                     return cmd.ExecuteNonQuery() > 0;
                 }
-                catch { return false; }
+                catch (Exception ex) { Logger.Error("ProductoDatos.ExisteNombre", ex); return false; }
             }
         }
 
@@ -128,7 +128,7 @@ namespace AorusMarket.AccesoDatos
                     oConexion.Open();
                     return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
                 }
-                catch { return false; }
+                catch (Exception ex) { Logger.Error("ProductoDatos.ExisteNombre", ex); return false; }
             }
         }
     }

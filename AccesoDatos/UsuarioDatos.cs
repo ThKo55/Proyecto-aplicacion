@@ -40,7 +40,7 @@ namespace AorusMarket.AccesoDatos
                             if (passGuardada.StartsWith("$2"))
                             {
                                 try { passwordValida = BCrypt.Net.BCrypt.Verify(password, passGuardada); }
-                                catch { passwordValida = false; }
+                                catch (Exception exHash) { Logger.Error("UsuarioDatos.Autenticar (hash inválido)", exHash); passwordValida = false; }
                             }
 
                             if (passwordValida)
@@ -62,7 +62,9 @@ namespace AorusMarket.AccesoDatos
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error en Autenticar: " + ex.Message);
+                    Logger.Error("UsuarioDatos.Autenticar", ex);
+                    MessageBox.Show("No se pudo completar la operación. Verifique la conexión con la base de datos.",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             return obj;
@@ -87,7 +89,7 @@ namespace AorusMarket.AccesoDatos
                             lista.Add(new ComboUsuario() { Id = Convert.ToInt32(dr["id_perfil"]), Nombre = dr["nombre"].ToString() });
                     }
                 }
-                catch { }
+                catch (Exception ex) { Logger.Error("StockDatos.Listar", ex); }
             }
             return lista;
         }
@@ -107,7 +109,7 @@ namespace AorusMarket.AccesoDatos
                             lista.Add(new ComboUsuario() { Id = Convert.ToInt32(dr["id_sucursal"]), Nombre = dr["nombre"].ToString() });
                     }
                 }
-                catch {}
+                catch (Exception ex) { Logger.Error("StockDatos.Listar", ex); }
             }
             return lista;
         }
@@ -161,7 +163,9 @@ namespace AorusMarket.AccesoDatos
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error SQL en Listar Usuarios: " + ex.Message, "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    Logger.Error("UsuarioDatos.Autenticar", ex);
+                    MessageBox.Show("No se pudo completar la operación. Verifique la conexión con la base de datos.",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             return lista;
@@ -199,7 +203,12 @@ namespace AorusMarket.AccesoDatos
                     tx.Commit();
                     respuesta = true;
                 }
-                catch (Exception ex) { tx.Rollback(); MessageBox.Show("Error al Insertar: " + ex.Message); }
+                catch (Exception ex)
+                {
+                    Logger.Error("UsuarioDatos.Autenticar", ex);
+                    MessageBox.Show("No se pudo completar la operación. Verifique la conexión con la base de datos.",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
             return respuesta;
         }
@@ -236,7 +245,12 @@ namespace AorusMarket.AccesoDatos
                     tx.Commit();
                     respuesta = true;
                 }
-                catch (Exception ex) { tx.Rollback(); MessageBox.Show("Error al Editar: " + ex.Message); }
+                catch (Exception ex)
+                {
+                    Logger.Error("UsuarioDatos.Autenticar", ex);
+                    MessageBox.Show("No se pudo completar la operación. Verifique la conexión con la base de datos.",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
             return respuesta;
         }

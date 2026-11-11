@@ -19,6 +19,7 @@ namespace AorusMarket.Formularios
         private DataGridView dgvVentasRecientes;
 
         private DashboardNegocio _dashboardNegocio = new DashboardNegocio();
+        private System.Windows.Forms.Label lblStockBajo;
 
         public FrmDashboard()
         {
@@ -81,10 +82,19 @@ namespace AorusMarket.Formularios
             System.Windows.Forms.Panel tarjetaTotal = CrearTarjeta("TOTAL VENDIDO", "$0.00", new Point(x, y), out lblTotalVendido);
             System.Windows.Forms.Panel tarjetaCantidad = CrearTarjeta("VENTAS REALIZADAS", "0", new Point(x + 260, y), out lblCantidadVentas);
             System.Windows.Forms.Panel tarjetaTop = CrearTarjeta("PRODUCTO MÁS VENDIDO", "-", new Point(x + 520, y), out lblProductoTop);
+            tarjetaTop.Width = 360; // antes era 240
 
             this.Controls.Add(tarjetaTotal);
             this.Controls.Add(tarjetaCantidad);
             this.Controls.Add(tarjetaTop);
+
+
+            // antes: new Point(x + 780, y)
+            System.Windows.Forms.Panel tarjetaStock = CrearTarjeta("STOCK BAJO (clic para ver)", "0", new Point(x + 900, y), out lblStockBajo);
+            tarjetaStock.Cursor = Cursors.Hand;
+            tarjetaStock.Click += (s, e) => MostrarAlertasStock();
+            foreach (Control c in tarjetaStock.Controls) c.Click += (s, e) => MostrarAlertasStock();
+            this.Controls.Add(tarjetaStock);
 
             // ---------- Grid de ventas recientes ----------
             y += 140;
@@ -245,7 +255,49 @@ namespace AorusMarket.Formularios
                     v.Estado
                 );
             }
+
+            var alertas = _dashboardNegocio.ObtenerAlertasStock(idSucursal);
+            lblStockBajo.Text = alertas.Count.ToString();
+            lblStockBajo.ForeColor = alertas.Count > 0 ? EstiloApp.RojoNeon : Color.LightGreen;
+
             dgvVentasRecientes.ClearSelection();
         }
+
+
+        private void MostrarAlertasStock()
+        {
+            int idSucursal = Convert.ToInt32(cmbSucursal.SelectedValue);
+            var alertas = _dashboardNegocio.ObtenerAlertasStock(idSucursal);
+
+            using (Form frm = new Form())
+            {
+                frm.Text = "Productos con stock bajo";
+                frm.Size = new Size(820, 500);
+                frm.StartPosition = FormStartPosition.CenterParent;
+                frm.BackColor = Color.FromArgb(18, 18, 18);
+
+                DataGridView dgv = new DataGridView { Dock = DockStyle.Fill };
+                dgv.Columns.Add("Producto", "Producto");
+                dgv.Columns.Add("Sucursal", "Sucursal");
+                dgv.Columns.Add("Cantidad", "Stock actual");
+                dgv.Columns.Add("Minimo", "Stock mínimo");
+                dgv.Columns.Add("Estado", "Estado");
+                AplicarDisenoSobrioGrid(dgv);
+
+                foreach (var a in alertas)
+                {
+                    int idx = dgv.Rows.Add(a.Producto, a.Sucursal, a.Cantidad, a.StockMinimo,
+                                           a.Cantidad == 0 ? "SIN STOCK" : "Reponer");
+                    if (a.Cantidad == 0) dgv.Rows[idx].DefaultCellStyle.ForeColor = EstiloApp.RojoNeon;
+                }
+                dgv.ClearSelection();
+
+                frm.Controls.Add(dgv);
+                frm.ShowDialog(this);
+            }
+        }
+
+
+
     }
 }
