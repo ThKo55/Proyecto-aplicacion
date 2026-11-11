@@ -5,6 +5,7 @@ using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
 using AorusMarket.Entidades;
 using AorusMarket.Negocio;
+using System.Globalization;
 
 namespace AorusMarket.Formularios
 {
@@ -14,10 +15,10 @@ namespace AorusMarket.Formularios
         private DateTimePicker dtFechaNacimiento;
         private DataGridView dgvClientes;
         private CyberButton btnGuardar, btnEliminar, btnBuscar, btnLimpiar;
-
+        private const string ColumnaDireccion = "IdDireccion";
         private int idSeleccionado = 0;
         private int idDireccionSeleccionada = 0;
-        private ClienteNegocio _clienteNegocio = new ClienteNegocio();
+        private  readonly ClienteNegocio _clienteNegocio = new ClienteNegocio();
 
         public FrmClientes()
         {
@@ -121,10 +122,10 @@ namespace AorusMarket.Formularios
             dgvClientes.Columns.Add("Altura", "Altura");
             dgvClientes.Columns.Add("FechaNacimiento", "F. Nac");
             dgvClientes.Columns.Add("CuilCuit", "CUIL/CUIT");
-            dgvClientes.Columns.Add("IdDireccion", "IdDireccion");
+            dgvClientes.Columns.Add(ColumnaDireccion, "IdDireccion");
 
             dgvClientes.Columns["IdCliente"].Visible = false;
-            dgvClientes.Columns["IdDireccion"].Visible = false;
+            dgvClientes.Columns[ColumnaDireccion].Visible = false;
 
             dgvClientes.SelectionChanged += DgvClientes_SelectionChanged;
 
@@ -166,7 +167,7 @@ namespace AorusMarket.Formularios
             EstiloApp.EscribirTexto(txtAltura, fila.Cells["Altura"].Value?.ToString());
             EstiloApp.EscribirTexto(txtCuil, fila.Cells["CuilCuit"].Value?.ToString());
 
-            if (DateTime.TryParse(fila.Cells["FechaNacimiento"].Value?.ToString(), out DateTime fechaNac))
+            if (DateTime.TryParse(fila.Cells["FechaNacimiento"].Value?.ToString(), CultureInfo.CurrentCulture, DateTimeStyles.None, out DateTime fechaNac))
                 dtFechaNacimiento.Value = fechaNac;
             else
                 dtFechaNacimiento.Value = DateTime.Now;
@@ -222,9 +223,8 @@ namespace AorusMarket.Formularios
         {
             if (idSeleccionado == 0) return;
 
-            if (MessageBox.Show("¿Seguro que desea eliminar?", "Confirmar", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            if (MessageBox.Show("¿Seguro que desea eliminar?", "Confirmar", MessageBoxButtons.YesNo) == DialogResult.Yes && _clienteNegocio.Eliminar(idSeleccionado, out _))
             {
-                if (_clienteNegocio.Eliminar(idSeleccionado, out _))
                     LimpiarCampos();
             }
         }
