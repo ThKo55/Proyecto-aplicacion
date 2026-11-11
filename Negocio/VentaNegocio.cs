@@ -50,6 +50,14 @@ namespace AorusMarket.Negocio
         // 3. Listar el Historial
         public List<VentaHistorial> ListarHistorial(DateTime desde, DateTime hasta, int idUsuarioFiltro)
         {
+            // REGLA DE SEGURIDAD:
+            // Si el usuario conectado es Cajero, se ignora cualquier valor externo y 
+            // se fuerza a que consulte únicamente su propio Id de usuario.
+            if (SesionActual.IdPerfil == Perfiles.Cajero)
+            {
+                idUsuarioFiltro = SesionActual.IdUsuario;
+            }
+
             return _ventaDatos.ListarHistorial(desde, hasta, idUsuarioFiltro);
         }
 

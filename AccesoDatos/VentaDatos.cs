@@ -139,13 +139,21 @@ namespace AorusMarket.AccesoDatos
                     INNER JOIN usuario u ON v.id_usuario = u.id_usuario
                     WHERE CAST(v.fecha AS DATE) BETWEEN @desde AND @hasta ";
 
-                if (idUsuarioFiltro > 0) query += " AND v.id_usuario = @idUsr";
+                // Si viene un usuario específico (Cajero), filtra solo sus ventas:
+                if (idUsuarioFiltro > 0)
+                {
+                    query += " AND v.id_usuario = @idUsr";
+                }
+
                 query += " ORDER BY v.fecha DESC";
 
                 SqlCommand cmd = new SqlCommand(query, oConexion);
                 cmd.Parameters.AddWithValue("@desde", fechaDesde.Date);
                 cmd.Parameters.AddWithValue("@hasta", fechaHasta.Date);
-                if (idUsuarioFiltro > 0) cmd.Parameters.AddWithValue("@idUsr", idUsuarioFiltro);
+                if (idUsuarioFiltro > 0)
+                {
+                    cmd.Parameters.AddWithValue("@idUsr", idUsuarioFiltro);
+                }
 
                 try
                 {

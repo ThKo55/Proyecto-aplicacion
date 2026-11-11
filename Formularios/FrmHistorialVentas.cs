@@ -91,8 +91,19 @@ namespace AorusMarket.Formularios
                 Font = new Font("Segoe UI", 10F),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
-            cmbCriterioBusqueda.Items.AddRange(new object[] { "Nro de Ticket", "Cliente", "Cajero" });
-            cmbCriterioBusqueda.SelectedIndex = 1;
+
+            // Si es Cajero / Ventas (Perfil 2), solo filtra por Ticket y Cliente
+            if (SesionActual.IdPerfil == Perfiles.Cajero)
+            {
+                cmbCriterioBusqueda.Items.AddRange(new object[] { "Nro de Ticket", "Cliente" });
+            }
+            // Administradores (Perfil 1) y Gerentes (Perfil 4) ven todas las opciones
+            else
+            {
+                cmbCriterioBusqueda.Items.AddRange(new object[] { "Nro de Ticket", "Cliente", "Cajero" });
+            }
+
+            cmbCriterioBusqueda.SelectedIndex = 0; // Selecciona "Nro de Ticket" por defecto
             this.Controls.Add(cmbCriterioBusqueda);
 
             txtBusqueda = EstiloApp.CrearTextBox(new Point(x + 170, y + 20), 410);
@@ -142,9 +153,12 @@ namespace AorusMarket.Formularios
                 return;
             }
 
-            int idUsuarioFiltro = (SesionActual.IdPerfil == 1 || SesionActual.IdPerfil == 4) ? 0 : SesionActual.IdUsuario;
+            // Administrador (1) y Gerente (4) pasan 0 para ver todo.
+            // Cualquier otro perfil (Cajero) pasa su propio IdUsuario.
+            int idUsuarioFiltro = (SesionActual.IdPerfil == Perfiles.Administrador || SesionActual.IdPerfil == Perfiles.Gerente)
+                                  ? 0
+                                  : SesionActual.IdUsuario;
 
-            // Guardamos en memoria para filtrar en tiempo real sin llamar a SQL
             listaVentasCache = _ventaNegocio.ListarHistorial(dtpDesde.Value, dtpHasta.Value, idUsuarioFiltro);
 
             ActualizarGrillaVisible(listaVentasCache);
