@@ -31,6 +31,9 @@ namespace AorusMarket.Formularios
         private readonly StockNegocio _stockNegocio = new StockNegocio();
         private readonly VentaNegocio _ventaNegocio = new VentaNegocio();
 
+        private decimal? _montoAbonado;
+        private enum Comprobante { Ninguno, Ticket, Factura, Ambos }
+
         private decimal totalAcumulado = 0;
 
         public FrmPuntoVenta()
@@ -358,6 +361,8 @@ namespace AorusMarket.Formularios
 
         private bool ValidarEfectivoOConfirmar(string metodoSeleccionado)
         {
+
+
             if (metodoSeleccionado == "Efectivo")
             {
                 decimal montoAbonado = PedirMontoEfectivo(totalAcumulado);
@@ -369,6 +374,7 @@ namespace AorusMarket.Formularios
                     return false;
                 }
 
+                _montoAbonado = montoAbonado;
                 decimal vuelto = montoAbonado - totalAcumulado;
                 return MessageBox.Show($"Total a cobrar: {totalAcumulado:C2}\nAbona con: {montoAbonado:C2}\n\nSU VUELTO ES: {vuelto:C2}\n\n¿Confirmar venta?", "Verificación", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
             }
@@ -379,6 +385,7 @@ namespace AorusMarket.Formularios
         private void BtnConfirmar_Click(object sender, EventArgs e)
         {
             _idAutorizante = null;
+            _montoAbonado = null;
 
             if (!ValidarPreVenta(out string metodoSeleccionado)) return;
             if (!AutorizarVentaDeMontoAlto()) return;
@@ -432,23 +439,32 @@ namespace AorusMarket.Formularios
             {
                 MessageBox.Show("¡Venta procesada con éxito!", "AorusMarket", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                if (MessageBox.Show("¿Desea generar y descargar la Factura en PDF ahora?", "Factura", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                // Se arman los datos antes de limpiar el carrito
+                List<DetalleHistorial> detallesPdf = new List<DetalleHistorial>();
+                foreach (DataGridViewRow row in dgvCarrito.Rows)
                 {
-                    List<DetalleHistorial> detallesPdf = new List<DetalleHistorial>();
-                    foreach (DataGridViewRow row in dgvCarrito.Rows)
+                    detallesPdf.Add(new DetalleHistorial()
                     {
-                        detallesPdf.Add(new DetalleHistorial()
-                        {
-                            NombreProducto = row.Cells[ColProducto].Value.ToString(),
-                            Cantidad = Convert.ToInt32(row.Cells[ColCantidad].Value),
-                            PrecioUnitario = Convert.ToDecimal(row.Cells[ColPrecioUnit].Value),
-                            SubTotal = Convert.ToDecimal(row.Cells[ColSubtotal].Value)
-                        });
-                    }
-
-                    string nombreCliente = cmbCliente.Text.Contains("-") ? cmbCliente.Text.Split('-')[1].Trim() : "Consumidor Final";
-                    GeneradorFactura.GenerarPDF(nuevaVenta.IdVenta, DateTime.Now.ToString("dd/MM/yyyy HH:mm"), nombreCliente, SesionActual.NombreCompleto, nuevaVenta.Total, nuevaVenta.MetodoPago, detallesPdf, true);
+                        NombreProducto = row.Cells[ColProducto].Value.ToString(),
+                        Cantidad = Convert.ToInt32(row.Cells[ColCantidad].Value),
+                        PrecioUnitario = Convert.ToDecimal(row.Cells[ColPrecioUnit].Value),
+                        SubTotal = Convert.ToDecimal(row.Cells[ColSubtotal].Value)
+                    });
                 }
+
+                string nombreCliente = cmbCliente.Text.Contains("-") ? cmbCliente.Text.Split('-')[1].Trim() : "Consumidor Final";
+                string fechaVenta = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+
+                Comprobante eleccion = PedirComprobante();
+
+                if (eleccion == Comprobante.Ticket || eleccion == Comprobante.Ambos)
+                    GeneradorTicket.GenerarTicket(nuevaVenta.IdVenta, fechaVenta, nombreCliente, SesionActual.NombreCompleto,
+                        SesionActual.NombreSucursal, nuevaVenta.Total, nuevaVenta.MetodoPago, detallesPdf, _montoAbonado);
+
+                if (eleccion == Comprobante.Factura || eleccion == Comprobante.Ambos)
+                    GeneradorFactura.GenerarPDF(nuevaVenta.IdVenta, fechaVenta, nombreCliente, SesionActual.NombreCompleto,
+                        nuevaVenta.Total, nuevaVenta.MetodoPago, detallesPdf, true);
+
                 LimpiarVenta();
             }
             else
@@ -456,6 +472,60 @@ namespace AorusMarket.Formularios
                 MessageBox.Show(mensaje, "Error en Venta", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+
+        private Comprobante PedirComprobante()
+        {
+            Comprobante eleccion = Comprobante.Ninguno;
+
+            using (System.Windows.Forms.Form dlg = new System.Windows.Forms.Form())
+            {
+                dlg.Text = "Comprobante";
+                dlg.ClientSize = new Size(460, 140);
+                dlg.StartPosition = FormStartPosition.CenterParent;
+                dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+                dlg.MaximizeBox = false;
+                dlg.MinimizeBox = false;
+                dlg.BackColor = EstiloApp.Fondo;
+
+                dlg.Controls.Add(new Label
+                {
+                    Text = "Venta registrada. ¿Qué comprobante desea generar?",
+                    ForeColor = Color.WhiteSmoke,
+                    Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
+                    Location = new Point(20, 20),
+                    AutoSize = true
+                });
+
+                void AgregarBoton(string texto, int x, int ancho, Color color, Comprobante valor)
+                {
+                    System.Windows.Forms.Button b = new System.Windows.Forms.Button
+                    {
+                        Text = texto,
+                        Location = new Point(x, 70),
+                        Size = new Size(ancho, 38),
+                        BackColor = color,
+                        ForeColor = Color.White,
+                        FlatStyle = FlatStyle.Flat,
+                        Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                        Cursor = Cursors.Hand
+                    };
+                    b.FlatAppearance.BorderSize = 0;
+                    b.Click += (s, e) => { eleccion = valor; dlg.Close(); };
+                    dlg.Controls.Add(b);
+                }
+
+                AgregarBoton("TICKET", 20, 100, EstiloApp.Verde, Comprobante.Ticket);
+                AgregarBoton("FACTURA", 130, 100, EstiloApp.Verde, Comprobante.Factura);
+                AgregarBoton("AMBOS", 240, 100, EstiloApp.Verde, Comprobante.Ambos);
+                AgregarBoton("NINGUNO", 350, 90, EstiloApp.Gris, Comprobante.Ninguno);
+
+                dlg.ShowDialog(this);
+            }
+            return eleccion;
+        }
+
+
 
         private void LimpiarVenta()
         {

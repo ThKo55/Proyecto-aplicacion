@@ -1,23 +1,24 @@
-﻿using System;
-using System.Drawing;
-using System.Windows.Forms;
+﻿using AorusMarket.Entidades;
 using AorusMarket.Negocio;
 using AorusMarket.Utilidades;
 using ReaLTaiizor.Controls;
+using System;
+using System.Drawing;
+using System.Windows.Forms;
 
 namespace AorusMarket.Formularios
 {
     public partial class FrmDetalleVenta : Form
     {
         private int idVenta;
-        private string fecha, cliente, cajero, metodoPago;
+        private string fecha, cliente, cajero, metodoPago, sucursal;
         private decimal total;
 
         private DataGridView dgvDetalle;
         private CyberButton btnDescargarPDF;
         private VentaNegocio _ventaNegocio = new VentaNegocio();
 
-        public FrmDetalleVenta(int idVenta, string fecha, string cliente, string cajero, decimal total, string metodoPago)
+        public FrmDetalleVenta(int idVenta, string fecha, string cliente, string cajero, decimal total, string metodoPago, string sucursal = "")
         {
             this.idVenta = idVenta;
             this.fecha = fecha;
@@ -25,8 +26,9 @@ namespace AorusMarket.Formularios
             this.cajero = cajero;
             this.total = total;
             this.metodoPago = metodoPago;
+            this.sucursal = sucursal;
 
-            this.ClientSize = new Size(600, 480);
+            this.ClientSize = new Size(600, 530);
             this.BackColor = Color.FromArgb(18, 18, 18);
             this.Text = "Detalle del Ticket";
             this.StartPosition = FormStartPosition.CenterParent;
@@ -71,7 +73,12 @@ namespace AorusMarket.Formularios
             };
             this.Controls.Add(lblTotal);
 
-            btnDescargarPDF = EstiloApp.CrearBoton("DESCARGAR PDF", new Point(340, 395), 220, EstiloApp.RojoNeon);
+            CyberButton btnTicket = EstiloApp.CrearBoton("GENERAR TICKET", new Point(20, 445), 260, EstiloApp.Verde);
+            btnTicket.Click += (s, e) => GeneradorTicket.GenerarTicket(idVenta, fecha, cliente, cajero, sucursal, total, metodoPago,
+                _ventaNegocio.ObtenerDetallesDeVenta(idVenta));
+            this.Controls.Add(btnTicket);
+
+            btnDescargarPDF = EstiloApp.CrearBoton("DESCARGAR FACTURA PDF", new Point(300, 445), 260, EstiloApp.RojoNeon);
             btnDescargarPDF.Click += BtnDescargarPDF_Click;
             this.Controls.Add(btnDescargarPDF);
 

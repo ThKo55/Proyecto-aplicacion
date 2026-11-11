@@ -75,6 +75,12 @@ namespace AorusMarket.Formularios
             btnAnular.Visible = (SesionActual.IdPerfil == 1 || SesionActual.IdPerfil == 4);
             this.Controls.Add(btnAnular);
 
+            CyberButton btnExportar = EstiloApp.CrearBoton("EXPORTAR EXCEL", new Point(x + 760, y + 10), 170, EstiloApp.Verde);
+            btnExportar.Click += (s, e) => ExportadorExcel.Exportar(dgvHistorial, "Historial de Ventas", "HistorialVentas",
+                $"Período: {dtpDesde.Value:dd/MM/yyyy} al {dtpHasta.Value:dd/MM/yyyy}");
+            this.Controls.Add(btnExportar);
+
+
             y += 60;
 
             AddLabelSobrio("FILTRAR POR:", new Point(x, y));
@@ -218,8 +224,9 @@ namespace AorusMarket.Formularios
                 string cajero = fila.Cells["Cajero"].Value.ToString();
                 decimal total = Convert.ToDecimal(fila.Cells["Total"].Value);
                 string metodoPago = fila.Cells["MetodoPago"].Value.ToString();
+                string sucursal = fila.Cells["Sucursal"].Value.ToString();
 
-                using (FrmDetalleVenta frm = new FrmDetalleVenta(idVenta, fecha, cliente, cajero, total, metodoPago))
+                using (FrmDetalleVenta frm = new FrmDetalleVenta(idVenta, fecha, cliente, cajero, total, metodoPago, sucursal   ))
                 {
                     frm.ShowDialog();
                 }

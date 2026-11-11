@@ -20,6 +20,8 @@ namespace AorusMarket.Formularios
 
         private ReporteNegocio _reporteNegocio = new ReporteNegocio();
 
+        private string _tituloReporteActual = "Reporte";
+
         public FrmReportes()
         {
             InitializeComponent();
@@ -100,6 +102,13 @@ namespace AorusMarket.Formularios
             };
 
             EstiloApp.EstilizarGrid(dgvReporte);
+
+            CyberButton btnExportarExcel = EstiloApp.CrearBoton("EXPORTAR EXCEL", new Point(this.ClientSize.Width - 230, 15), 200, EstiloApp.Verde);
+            btnExportarExcel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnExportarExcel.Click += (s, e) => ExportadorExcel.Exportar(dgvReporte, _tituloReporteActual, "Reporte",
+                $"Período: {dtpDesde.Value:dd/MM/yyyy} al {dtpHasta.Value:dd/MM/yyyy}");
+            this.Controls.Add(btnExportarExcel);
+
             this.Controls.Add(dgvReporte);
         }
 
@@ -125,6 +134,7 @@ namespace AorusMarket.Formularios
                 case 3: dgvReporte.DataSource = _reporteNegocio.VentasPorCajero(desde, hasta); break;
                 case 4: dgvReporte.DataSource = _reporteNegocio.VentasPorCategoria(desde, hasta); break;
             }
+            _tituloReporteActual = cmbTipoReporte.Text.Substring(3);
 
             DarFormatoColumnas();
         }

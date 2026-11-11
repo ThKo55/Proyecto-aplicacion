@@ -86,6 +86,10 @@ namespace AorusMarket.Formularios
             this.Controls.Add(btnEliminar);
             this.Controls.Add(btnLimpiar);
 
+            CyberButton btnExportar = EstiloApp.CrearBoton("EXPORTAR EXCEL", new Point(x + 480, y), 170, EstiloApp.Verde);
+            btnExportar.Click += (s, e) => ExportadorExcel.Exportar(dgvStock, "Stock por Sucursal", "Stock");
+            this.Controls.Add(btnExportar);
+
             y += 60;
             dgvStock = new DataGridView
             {

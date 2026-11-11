@@ -71,6 +71,11 @@ namespace AorusMarket.Formularios
             btnBuscar.Click += (s, e) => CargarGrilla();
             this.Controls.Add(btnBuscar);
 
+            CyberButton btnExportar = EstiloApp.CrearBoton("EXPORTAR EXCEL", new Point(x + 810, y + 10), 200, EstiloApp.Gris);
+            btnExportar.Click += (s, e) => ExportadorExcel.Exportar(dgvAuditoria, "Auditoría General", "Auditoria",
+                $"Período: {dtpDesde.Value:dd/MM/yyyy} al {dtpHasta.Value:dd/MM/yyyy}");
+            this.Controls.Add(btnExportar);
+
             y += 60;
             dgvAuditoria = new DataGridView
             {
