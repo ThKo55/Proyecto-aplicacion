@@ -15,10 +15,16 @@
 
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FrmLogin));
             this.SuspendLayout();
+            // 
+            // FrmLogin
+            // 
             this.ClientSize = new System.Drawing.Size(420, 560);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "FrmLogin";
             this.ResumeLayout(false);
+
         }
     }
 }
